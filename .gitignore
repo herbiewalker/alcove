@@ -1,0 +1,36 @@
+# ---- secrets & local config (NEVER commit) ----
+.env
+.env.*
+!.env.example
+*.key
+*.pem
+*.pfx
+secrets/
+/keys/
+
+# ---- real user data must never enter the repo ----
+# Tryst backups and anything Alcove stores hold real, private records. Belt and
+# braces: a stray export dragged into the working tree is ignored, not staged.
+*.tryst
+testdata/real/
+# NOTE: anchor runtime dirs with a leading slash, so they never match a source package.
+/data/
+/inbox/
+/vault/
+
+# ---- build output ----
+# NOTE: keep these anchored. An unanchored `alcove` would also match cmd/alcove/.
+/bin/
+/dist/
+/alcove
+/alcove.exe
+*.test
+*.out
+coverage.*
+
+# ---- tooling / IDE ----
+.idea/
+.vscode/
+*.swp
+.DS_Store
+Thumbs.db
