@@ -89,6 +89,8 @@ and ADRs they feed are reviewed.
 ## What it does (v1 scope)
 
 - **Upload** Tryst backups; keep every one as an immutable revision, verified by a real trial decrypt.
+- **Profiles and invites.** Prefill a member profile from the Tryst `profile` in their backup (each field opt-in
+  to share) and invite people to the server or a space with one-time, expiring, revocable invites (D-14).
 - **Multiple independent spaces**, each with its own members. A space owner approves who joins, and a
   person can belong to several spaces.
 - **Shared calendar overlay and compare metrics**, built only from what each member has chosen to share.

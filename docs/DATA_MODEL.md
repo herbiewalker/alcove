@@ -22,7 +22,8 @@
 | `session` | server-side, expiring, bound to a user; cleared on password reset |
 | `space` | id, name, status |
 | `membership` | user, space, role (owner or member), state (requested, active, left, removed), timestamps |
-| `invite` | one-time code or link, space or account scope, expiry, creator |
+| `invite` | one-time code or link stored as a hash, scope (server account or a space, with the role granted), target (new or existing account), expiry (default 7 days), creator, state (open, used, revoked, expired), redemption attempts |
+| `profile` | one per user: display name, avatar media, and optional demographic fields copied from a Tryst `profile` row (sex, gender, birth date, ethnicity, height, body type, orientation). Each field carries its own share setting (default private) and a pointer to the revision it was imported from |
 | `backup_password` | a member's stored Tryst backup password, encrypted, with label and optional hint |
 | `upload` | id, owner, original filename, SHA-256, size, Tryst schema version, stored blob path, verified at |
 | `revision` | id, owner, parent revision, kind (upload or edit), created by, created at |

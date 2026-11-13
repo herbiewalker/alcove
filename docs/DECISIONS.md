@@ -116,6 +116,23 @@
 - **Consequences:** same toolchain, release script and smoke-test pattern as Sanctum.
 
 ---
+## D-14 — Profiles come from Tryst; invites are one-time and offline
+- **Status:** Accepted
+- **Context:** a Tryst backup carries the user's own `profile` row (display name, photo, sex, gender, birth
+  date, ethnicity, height, body type, orientation). Typing that again in a new app is tedious, but most of those
+  fields are sensitive.
+- **Decision:** a member may **prefill** their Alcove profile from the `profile` row of an uploaded backup.
+  Display name and photo are offered by default; every other field is imported only if the member picks it.
+  Each profile field has its own share setting and defaults to private (constraint 5). A space shows member
+  cards built only from what is shared. **Invites** are single-use, expire (default 7 days), are stored as a
+  hash, can be revoked and are rate-limited on redemption. The admin invites people to the server; a space
+  owner invites people to a space, as a new or an existing account. No e-mail is sent: the link or code is
+  handed over in person or through the family's own channel.
+- **Alternatives:** import the whole profile automatically (leaks sensitive fields); open sign-up with approval
+  (breaks invite-only); e-mail invites (an outbound dependency, against constraint 3).
+- **Consequences:** a profile is a derived, editable copy tagged with the revision it came from; changing it in
+  Alcove does not change Tryst. Invite links on a LAN are only as private as the channel they travel on.
+
 
 ## Open questions
 > Decisions deferred on purpose. Each is a future ADR. Do not let these rot silently.
@@ -132,3 +149,6 @@
 - **O-7 — Admin search index.** How search over decrypted content is built and protected at rest.
 - **O-8 — Member activity view.** Whether to ship the optional "activity on my data" view and its default.
 - **O-9 — Shared library extraction.** When and how to extract `trystbk` for both projects.
+- **O-10 — Linking members to Tryst partners.** A member may appear as a named partner in someone else's
+  entries. Whether to let two members link "this partner is that account", to match shared encounters from both
+  sides in the compare view, and how that interacts with hiding partner names.

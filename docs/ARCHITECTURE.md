@@ -42,7 +42,8 @@
 | `internal/trystbk` | `TRYSTBK1` reader and writer: header, PBKDF2, streaming AEAD, ZIP and generic `data.json` tables |
 | `internal/store` | encrypted persistence: revisions, change-sets, media, soft-delete tombstones |
 | `internal/auth` | accounts, password hashing, sessions, rate limiting, TOTP, step-up |
-| `internal/spaces` | spaces, memberships, invites and join requests, roles |
+| `internal/spaces` | spaces, memberships, invites and join requests, roles, member profile cards |
+| `internal/profile` | profile prefill from a Tryst `profile` row, per-field share settings |
 | `internal/sharing` | sharing rules and the visibility check every view goes through |
 | `internal/views` | calendar overlay and compare metrics computed from shared rows |
 | `internal/edit` | change-sets, diff, history, restore from revisions |
@@ -61,9 +62,10 @@
 3. **Export.** Materialize a revision's tables (edited rows plus every untouched table and column), re-encrypt
    as a fresh `TRYSTBK1`, and offer it as a new file. Show the base upload, warn if a newer one exists, and
    show a diff first. Requires step-up re-login.
-4. **Share.** A member's sharing rules select rows; views read only through the sharing check. Isolation is
+4. **Profile and invite.** Prefill reads the `profile` row of a verified upload and proposes display name and photo; every other field is imported only if the member ticks it, each with its own private-by-default share setting. An invite is a random one-time token (only its hash is stored) with a scope, expiry and role; redeeming it creates an account or a membership. No e-mail is sent.
+5. **Share.** A member's sharing rules select rows; views read only through the sharing check. Isolation is
    tested across users and spaces.
-5. **Recover.** Deletes write tombstones; a user restores within 10 days, the admin within 45; retention purges later.
+6. **Recover.** Deletes write tombstones; a user restores within 10 days, the admin within 45; retention purges later.
 
 ## Cross-cutting concerns
 

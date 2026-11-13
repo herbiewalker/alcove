@@ -73,3 +73,9 @@
 - **R8 — The admin log can be rewritten by someone who can write the database.** The chain makes tampering
   detectable if the head is anchored elsewhere (exported or notified); it does not prevent it.
 - **R9 — Hints and notes are free text** a member may fill with something sensitive. Logs never contain them.
+- **R10 — Invite links.** An invite is a bearer token. Anyone who sees the link before it is used can redeem
+  it. Mitigated by single use, short expiry (default 7 days), revocation, hashed storage, redemption rate
+  limits, and joins that still need the space owner's approval. The admin log records issue, use and revoke.
+- **R11 — Profile fields are sensitive.** Sex, gender, birth date, ethnicity, body type and orientation can be
+  imported from a Tryst profile. Mitigated by importing only display name and photo by default, a separate
+  private-by-default share setting per field, and showing others only what is shared.

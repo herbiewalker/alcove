@@ -36,7 +36,7 @@
 
 ## M3 — Spaces, upload, revisions, recovery
 
-- [ ] Spaces, memberships, invites, join requests, leave and removal (F4 to F6)
+- [ ] Spaces, memberships, invites (F27), join requests, leave and removal (F4 to F6)
 - [ ] Upload and verify; immutable revisions; duplicate refusal (F7, F8)
 - [ ] User lifecycle: add, disable, delete with grace, reset, data download (F2, F3)
 - [ ] Soft delete with the 10 and 45 day windows and a real purge (F16, N13)
@@ -45,6 +45,7 @@
 ## M4 — Sharing, calendar overlay, compare
 
 - [ ] Resolve O-2; sharing rules per space, person, category and entry, pause, share all (F11)
+- [ ] Profile prefill from the Tryst profile with per-field sharing, and member cards (F26, F28; D-14)
 - [ ] Shared calendar overlay (F12), then compare metrics (F13)
 - **Exit:** default visibility is nothing; cross-user and cross-space tests pass.
 

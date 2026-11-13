@@ -29,6 +29,7 @@
 - **R7 Photos.** Share photos between members; location kept and shown only when the owner allows.
 - **R8 Admin.** Console for accounts, spaces, health, search over everything, and the admin log.
 - **R9 Recovery.** Soft delete with a 10 day user window and a 45 day admin window.
+- **R10 Profiles and invites.** Prefill a member profile from the Tryst profile in their backup (each field opt-in to share), and invite people to the server or a space with one-time, expiring, revocable invites.
 
 ## Non-goals (v1)
 
@@ -68,6 +69,9 @@
 | F23 | Encrypted instance backup and a tested restore drill | Must |
 | F24 | Optional notifications to the admin (failed logins, errors, no backup in 30 days) via one configured URL | Could |
 | F25 | Optional member-visible "activity on my data" view, off by default | Could |
+| F26 | A member can prefill their Alcove profile from the `profile` table of their uploaded backup (display name and photo by default; other fields only if chosen). Each profile field has its own share setting and defaults to private | Should |
+| F27 | Invites: an admin invites a person to the server; a space owner invites a person to a space (new or existing account). Invites are single-use, expire (default 7 days), are stored hashed, can be revoked, and are rate-limited on redemption. No e-mail is sent; the link or code is handed over in person or by the family's own channel | Must |
+| F28 | A space shows its members as profile cards built from what each has chosen to share, plus pending invites and join requests for the owner | Should |
 
 ## Non-functional requirements
 
