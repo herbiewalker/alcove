@@ -49,13 +49,14 @@
 
 ## M2b — Accounts, admin log, UI shell
 
-- [ ] First-run admin; accounts; password hashing; sessions; rate limiting; step-up re-login
-- [ ] Append-only hash-chained admin log, its verifier (N5), and a **basic log viewer**
-- [ ] Strict CSP and a **mobile-first** responsive UI shell (light, dark, auto), reusing Sanctum's approach (D-22)
-- [ ] Use the Alcove logo (`docs/img/alcove-logo.png`, `deploy/icon.png`): header mark and favicon need a square crop of the A and heart without the wordmark, with a dark and a light variant
-- [ ] Transport security per D-23: CSRF tokens, allowed networks (private ranges by default), proxy mode, insecure-connection banner and require-TLS mode, with the auto-revert on allowed-network changes (F32, N17)
-- **Exit:** no unauthenticated route creates an account; the chain verifies and a tampered entry is detected; the shell
-  is usable on a phone-width screen with the keyboard and touch.
+- [x] First-run admin (one-time setup code from the server log, D-27); accounts; Argon2id password hashing; sessions; rate limiting; step-up re-login; password change that signs out other devices
+- [x] Append-only hash-chained admin log (`internal/adminlog`), its verifier (N5) and a **basic log viewer** with a "verify now" button. The database also refuses edits and deletes of log rows (trigger), and a head anchor catches entries cut off the end
+- [x] Strict CSP and a **mobile-first** responsive UI shell (light, dark, auto): no inline script or style, no external font or image, 44 px touch targets, no sideways scroll at 375 px (checked in a phone-sized browser, which caught and fixed one overflow)
+- [x] The Alcove logo: `tools/logocrop` makes the square A-and-heart mark and favicons from the master logo. One tile with its own deep-purple background serves both themes (a separate light variant was judged unnecessary: the rounded tile reads well on light and dark)
+- [x] Transport security per D-23: CSRF tokens (per-session, and a signed double-submit token before sign-in) plus a cross-site fetch check, allowed networks (private ranges, loopback and Tailscale by default), proxy mode, insecure-connection banner and require-TLS mode, with the 60-second auto-revert on allowed-network changes (F32, N17). Environment values win and show as "set by environment"
+- [x] The unlock page for a passphrase-wrapped key (promised in M2a), rate limited
+- [ ] Optional TOTP for admins *(not in this milestone; F20 stays with M9, O-5 open)*
+- **Exit:** met 2026-11-13 in tests and in a phone-sized browser (the image smoke in CI and the live smoke confirm it on Linux): no unauthenticated route creates an account (every POST route is hit unauthenticated, before and after first run); the chain verifies and eight kinds of tampering are detected; the shell is usable on a phone-width screen with the keyboard and touch.
 
 ## M3 — Spaces, upload, revisions, recovery *(real data starts here)*
 

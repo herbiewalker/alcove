@@ -548,17 +548,22 @@ func (s *Server) routes_() {
 		if err != nil {
 			panic(err) // embedded at build time; a missing file is a build error
 		}
-		s.mux.HandleFunc("GET /static/"+name, func(w http.ResponseWriter, r *http.Request) {
+		// Revalidate every time (a cheap 304) so an upgrade shows at once, never a stale stylesheet.
+		sum := sha256.Sum256(b)
+		etag := `"` + base64.RawURLEncoding.EncodeToString(sum[:12]) + `"`
+		serve := func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Content-Type", ctype)
-			w.Header().Set("Cache-Control", "public, max-age=3600")
+			w.Header().Set("Cache-Control", "no-cache")
+			w.Header().Set("ETag", etag)
+			if r.Header.Get("If-None-Match") == etag {
+				w.WriteHeader(http.StatusNotModified)
+				return
+			}
 			_, _ = w.Write(b)
-		})
+		}
+		s.mux.HandleFunc("GET /static/"+name, serve)
 		if name == "mark-32.png" {
-			s.mux.HandleFunc("GET /favicon.ico", func(w http.ResponseWriter, r *http.Request) {
-				w.Header().Set("Content-Type", ctype)
-				w.Header().Set("Cache-Control", "public, max-age=3600")
-				_, _ = w.Write(b)
-			})
+			s.mux.HandleFunc("GET /favicon.ico", serve)
 		}
 	}
 	serveStatic("app.css", "text/css; charset=utf-8")

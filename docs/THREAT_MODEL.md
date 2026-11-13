@@ -45,7 +45,7 @@
 | T5 reads a pulled disk | Data encrypted at rest; the key file lives outside the data directory and the app refuses to start otherwise (N2) |
 | T6 sends a hostile backup | Header bounds, Zip-Slip validation, size and entry caps, streaming, clean rejection (N9) |
 | T7 modifies stored uploads | SHA-256 recorded and re-verified; AEAD fails on a flipped byte; uploads are immutable (N6) |
-| T8 steals a password | Optional TOTP for admins, session expiry and rate limits, step-up for sensitive actions |
+| T8 steals a password | Argon2id hashing, 30-minute idle and 12-hour absolute sessions, sign-in rate limiting, step-up for sensitive actions, password change signs out other devices (M2b). Optional TOTP for admins comes later (R17) |
 | Admin misuse | Hash-chained admin log of every view, search, edit, restore and export (N5) |
 | Logs leak content | Logs carry ids, field names and counts only; a log-scrape test (N4) |
 | A bad export corrupts the phone | Emulator-proven writer, diff and base-revision warning before export, immutable originals kept (N8) |
@@ -98,6 +98,18 @@ from the admin, D-3 must be revisited (per-owner keys, browser-side decryption),
   them (T2). The default accepts this on a secured, password-protected wifi. Options in D-23: reverse-proxy mode (Caddy, Nginx Proxy Manager or `tailscale serve`) for real HTTPS, allowed networks (private LAN ranges by default), an insecure-connection banner and a require-TLS mode. Cookies are `HttpOnly` and `SameSite=Strict` with CSRF tokens in every mode. The
   README and runbook say so plainly. Uploaded files are still encrypted under the member's backup password, but the
   decrypted views are not.
+- **R16 — First-run claim by a device on the LAN (D-27).** Until the first administrator exists, anyone who can reach the
+  server could race to create it. The setup page therefore needs a one-time code that exists only in the container log, so
+  claiming the server needs both network access and log access (the operator). The code is logged on purpose at the Warn
+  level, once per start while there are no accounts, and is cleared when the account is made. Anyone who can read that
+  log can already read far more, so this adds no new reader.
+- **R17 — Password guessing and no second factor yet (D-27).** A device on the LAN can guess passwords. Argon2id makes each
+  guess cost about 100 to 200 ms and 64 MiB, a per-address limit allows ten tries and then one every 20 seconds, and a
+  password must be at least 10 characters. There is deliberately **no per-account lockout**, because that would let anyone
+  on the wifi lock the admin out. A distributed guesser on many addresses is slowed, not stopped. TOTP for admins is
+  planned (F20); until then a long passphrase is the control, and the admin log records every admin sign-in.
+- **R18 — Sessions end on restart (D-27).** They live in memory by design (nothing to steal from disk, nothing to
+  purge), so a container restart signs everyone out. Accepted: a phone user signs in again.
 - **R15 — A purge is complete only after the backups that predate it age out (D-26).** Destroying a user's wrapped data key makes their
   photos unreadable on the live instance. Older sealed generations and instance backups still contain that key, so they can still
   open the blobs they also contain. Mitigated by retention on instance backups and by saying so plainly in the runbook.

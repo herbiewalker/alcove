@@ -367,6 +367,44 @@ is a recurring check, not a one-off.
   still contain that key until they age out, so a purge is complete only after the backups that predate it are gone.
 
 
+## D-27 — Accounts, sessions and the web layer (implements D-6, D-22, D-23 in M2b)
+- **Status:** Accepted
+- **Context:** M2b adds the first accounts, the admin log and the web UI. Each piece has a security consequence that deserves a
+  stated reason, because a household server that anyone on the wifi can reach is the threat (T2).
+- **Decision:**
+  1. **First run needs a one-time setup code.** With no accounts, every page redirects to `/setup`, which asks for a code printed
+     once to the container log (Warn level, `setup_code`). Without it a device on the LAN could claim the server before its owner
+     does. `/setup` is the only route that creates an account; it works once, then returns 404 (constraint 11, tested by hitting
+     every POST route unauthenticated before and after first run).
+  2. **Passwords are Argon2id** (64 MiB, three passes, two lanes), with the cost stored in each hash so it can be raised later and a
+     weaker hash is upgraded at the next sign-in. At most two hashes run at once, so a burst cannot exhaust the container. An
+     unknown or disabled account is checked against a dummy hash, so every failure takes the same time and says the same words.
+     Passwords are 10 to 256 bytes; the policy is a floor, not a strength meter.
+  3. **No per-account lockout.** Lockout lets anyone on the wifi lock the admin out. A per-address token bucket (ten tries, then
+     one every 20 seconds) plus the hash cost slows guessing instead.
+  4. **Sessions live in memory,** 32 random bytes, 30 minutes idle and 12 hours absolute, `HttpOnly`, `SameSite=Strict`, `Secure`
+     when the connection is encrypted. A restart signs everyone out (R18). Each carries its own CSRF token.
+  5. **Step-up** (re-enter the password, valid five minutes) guards the transport settings. Every admin view and action, including
+     the log viewer and the settings page, appends an admin-log entry in the same transaction as the action.
+  6. **CSRF:** every POST needs a token. Signed in, it is the session's token. Before sign-in it is an HMAC of a random pre-session
+     cookie (signed double submit). A request with `Sec-Fetch-Site: cross-site` is refused outright.
+  7. **The admin log is chained and anchored.** Each entry's hash covers the previous hash; a head anchor in `meta` is updated in
+     the same transaction, so cutting entries off the end is caught; the database refuses `UPDATE` and `DELETE` on the table by
+     trigger (the chain, not the trigger, is the real defence, and tests drop the trigger to prove it). Free-text fields accept only
+     identifier characters, so content cannot be logged by accident (constraint 8).
+  8. **The network gate runs before everything else** and a request from outside the allowed networks gets a bare 403. A direct
+     loopback peer is let through so the container healthcheck works whatever the list says, but a same-host proxy forwarding a
+     public client is still refused. Turning require-TLS on is accepted only from an already-encrypted connection, and an
+     allowed-networks list that excludes the admin's own address is refused, because lockout is the failure to design out.
+  9. **Static files revalidate with an ETag** (`no-cache`), so an upgrade shows at once. A one-hour cache was tried first and hid a
+     stylesheet fix in testing.
+- **Alternatives:** a setup code via environment variable (leaks in `docker inspect`); sessions in the database (adds a stolen-cookie
+  store to disk for no gain at this scale); account lockout (a denial of service by any device on the wifi); inline styles with a
+  nonce (a same-origin stylesheet lets the CSP stay `style-src 'self'` with no exceptions).
+- **Consequences:** a typo in `ALCOVE_ALLOWED_NETWORKS` stops the start rather than opening the door. Environment values win over the
+  console and are the break-glass path. TOTP, invites and account administration come in later milestones; until then the only
+  account is the administrator's.
+
 ## Open questions
 > Decisions deferred on purpose. Each is a future ADR. Do not let these rot silently.
 

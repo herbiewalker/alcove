@@ -91,7 +91,7 @@ body {
   letter-spacing: 0.01em;
 }
 .brand img { border-radius: 10px; display: block; }
-nav { display: flex; flex-wrap: wrap; gap: 4px; margin-left: auto; }
+nav { display: flex; flex-wrap: wrap; gap: 4px; flex: 1 1 100%; justify-content: space-between; }
 nav a, nav button {
   min-height: 44px;
   display: inline-flex;
@@ -180,7 +180,8 @@ table { border-collapse: collapse; width: 100%; font-size: 0.875rem; }
 th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); vertical-align: top; white-space: nowrap; }
 th { color: var(--muted); font-weight: 600; }
 tr:last-child td { border-bottom: 0; }
-code, .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 0.85em; }
+code, .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 0.85em; overflow-wrap: anywhere; }
+td code { overflow-wrap: normal; }
 .pager { display: flex; justify-content: space-between; gap: 10px; margin-top: 12px; }
 
 /* Footer */
@@ -211,5 +212,6 @@ footer {
 @media (min-width: 40rem) {
   main { padding-top: 32px; }
   .top { padding: 12px 24px; }
+  nav { flex: 0 0 auto; margin-left: auto; justify-content: flex-end; }
 }
 @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }

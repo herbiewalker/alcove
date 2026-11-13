@@ -8,7 +8,7 @@
 #   ./scripts/smoke-live.sh                              # uses image alcove:dev
 #   IMAGE=ghcr.io/herbiewalker/alcove:stable ./scripts/smoke-live.sh
 #
-# Checks (M2a):
+# Checks (M2a, M2b):
 #   1. keygen makes a key file deliberately, keycheck proves it, and keygen never overwrites it
 #   2. no key: refuses to start and says how to fix it; nothing is created
 #   3. a key inside the data directory: refuses to start
@@ -17,9 +17,10 @@
 #   5. docker stop shuts down gracefully, and the data volume holds ciphertext only
 #   6. a restart with the same key needs no human step
 #   7. a different key is refused cleanly and leaves the sealed data untouched
+#   8. first run goes to /setup, the setup code is in the log, strict CSP, CSRF refusal, and the
+#      allowed-networks gate refuses a public caller and serves a LAN one (M2b)
 #
 # Checks that arrive with their milestone (each prints SKIP until then, never a fake PASS):
-#   - M2b: allowed networks refuse a public-address request
 #   - M3:  a large upload from a phone-sized client is accepted, an oversize one gets a fast 413,
 #          and a change made just before `docker kill` is still there after the restart
 #
@@ -125,8 +126,23 @@ after=$(sha256sum "$DIR/data/alcove.sealed" | cut -d' ' -f1)
 if [ $rc -ne 0 ] && echo "$out" | grep -qi "unseal failed\|wrong key"; then pass "refused: wrong key"; else fail "wrong-key start: rc=$rc out=$out"; fi
 [ "$before" = "$after" ] && pass "the sealed data was not touched" || fail "a wrong key changed the sealed data"
 
+say "8. first run, headers and the network gate (M2b, N17)"
+docker run -d --name "$NAME" -p "127.0.0.1:${PORT}:8080" "${FLAGS[@]}" -e ALCOVE_TRUSTED_PROXIES=172.16.0.0/12 \
+  -v "$DIR/keys/alcove.key:/run/keys/alcove.key:ro" -v "$DIR/data:/data" "$IMG" >/dev/null
+wait_health >/dev/null || fail "no /healthz for the M2b checks"
+code=$(curl -s -o /dev/null -w '%{http_code} %{redirect_url}' "http://127.0.0.1:${PORT}/")
+case "$code" in "303 "*"/setup") pass "no accounts yet: / goes to /setup" ;; *) fail "first run did not redirect to /setup: $code" ;; esac
+docker logs "$NAME" 2>&1 | grep -q 'setup_code' && pass "the one-time setup code is in the container log" || fail "no setup code in the log"
+curl -fsS "http://127.0.0.1:${PORT}/setup" | grep -q 'consenting adults' && pass "setup page states adults only, invite only" || fail "no adults-only notice"
+curl -sI "http://127.0.0.1:${PORT}/setup" | grep -qi "^content-security-policy:.*default-src 'none'" && pass "strict Content-Security-Policy" || fail "CSP missing or loose"
+pc=$(curl -s -o /dev/null -w '%{http_code}' -X POST -d 'username=intruder&password=intruder-password' "http://127.0.0.1:${PORT}/setup")
+[ "$pc" = "403" ] && pass "a form without a CSRF token is refused" || fail "CSRF: got $pc"
+pub=$(curl -s -o /dev/null -w '%{http_code}' -H 'X-Forwarded-For: 203.0.113.9' "http://127.0.0.1:${PORT}/static/app.css")
+lan=$(curl -s -o /dev/null -w '%{http_code}' -H 'X-Forwarded-For: 192.168.1.5' "http://127.0.0.1:${PORT}/static/app.css")
+[ "$pub" = "403" ] && [ "$lan" = "200" ] && pass "a public caller is refused, a LAN caller is served" || fail "network gate: public=$pub lan=$lan"
+docker stop -t 15 "$NAME" >/dev/null; docker rm "$NAME" >/dev/null
+
 say "later milestones"
-skip "M2b: allowed networks refuse a public address"
 skip "M3: large upload accepted, oversize upload gets a fast 413"
 skip "M3: a change made just before docker kill survives the restart"
 

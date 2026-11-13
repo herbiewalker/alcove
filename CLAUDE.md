@@ -17,9 +17,9 @@ stays small and never shows data) and a companion to **[Tryst](https://github.co
 [`tryst/docs/EXPORT_FORMAT.md`](../tryst/docs/EXPORT_FORMAT.md) before touching any crypto or any
 backup reading or writing here.
 
-**Status: design phase.** No feature code yet. Kickoff produced the scaffold and these documents; the
-next step is the design-docs pass, then milestone M0. Do not write feature code before the design docs
-and ADRs they feed are reviewed.
+**Status: early build (M2b done).** The server, storage, accounts, admin log and UI shell exist; Tryst data handling arrives with M3. The
+next step is whatever `docs/ROADMAP.md` lists first. A change of design needs an ADR in
+`docs/DECISIONS.md` before the code.
 
 ---
 

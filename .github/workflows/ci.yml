@@ -167,6 +167,24 @@ jobs:
           echo "$out" | grep -qi "unseal failed\|wrong key" || { echo "$out"; echo "::error::wrong-key message"; exit 1; }
           after=$(sudo sha256sum "$W/data/alcove.sealed" | cut -d' ' -f1)
           [ "$before" = "$after" ] || { echo "::error::a wrong key changed the sealed data"; exit 1; }
+
+          # 8. M2b: first run, the setup code, the security headers and the network gate (N17),
+          # exercised against the real image. The docker bridge range is made a trusted proxy so
+          # the runner can send a forwarded client address, which stands in for a public caller.
+          docker run -d --name alcove-ci2 -p 18081:8080 $RUNFLAGS -e ALCOVE_TRUSTED_PROXIES=172.16.0.0/12 \
+            -v "$W/keys/alcove.key:/run/keys/alcove.key:ro" -v "$W/data:/data" $IMG >/dev/null
+          for i in $(seq 1 30); do curl -fsS http://127.0.0.1:18081/healthz >/dev/null 2>&1 && break; sleep 1; done
+          code=$(curl -s -o /dev/null -w '%{http_code} %{redirect_url}' http://127.0.0.1:18081/)
+          case "$code" in "303 "*"/setup") ;; *) docker logs alcove-ci2; echo "::error::first run did not redirect to /setup: $code"; exit 1 ;; esac
+          docker logs alcove-ci2 2>&1 | grep -q 'setup_code' || { echo "::error::no setup code in the log"; exit 1; }
+          curl -fsS http://127.0.0.1:18081/setup | grep -q 'consenting adults' || { echo "::error::setup page lacks the adults-only notice"; exit 1; }
+          curl -sI http://127.0.0.1:18081/setup | grep -qi '^content-security-policy:.*default-src .none.' || { echo "::error::no strict CSP"; exit 1; }
+          pc=$(curl -s -o /dev/null -w '%{http_code}' -X POST -d 'username=intruder&password=intruder-password' http://127.0.0.1:18081/setup)
+          [ "$pc" = "403" ] || { echo "::error::a form without a CSRF token was not refused: $pc"; exit 1; }
+          pub=$(curl -s -o /dev/null -w '%{http_code}' -H 'X-Forwarded-For: 203.0.113.9' http://127.0.0.1:18081/static/app.css)
+          lan=$(curl -s -o /dev/null -w '%{http_code}' -H 'X-Forwarded-For: 192.168.1.5' http://127.0.0.1:18081/static/app.css)
+          [ "$pub" = "403" ] && [ "$lan" = "200" ] || { echo "::error::network gate: public=$pub lan=$lan"; exit 1; }
+          docker stop -t 15 alcove-ci2 >/dev/null; docker rm alcove-ci2 >/dev/null
           echo "smoke OK"
 
       # Secrets scan matters as much as CVEs: the image must never carry key material

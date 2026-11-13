@@ -18,8 +18,8 @@
 
 | Entity | Notes |
 |--------|-------|
-| `user` | id, login, display name, role flag (admin), password hash, TOTP secret (encrypted), status (active, disabled, deleted), timestamps |
-| `session` | server-side, expiring, bound to a user; cleared on password reset |
+| `user` | id, login, display name, role (admin or member), password hash (Argon2id), status (active, disabled; `deleted` and a TOTP secret arrive with their features), timestamps. **Built in M2b** |
+| `session` | server-side, expiring, bound to a user; cleared on password reset. **Held in process memory, not in the database** (D-27): a restart signs everyone out |
 | `space` | id, name, status, `join_approval` (`owner` in v1; `all_members` later) |
 | `membership` | user, space, role (owner or member), state (requested, active, left, removed), timestamps |
 | `invite` | one-time code or link stored as a hash, scope (server account or a space, with the role granted), target (new or existing account), expiry (default 7 days), creator, state (open, used, revoked, expired), redemption attempts |
@@ -89,3 +89,13 @@ associated data, created at) and the FTS5 table `search` (owner id, kind and ref
 `blobs/<owner>/u/<id>` (uploads, verbatim, read-only) and `blobs/<owner>/m/<id>` (photos, encrypted under the owner's data key).
 Owner ids and blob ids are limited to letters, digits, `-` and `_`, so a hostile name cannot leave its directory. The domain tables
 arrive with M2b and M3, each as an additive forward migration.
+
+## Implemented in M2b (store schema v2)
+
+`user` (id, unique case-insensitive username, display name, role `admin` or `member`, status `active` or `disabled`, Argon2id password
+hash, created at, last sign-in) and `admin_log` (sequence, time, actor, action, target type and id, fields touched, previous hash, hash).
+Two triggers make the database itself refuse an `UPDATE` or `DELETE` on `admin_log`; the hash chain, not the triggers, is the real
+defence, and the tests drop the triggers to prove the chain catches the edit. `meta` gains `adminlog.head` (the last sequence and hash,
+updated in the same transaction as every entry, so cutting entries off the end is detected) and the console settings
+`setting.allowed_networks`, `setting.proxy_mode`, `setting.trusted_proxies` and `setting.require_tls`. Sessions are not stored (D-27).
+Free-text columns of `admin_log` accept only identifier characters, so no content can be logged by accident.

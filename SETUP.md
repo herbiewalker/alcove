@@ -28,6 +28,14 @@
   box only: on Linux the server otherwise refuses a scratch directory that is not tmpfs, so decrypted
   data cannot reach disk.
 - `ALCOVE_SEAL_EVERY_SECONDS` (default 10) is how often a changed database is sealed.
+- **First run:** with no accounts the server logs a one-time setup code (`setup_code`, Warn level). Open the server in a
+  browser, enter the code and create the administrator. In Unraid read it in the container's log. The code is not stored and a
+  new one is made at each start until the first account exists.
+- Transport security (D-23), all optional and all winning over the admin console when set (the break-glass path):
+  `ALCOVE_ALLOWED_NETWORKS` (CIDR ranges; default is the private LAN ranges, loopback and Tailscale),
+  `ALCOVE_TRUSTED_PROXIES` (proxy addresses whose forwarded client address is believed), `ALCOVE_PROXY_MODE` and
+  `ALCOVE_REQUIRE_TLS` (`true` or `false`). A typo stops the start instead of opening the door.
+- The header mark and favicons are generated from the master logo: `go run ./tools/logocrop docs/img/alcove-logo.png internal/server/static`.
 - Secrets never go in env vars in the repo. The data key lives in a key file kept **outside** the data
   directory (see CLAUDE.md constraint 4). `.env` files are gitignored.
 

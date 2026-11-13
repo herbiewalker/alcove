@@ -8,6 +8,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) · Versioning: 
 ## [Unreleased]
 
 ### Added
+- M2b accounts, admin log and UI shell: first-run setup with a one-time code from the server log, Argon2id sign-in, sessions with step-up, a hash-chained admin log with a viewer and a verify button, the mobile-first light/dark/auto UI with the Alcove mark, strict CSP and CSRF, the network gate (allowed networks, proxy mode, require-TLS, a 60-second self-reverting change) and its environment overrides, and the web unlock page for a passphrase-wrapped key (D-27, schema v2). Smoke checks in CI and `scripts/smoke-live.sh` cover first run, the headers and the gate on the real image.
 - M2a storage foundation: the master key file (`alcove keygen`, `alcove keycheck`, optional passphrase-wrapped form), the sealed in-memory database with full-text search and per-user data keys (`internal/store`, `internal/seal`), the blob store, startup that refuses to run with the key inside the data directory, a missing or wrong key, or a scratch directory that is not tmpfs, and the armed `no-plaintext` guard. Smoke checks in CI and `scripts/smoke-live.sh` cover the real image.
 - S1 round-trip spike (emulator, Tryst 0.6.5, schema v19): wipe-first restore is exact, merge restore deletes partner links, ZIP entries must be DEFLATED. Findings in the D-15 addendum; synthetic generator now writes DEFLATED media entries (regression test).
 - The Alcove logo: `docs/img/alcove-logo.png` (master), `deploy/icon.png` (512 px, for Unraid and the README).

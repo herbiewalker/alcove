@@ -41,7 +41,9 @@
 | `internal/config` | env-only config; refuses to start if the key file is inside the data directory |
 | `internal/trystbk` | `TRYSTBK1` reader and writer: header, PBKDF2, streaming AEAD, ZIP and generic `data.json` tables |
 | `internal/store` | encrypted persistence: revisions, change-sets, media, soft-delete tombstones |
-| `internal/auth` | accounts, password hashing, sessions, rate limiting, TOTP, step-up |
+| `internal/auth` | accounts, Argon2id password hashing, in-memory sessions with a step-up window, sign-in rate limiting (M2b). TOTP arrives later |
+| `internal/netsec` | D-23 transport security: allowed networks, proxy mode and client-address resolution, require-TLS, and the self-reverting network change (M2b) |
+| `internal/server` | M2b web layer: the middleware chain (security headers, network gate, locked and first-run gates), CSRF, templates and static files, sign-in, first run, the admin console, log viewer and network settings |
 | `internal/spaces` | spaces, memberships, invites and join requests, roles, member profile cards |
 | `internal/profile` | profile prefill from a Tryst `profile` row, per-field share settings |
 | `internal/sharing` | the visibility check every view goes through: space membership, pause, per-entry private flag, include settings |

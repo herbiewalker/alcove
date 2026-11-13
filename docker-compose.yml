@@ -58,6 +58,12 @@ services:
       ALCOVE_DATA_DIR: "/data"
       ALCOVE_KEY_FILE: "/run/keys/alcove.key"
       ALCOVE_TMP_DIR: "/tmp/alcove"
+      # Transport security (D-23). Empty means "not set": the admin console decides. A value set
+      # here wins over the console and is the break-glass path if you lock yourself out.
+      ALCOVE_ALLOWED_NETWORKS: "${ALCOVE_ALLOWED_NETWORKS:-}"
+      ALCOVE_TRUSTED_PROXIES: "${ALCOVE_TRUSTED_PROXIES:-}"
+      ALCOVE_PROXY_MODE: "${ALCOVE_PROXY_MODE:-}"
+      ALCOVE_REQUIRE_TLS: "${ALCOVE_REQUIRE_TLS:-}"
       TZ: "${TZ:-UTC}"
 
     # --- resource limits: cannot starve the host -----------------------------
