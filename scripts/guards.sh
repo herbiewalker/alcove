@@ -6,7 +6,7 @@
 # broken; principle 4: one source). The Makefile, bootstrap.ps1 and CI all call
 # THIS script; do not reimplement a guard anywhere else.
 #
-# Usage:  scripts/guards.sh [all|digest-pin|no-secrets|no-outbound]
+# Usage:  scripts/guards.sh [all|digest-pin|no-secrets|no-outbound|no-plaintext]
 #
 # Runs on Git Bash (Windows dev box) and on Ubuntu (CI). Keep it POSIX-ish.
 # Guards that need code which does not exist yet report SKIP, never a fake OK.
@@ -90,14 +90,31 @@ guard_no_outbound() {
   pass "no-outbound: no network client code outside internal/notify and the healthcheck probe"
 }
 
+# --- hard constraint 4 / N16: no plaintext user data on the data volume -----------
+# Armed when internal/store exists (M2): a Go test ingests a synthetic dataset and
+# scans the data directory for ZIP magic, JSON and a sentinel string.
+guard_no_plaintext() {
+  if [ ! -d internal/store ]; then
+    skip "no-plaintext: no storage layer yet (arrives in M2)"
+    return
+  fi
+  if go test -run TestGuard_NoPlaintext -count=1 ./internal/store/ >/tmp/alcove-guard.log 2>&1; then
+    pass "no-plaintext: no plaintext found on the data volume"
+  else
+    fail "no-plaintext: TestGuard_NoPlaintext failed"
+    sed -n 's/^/        /p' /tmp/alcove-guard.log | head -20
+  fi
+}
+
 main() {
   local what="${1:-all}"
   echo "alcove constraint guards (${what})"
   case "$what" in
-    all)         guard_digest_pin; guard_no_secrets; guard_no_outbound ;;
+    all)         guard_digest_pin; guard_no_secrets; guard_no_outbound; guard_no_plaintext ;;
     digest-pin)  guard_digest_pin ;;
     no-secrets)  guard_no_secrets ;;
     no-outbound) guard_no_outbound ;;
+    no-plaintext) guard_no_plaintext ;;
     *) echo "unknown guard: $what" >&2; exit 2 ;;
   esac
 

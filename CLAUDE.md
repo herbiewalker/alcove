@@ -46,7 +46,9 @@ and ADRs they feed are reviewed.
    image, `docker-compose.yml`, or the data volume. The app **refuses to start** if its key file sits
    inside the data directory. (This replaces Sanctum's "key never at rest": Alcove starts unattended
    so members never wait on the admin. A locked mode with a typed passphrase stays an option, ADR D-4.)
-   *Guard:* `scripts/guards.sh no-secrets`; a startup test for the key-file location; trivy secret scan.
+   Decrypted user data exists only in memory or tmpfs, never on the data volume (D-16).
+   *Guard:* `scripts/guards.sh no-secrets`; a startup test for the key-file location; trivy secret scan;
+   `scripts/guards.sh no-plaintext` (armed when storage lands in M2).
 
 5. **Sharing is opt-in and private by default.** Nothing is visible to another member until its owner
    shares it: per space, per person, per category, per entry, with a one-tap **pause** and a

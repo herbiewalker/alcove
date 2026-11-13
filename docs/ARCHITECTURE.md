@@ -76,3 +76,31 @@
 - **Persistence and migrations** are in [DATA_MODEL.md](DATA_MODEL.md).
 - **Schema drift.** Tryst's schema moves. The reader is generic; only a named set of editable fields is typed,
   and an unsupported newer schema is refused or opened read-only (F10).
+
+## Storage and keys (D-16, proposed)
+
+```
+ key file (outside the data dir) ──► master key ──┬─► seals the database blob
+                                                  └─► wraps each user's data key ─► encrypts that user's photos
+ tmpfs:  alcove.db (SQLite, FTS5 index inside)  ──sealed every few seconds and after important writes──►  data dir
+ data dir:  sealed database (+ previous generation) · original uploads (as Tryst wrote them) · encrypted photos
+```
+
+- **Structured data** (accounts, spaces, shares, change-sets, row cache, search index) lives in SQLite on tmpfs and is
+  sealed to the data directory, with one previous generation kept (Sanctum's pattern). Uploads and edits seal at once.
+- **Blobs** are files: uploads exactly as Tryst wrote them, photos re-encrypted under the owner's data key.
+- **Locked mode.** If the key file is itself wrapped by an Argon2id key from a typed passphrase, the server starts locked.
+- **No plaintext on the volume.** Decrypted data lives only in memory or tmpfs; `guards.sh no-plaintext` proves it.
+- **Search** is FTS5 in the same sealed database (D-17).
+
+## Restore modes and the export flow (D-15)
+
+Tryst restores in one of two modes. **Wipe first** replaces everything, so server deletions propagate and any phone
+entry newer than the backup is lost. **Merge** overwrites rows by id and adds new ones, but deletions do not
+propagate and link rows can cascade. The export guide asks the user to confirm a fresh phone backup first, recommends a
+mode, and shows a diff of what each mode would change.
+
+## Riskiest assumption
+
+That a sealed in-memory database plus per-user data keys is enough at household scale without surprising RAM use or
+losing recent writes on a crash. Mitigation: seal on every important write; measure with a synthetic large dataset in M2.

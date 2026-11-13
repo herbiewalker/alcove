@@ -58,7 +58,7 @@
 | F12 | Shared calendar overlay computed only from shared rows | Must |
 | F13 | Compare metrics across members of a space (set defined in O-2) | Should |
 | F14 | Edit an entry's editable fields (O-3) in the browser; each save is a revision with a diff | Must |
-| F15 | Export a revision to a fresh `.tryst`; show which upload it is based on, warn if a newer upload exists, show a diff first | Must |
+| F15 | Export a revision to a fresh `.tryst`; show which upload it is based on, warn if a newer upload exists, show a diff first, and give a guided restore procedure (D-15) | Must |
 | F16 | Soft delete everywhere; "recently deleted" restore for the user (10 days) and for the admin (45 days); purge is real | Must |
 | F17 | Admin can view, search and edit anything, including deleted and paused content | Must |
 | F18 | Append-only, hash-chained admin log of all admin actions and security events, filterable and exportable | Must |
@@ -72,6 +72,7 @@
 | F26 | A member can prefill their Alcove profile from the `profile` table of their uploaded backup (display name and photo by default; other fields only if chosen). Each profile field has its own share setting and defaults to private | Should |
 | F27 | Invites: an admin invites a person to the server; a space owner invites a person to a space (new or existing account). Invites are single-use, expire (default 7 days), are stored hashed, can be revoked, and are rate-limited on redemption. No e-mail is sent; the link or code is handed over in person or by the family's own channel | Must |
 | F28 | A space shows its members as profile cards built from what each has chosen to share, plus pending invites and join requests for the owner | Should |
+| F29 | The export guide explains Tryst's two restore modes (wipe first or merge), recommends one for this export, and requires the user to confirm they exported a fresh backup from the phone first (D-15) | Must |
 
 ## Non-functional requirements
 
@@ -92,3 +93,9 @@
 | N13 | Purge actually removes data after the window | Test |
 | N14 | Responsive in any current browser and at any width; light, dark or automatic theme | Manual and layout checks |
 | N15 | No personal information in the repo | `guards.sh no-secrets`, gitleaks, review |
+| N16 | Decrypted user data exists only in memory or tmpfs, never on the data volume (D-16) | `scripts/guards.sh no-plaintext`: ingest and edit a synthetic dataset, then scan the data directory for ZIP magic, JSON and sentinel strings |
+
+## Riskiest assumption
+
+That people will accept a manual export and restore procedure (D-15) instead of sync. If the guided flow feels
+heavy, the edit feature goes unused. Validate the flow on an emulator and with a real user before polishing it.

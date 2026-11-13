@@ -79,3 +79,20 @@
 - **R11 — Profile fields are sensitive.** Sex, gender, birth date, ethnicity, body type and orientation can be
   imported from a Tryst profile. Mitigated by importing only display name and photo by default, a separate
   private-by-default share setting per field, and showing others only what is shared.
+
+## Updates from the design pass (2026-11-12)
+
+- **R5 revised.** Tryst's restore has two modes (D-15). **Wipe first** loses any phone entry newer than the backup;
+  **merge** leaves server-side deletions on the phone and can drop link rows added on the phone. Both are data-loss
+  risks, not disclosure ones. Mitigated by the "fresh phone backup first" confirmation, the diff, and keeping every
+  original upload.
+- **R7 revised.** With the unattended default the master key is on the host. A key file on the same disk as the data
+  protects nothing against a pulled disk; the runbook puts it on separate media (for example the Unraid flash drive).
+- **R12 — Search terms in the admin log.** Recording what the admin searched for would put content in the log
+  (O-12). The default records scope, result count and term length only. The trade-off is less accountability.
+- **R13 — Partner linking (O-10)** reveals that one member recorded another. It is optional, bilateral and logged.
+
+## Riskiest assumption
+
+That the household's real adversary is a curious person on the LAN and not the admin. If a member ever needs privacy
+from the admin, D-3 must be revisited (per-owner keys, browser-side decryption), which is a large change.

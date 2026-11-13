@@ -62,3 +62,19 @@ refused or opened read-only until it is added to the compatibility table and pro
 
 See O-1 (encryption scheme and per-user keys), O-3 (editable fields), O-4 (restore semantics) and O-7 (search
 index) in [DECISIONS.md](DECISIONS.md).
+
+## Storage layout (D-16, proposed)
+
+- **Sealed database:** one SQLite database on tmpfs holds `user`, `session`, `space`, `membership`, `invite`,
+  `profile`, `backup_password`, `upload` (metadata), `revision`, `change`, `row_cache`, `share_rule`, `media`
+  (metadata), `tombstone`, `admin_log` and `meta`, plus the FTS5 search index. It is sealed to the data directory as an
+  AES-256-GCM blob with one previous generation.
+- **Blobs:** original uploads (as Tryst wrote them) and photos (encrypted under the owner's data key) are files named
+  by id. A purge deletes the blob and the user's wrapped data key.
+- **Keys:** `user.wrapped_data_key` is the user's data key wrapped by the master key (from the key file).
+- **Rebuildable:** `row_cache` and the search index are derived from the revisions and can be rebuilt after a failure.
+
+## Riskiest assumption
+
+That keeping each Tryst table generically as rows, with edits as change-sets, can be materialized back into a backup that
+Tryst accepts for every supported schema version. This is the writer milestone's job to prove on an emulator.

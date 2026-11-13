@@ -1,6 +1,6 @@
 # Alcove — Decision Log (ADRs)
 
-> **Status:** Kickoff set, 2026-11-12. Newest at the bottom, open questions last. Never delete an ADR;
+> **Status:** Kickoff set and design pass 1 done, 2026-11-12 (D-15 to D-17 added; O-1 and O-7 proposed, O-4 resolved). Newest at the bottom, open questions last. Never delete an ADR;
 > supersede it with a new one. Format: Nygard-style, trimmed.
 
 ---
@@ -133,22 +133,106 @@
 - **Consequences:** a profile is a derived, editable copy tagged with the revision it came from; changing it in
   Alcove does not change Tryst. Invite links on a LAN are only as private as the channel they travel on.
 
+## D-15 — Tryst restore semantics (resolves O-4; emulator proof still gates M6)
+- **Status:** Accepted for the design. Read from Tryst's `BackupManager.kt` and `EXPORT_FORMAT.md` on 2026-11-12;
+  must be confirmed on an emulator before the writer ships.
+- **Context:** an edited backup only helps if restoring it on the phone does the right thing.
+- **Findings:** Tryst's restore has **two modes**, chosen by a toggle in its restore dialog (the main restore
+  starts with it on):
+  1. **Wipe first (exact replacement).** Every table in the backup's table list is deleted, then the backup rows
+     are inserted, all in one transaction that rolls back on failure. Entries deleted on the server disappear
+     from the phone. **Anything on the phone that is newer than the backup is lost.**
+  2. **Merge (advanced).** Rows are inserted with `INSERT OR REPLACE` by id. Edited rows overwrite; new rows are
+     added; rows missing from the backup stay on the phone, so server-side **deletions do not propagate**. Replacing
+     a parent row can cascade-delete its link rows (`encounter_partner` and similar); they come back only if
+     the backup carries them, and link rows added on the phone since the backup are lost.
+  Either mode inserts raw rows (no migrations replayed), backfills NOT-NULL columns from the live schema's
+  defaults, re-points media paths, re-encrypts media under the device key, skips `recent_searches`, and restores
+  settings only if the backup carries them.
+- **Decision:** Alcove's export flow states which mode to use and why. For an export that contains deletions or
+  must be exact, use **wipe first**, and require the user to confirm they exported a fresh backup from the phone
+  first (otherwise newer phone entries are lost). For edits only, merge is safe. The diff screen shows what each
+  mode would change. Alcove never assumes either mode silently.
+- **Consequences:** an export is a guided procedure, not a button. Requirement F15 and F29 cover it. The emulator
+  round trip tests both modes, including a deletion and a phone-only entry.
+
+## D-16 — Storage: a sealed in-memory database, per-user data keys, one master key (resolves O-1)
+- **Status:** Proposed
+- **Context:** the server must read, query and edit members' data without writing plaintext to disk, and start
+  unattended (D-4). SQLCipher needs cgo (rejected in Sanctum D-5).
+- **Decision:**
+  1. **Structured data** (accounts, spaces, memberships, shares, revisions' change-sets, the row cache, the
+     search index) lives in one SQLite database on **tmpfs**, sealed to the data directory as an AES-256-GCM blob
+     (Sanctum's proven pattern, D-5 and D01 there): sealed on a short timer when changed and after every
+     important write, with one previous generation kept.
+  2. **Blobs** (original uploads and photos) are encrypted files in the data directory. Uploads are kept exactly as
+     Tryst wrote them (already encrypted under the member's backup password). Photos are re-encrypted under the
+     owner's **data key**.
+  3. **Keys.** A 256-bit **master key** is read from a key file outside the data directory (D-4). Each user has a
+     **data key** wrapped by the master key. Deleting a user's wrapped key and blobs is a verifiable purge
+     (crypto-shred) and limits the blast radius of a bug.
+  4. **Locked mode.** The key file itself may be wrapped by an Argon2id-derived key from a typed passphrase. If
+     it is, the server starts locked until the passphrase is entered (Sanctum's behaviour). One mechanism, two modes.
+  5. **Hard rule:** decrypted data exists only in memory or tmpfs, never on the data volume
+     (`scripts/guards.sh no-plaintext`, armed when storage lands).
+- **Alternatives:** SQLCipher (cgo); plaintext SQLite under filesystem encryption (depends on the host); encrypting
+  each user's tables as separate blobs with no SQL (loses queries, sharing views and search).
+- **Consequences:** the database is limited by RAM (megabytes for a household; photos are not in it). A crash can
+  lose the last few seconds of structured changes, so uploads and edits are sealed immediately. Per-user data keys
+  do not hide anything from the admin (D-3); they help purge and isolation.
+
+## D-17 — Admin search: SQLite FTS5 inside the sealed database (resolves O-7)
+- **Status:** Proposed
+- **Decision:** search is an FTS5 index in the same tmpfs database, sealed with it, so no plaintext index ever sits on
+  disk. It covers notes, partner names, labels and profile text, for all users and spaces, including soft-deleted
+  and paused content, for the admin. Members search only what they may see, through the sharing check.
+  The admin log records that a search happened, its scope and result count, and the term's length, **not the term**
+  (constraint 8). Whether to record the term is O-12.
+- **Alternatives:** an external search engine (an extra service and plaintext index); scanning rows per query (slow, but acceptable at household scale as a fallback).
+- **Consequences:** the index is rebuildable from the revisions.
+
 
 ## Open questions
 > Decisions deferred on purpose. Each is a future ADR. Do not let these rot silently.
 
-- **O-1 — Storage encryption scheme.** Per-user or per-space data keys wrapped by a master key (fast purge and
-  export) versus one key; how the decrypted working copy and the search index are protected at rest.
-- **O-2 — The compare-metrics set.** Which metrics, defined against which Tryst fields, and how they behave
-  across Tryst schema versions.
-- **O-3 — Editable fields.** The exact list of fields editable in v1; everything else passes through untouched.
-- **O-4 — Restore semantics.** Confirm on an emulator that restoring an edited backup updates rows by id, adds
-  new ones, and what happens on conflict and on deletion. This gates the writer milestone.
+- **O-1 — Storage scheme.** *Proposed in D-16; awaiting review.*
+- **O-2 — Compare metrics.** *Options drafted below; needs the user's call.*
+  The Tryst Insights engine already gives totals, week streaks, averages, monthly and weekday trends and
+  per-attribute breakdowns. Catalog names (acts, kinks, positions, toys) are **per-user custom labels**, so they
+  cannot be compared across members without matching names. Proposed v1 set, built only on neutral derived fields
+  (`startAt`, `durationMin`, `satisfactionRating`, counts of set members) so it survives Tryst schema changes:
+  1. Calendar overlay: a day marker per member, and a "both active" highlight.
+  2. Per member and period: number of entries, active days, average rating, average duration.
+  3. Longest weekly streak, busiest weekday and month.
+  4. Trend lines side by side, month by month and year over year.
+  5. Category *diversity* (distinct counts) rather than names; named top categories only where both members share them.
+  Day boundaries need a time zone (O-11).
+- **O-3 — Editable fields.** *Options drafted below; needs the user's call.*
+  Encounter fields in Tryst's schema: `startAt`, `durationMin`, `note`, `satisfactionRating`, `mood`, `initiator`,
+  `protectionUsed`, `orgasmCountSelf`, `partnerOrgasms` and `ejaculationLocations` (maps), the set fields
+  (`practicesPerformed`, `practicesReceived`, `positions`, `kinks`, `contexts`, `occasions`, `toys`), partner links
+  via `encounter_partner`, and attached media. Proposed v1: edit `startAt`, `durationMin`, `note`,
+  `satisfactionRating`, `mood`, `initiator`, `protectionUsed`, `orgasmCountSelf` and the set fields (choosing only
+  from the member's **existing** catalog entries, never creating new ones); rename a partner's `displayName` and
+  edit simple partner fields; delete and restore whole entries; set `updatedAt` on every edit. Read-only in v1:
+  the two map fields, catalog tables, media attach and detach, settings. Open sub-question: may a member **add
+  a brand-new entry** on the computer (new UUID, inserted on restore)?
+- **O-4 — Restore semantics.** *Resolved from code in D-15; emulator proof gates M6.*
 - **O-5 — TOTP scope.** Admins only, or any user; recovery-code handling.
 - **O-6 — Location features.** Whether and how to show photo locations on a map, and the default visibility.
-- **O-7 — Admin search index.** How search over decrypted content is built and protected at rest.
+- **O-7 — Admin search.** *Proposed in D-17; the term-recording question is O-12.*
 - **O-8 — Member activity view.** Whether to ship the optional "activity on my data" view and its default.
 - **O-9 — Shared library extraction.** When and how to extract `trystbk` for both projects.
-- **O-10 — Linking members to Tryst partners.** A member may appear as a named partner in someone else's
-  entries. Whether to let two members link "this partner is that account", to match shared encounters from both
-  sides in the compare view, and how that interacts with hiding partner names.
+- **O-10 — Linking members to Tryst partners.** *Options drafted below; needs the user's call.*
+  A member may appear as a named partner in someone else's entries. Proposed, **optional and off by default**:
+  a member links one of their partners to another member's account, and the other member must confirm
+  (bilateral consent). Linked pairs allow *suggested* matches of entries from both sides (same time window), shown
+  side by side only for the fields each side shares. Without linking, nothing about who-is-who is inferred.
+  Linking reveals that one member recorded the other, so it needs both opt-ins and appears in the admin log.
+- **O-11 — Time zone for day boundaries.** Tryst stores epoch milliseconds but no zone. Proposed: a per-member
+  zone (default the server's) used for day buckets, shown in the UI.
+- **O-12 — Record admin search terms?** Proposed default: no (the log stores scope, count and term length only).
+  The alternative records the term so members can later learn who searched for what, at the cost of putting
+  content in the log (conflicts with constraint 8).
+- **O-13 — Default restore mode in the export guide.** Proposed: recommend wipe first when the export contains
+  deletions or must be exact, merge otherwise, always behind the "fresh backup first" confirmation (D-15).

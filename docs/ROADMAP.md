@@ -28,7 +28,7 @@
 
 ## M2 — Core: storage, key, accounts, admin log
 
-- [ ] Resolve O-1; encrypted store; key file outside the data directory with the refuse-to-start check
+- [ ] Storage per D-16 (review it first): sealed tmpfs database with FTS5, per-user data keys, master key from a key file outside the data directory with the refuse-to-start check, optional passphrase-wrapped locked mode; arm `guards.sh no-plaintext`; measure RAM on a large synthetic dataset
 - [ ] First-run admin; accounts; password hashing; sessions; rate limiting; step-up
 - [ ] Append-only hash-chained admin log and its verifier (N5)
 - [ ] Strict CSP, responsive UI shell (light, dark, auto) reusing Sanctum's approach
@@ -57,7 +57,7 @@
 
 ## M6 — Backup writer and export *(the riskiest milestone)*
 
-- [ ] Resolve O-4 on an emulator first
+- [ ] Confirm D-15 on an emulator first: both restore modes, a deletion, a phone-only entry, link-row cascade
 - [ ] Writer: materialize a revision, re-encrypt as a fresh `TRYSTBK1`; base-revision warning and diff (F15)
 - [ ] **Emulator round trip:** export an edited backup, restore it in Tryst, confirm the edits (N8). Never a physical phone.
 - **Exit:** the round trip passes on every supported Tryst schema in the compatibility table.
@@ -89,3 +89,8 @@
 | Social features | out of scope for now | a new product decision |
 | Per-user keys hidden from the admin | the trust model is server-side | D-3 |
 | Shared Tryst library with Sanctum | wait for a stable API | O-9 |
+
+## Riskiest assumption
+
+That M6 (the writer) is a normal-sized milestone. It is the one most likely to expand, because it depends on Tryst's
+schema and restore behaviour. Prove D-15 on an emulator before M5 ships any edit UI.
