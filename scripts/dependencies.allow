@@ -16,6 +16,7 @@ modernc.org/libc BSD-3-Clause indirect, via modernc.org/sqlite
 modernc.org/mathutil BSD-3-Clause indirect, via modernc.org/sqlite
 modernc.org/memory BSD-3-Clause indirect, via modernc.org/sqlite
 github.com/dustin/go-humanize MIT indirect, via modernc.org/sqlite
+github.com/google/uuid BSD-3-Clause indirect, via modernc.org/sqlite (Linux build only)
 github.com/mattn/go-isatty MIT indirect, via modernc.org/sqlite
 github.com/ncruces/go-strftime MIT indirect, via modernc.org/sqlite
 github.com/remyoudompheng/bigfft BSD-3-Clause indirect, via modernc.org/sqlite

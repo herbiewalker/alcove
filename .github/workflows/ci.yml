@@ -123,12 +123,13 @@ jobs:
           [ -z "$(ls -A "$W/data")" ] || { ls -la "$W/data"; echo "::error::a refused start left files"; exit 1; }
 
           # 3. Key inside the data directory: refuses (before it even reads the key).
-          cp "$W/keys/alcove.key" "$W/data/alcove.key"
+          # the key is 0600 and owned by the container user, so copy it with root
+          sudo cp "$W/keys/alcove.key" "$W/data/alcove.key"
           if out=$(docker run --rm $RUNFLAGS -v "$W/data:/data" -e ALCOVE_KEY_FILE=/data/alcove.key $IMG 2>&1); then
             echo "::error::started with the key inside the data directory"; exit 1
           fi
           echo "$out" | grep -q "inside" || { echo "$out"; echo "::error::wrong refusal reason"; exit 1; }
-          rm -f "$W/data/alcove.key"
+          sudo rm -f "$W/data/alcove.key"
 
           # 4. A plain key starts unattended and answers /healthz as unlocked.
           start() {
@@ -151,7 +152,7 @@ jobs:
           docker logs alcove-ci 2>&1 | grep -q 'shutdown complete' || { docker logs alcove-ci; echo "::error::no clean shutdown"; exit 1; }
           docker rm alcove-ci >/dev/null
           test -f "$W/data/manifest.json" && test -f "$W/data/alcove.sealed" || { ls -la "$W/data"; echo "::error::no sealed store"; exit 1; }
-          if grep -rl "SQLite format 3" "$W/data" >/dev/null 2>&1; then echo "::error::plaintext database on the data volume"; exit 1; fi
+          if sudo grep -rl "SQLite format 3" "$W/data" >/dev/null 2>&1; then echo "::error::plaintext database on the data volume"; exit 1; fi
 
           # 6. Restart: same data, same key, nothing typed.
           start "$W/keys/alcove.key"
@@ -159,12 +160,12 @@ jobs:
           docker stop -t 15 alcove-ci >/dev/null; docker rm alcove-ci >/dev/null
 
           # 7. A different key against that data: refuses cleanly and leaves the data alone.
-          before=$(sha256sum "$W/data/alcove.sealed" | cut -d' ' -f1)
+          before=$(sudo sha256sum "$W/data/alcove.sealed" | cut -d' ' -f1)
           if out=$(docker run --rm $RUNFLAGS -v "$W/keys2/other.key:/run/keys/alcove.key:ro" -v "$W/data:/data" $IMG 2>&1); then
             echo "::error::started with the wrong key"; exit 1
           fi
           echo "$out" | grep -qi "unseal failed\|wrong key" || { echo "$out"; echo "::error::wrong-key message"; exit 1; }
-          after=$(sha256sum "$W/data/alcove.sealed" | cut -d' ' -f1)
+          after=$(sudo sha256sum "$W/data/alcove.sealed" | cut -d' ' -f1)
           [ "$before" = "$after" ] || { echo "::error::a wrong key changed the sealed data"; exit 1; }
           echo "smoke OK"
 
