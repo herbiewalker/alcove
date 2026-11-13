@@ -41,6 +41,28 @@ tidy: ## Sync go.mod/go.sum
 guards: ## Run all constraint guards
 	bash scripts/guards.sh all
 
+IMAGE ?= alcove:$(VERSION)
+
+.PHONY: image
+image: ## Build the container image
+	docker build --build-arg VERSION=$(VERSION) -t $(IMAGE) .
+
+.PHONY: image-checks
+image-checks: image ## Assert the shipped image runs non-root
+	@u=$$(docker inspect --format '{{.Config.User}}' $(IMAGE)); \
+	if [ -z "$$u" ] || [ "$$u" = "root" ] || [ "$$u" = "0" ]; then \
+	  echo "::error::image runs as root"; exit 1; \
+	fi; \
+	echo "image runs as $$u -- OK"
+
+.PHONY: compose-check
+compose-check: ## Validate compose interpolation, ports and limits
+	docker compose config -q && echo "compose config OK"
+
+.PHONY: smoke
+smoke: image ## Live smoke tests (run on the Docker host)
+	IMAGE=$(IMAGE) bash scripts/smoke-live.sh
+
 .PHONY: check
 check: lint test guards ## Everything CI runs that does not need Docker
 

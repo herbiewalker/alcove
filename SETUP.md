@@ -55,7 +55,7 @@ Carried over from Sanctum, where each one cost time.
 
 | Gap | Consequence | Where it gets verified instead |
 |-----|-------------|--------------------------------|
-| No Docker | cannot build the image or validate compose locally | CI's image job (arrives in M0) |
+| No Docker | cannot build the image or validate compose locally | CI's image job |
 | No `make` | `make` targets are CI and Linux only | CI; `bootstrap.ps1` locally |
 | No C toolchain | no `-race` locally | CI |
 | Windows signals | graceful shutdown unverifiable locally | a live smoke script on a Docker host |

@@ -6,7 +6,7 @@
 # broken; principle 4: one source). The Makefile, bootstrap.ps1 and CI all call
 # THIS script; do not reimplement a guard anywhere else.
 #
-# Usage:  scripts/guards.sh [all|digest-pin|no-secrets|no-outbound|no-plaintext]
+# Usage:  scripts/guards.sh [all|digest-pin|no-secrets|no-outbound|no-plaintext|licenses]
 #
 # Runs on Git Bash (Windows dev box) and on Ubuntu (CI). Keep it POSIX-ish.
 # Guards that need code which does not exist yet report SKIP, never a fake OK.
@@ -68,6 +68,17 @@ guard_no_secrets() {
     ok=0
   fi
 
+  # Anything that .gitignore says must stay out but is tracked anyway (a force-add, or a
+  # file tracked before the rule existed). Build output and local data are the usual cases.
+  local ignored
+  ignored=$(git ls-files -i -c --exclude-standard 2>/dev/null)
+  if [ -n "$ignored" ]; then
+    fail "no-secrets: files that .gitignore excludes are tracked"
+    printf '        %s
+' $ignored
+    ok=0
+  fi
+
   [ "$ok" = "1" ] && pass "no-secrets: no tracked secrets, no hardcoded credentials"
 }
 
@@ -106,15 +117,51 @@ guard_no_plaintext() {
   fi
 }
 
+# --- ADR D-2 / checklist 00: every third-party module is approved and licensed ---
+# Pure bash and `go list`, so it runs identically on the dev box and in CI. A new
+# dependency needs a deliberate line in scripts/dependencies.allow.
+guard_licenses() {
+  local allowed=" Apache-2.0 BSD-2-Clause BSD-3-Clause MIT ISC MPL-2.0 0BSD Unlicense CC0-1.0 AGPL-3.0 GPL-3.0 "
+  local mods unlisted badlic line mod lic
+  local raw
+  # A failing `go list` must fail the guard, never read as "no dependencies".
+  if ! raw=$(go list -deps -f '{{with .Module}}{{.Path}}{{end}}' ./... 2>/tmp/alcove-golist.err); then
+    fail "licenses: go list failed"
+    sed -n 's/^/        /p' /tmp/alcove-golist.err | head -5
+    return
+  fi
+  mods=$(printf '%s
+' "$raw" | sort -u | grep -v '^$' | grep -v '^github.com/herbiewalker/alcove$')
+  unlisted=""
+  for mod in $mods; do
+    grep -qE "^${mod}[[:space:]]" scripts/dependencies.allow || unlisted="${unlisted} ${mod}"
+  done
+  if [ -n "$unlisted" ]; then
+    fail "licenses: modules not approved in scripts/dependencies.allow:${unlisted}"
+    return
+  fi
+  badlic=""
+  while read -r mod lic _; do
+    case "$mod" in ""|"#"*) continue ;; esac
+    case "$allowed" in *" $lic "*) ;; *) badlic="${badlic} ${mod}(${lic})" ;; esac
+  done < scripts/dependencies.allow
+  if [ -n "$badlic" ]; then
+    fail "licenses: licence not in the allowed set:${badlic}"
+    return
+  fi
+  pass "licenses: every third-party module is approved with an allowed licence"
+}
+
 main() {
   local what="${1:-all}"
   echo "alcove constraint guards (${what})"
   case "$what" in
-    all)         guard_digest_pin; guard_no_secrets; guard_no_outbound; guard_no_plaintext ;;
+    all)         guard_digest_pin; guard_no_secrets; guard_no_outbound; guard_no_plaintext; guard_licenses ;;
     digest-pin)  guard_digest_pin ;;
     no-secrets)  guard_no_secrets ;;
     no-outbound) guard_no_outbound ;;
     no-plaintext) guard_no_plaintext ;;
+    licenses)    guard_licenses ;;
     *) echo "unknown guard: $what" >&2; exit 2 ;;
   esac
 

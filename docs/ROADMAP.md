@@ -13,11 +13,11 @@
 - [x] Repo, AGPL-3.0, `.gitignore`, `.gitattributes`, `.editorconfig`
 - [x] `CLAUDE.md` with hard constraints and size class, README with an honest status, SETUP, CRITICAL_ASSETS
 - [x] Go module, a scaffold binary that serves `/healthz` and shuts down gracefully
-- [x] `bootstrap.ps1`, `Makefile`, `scripts/guards.sh` (no-secrets, no-outbound, no-plaintext stub, digest-pin), forced to fail then restored
+- [x] `bootstrap.ps1`, `Makefile`, `scripts/guards.sh` (no-secrets, no-outbound, no-plaintext stub, digest-pin, licenses), each forced to fail then restored
 - [x] Design docs seeded: REQUIREMENTS, ARCHITECTURE, THREAT_MODEL, DATA_MODEL, DECISIONS, this file
-- [ ] Dockerfile (multi-stage, distroless, digest-pinned, non-root), `docker-compose.yml`, `.env.example`
-- [ ] CI: build, vet, gofmt, `go test -race`, the guards, image checks, trivy
-- [ ] Release script (reuse Sanctum's) and a live smoke script skeleton
+- [x] Dockerfile (multi-stage, distroless, digest-pinned, non-root), `docker-compose.yml`, `.env.example`, `.dockerignore`
+- [x] CI workflows written: build, vet, gofmt, `go test -race`, the guards, govulncheck, dependency and licence gate, image checks, a container smoke (starts, healthy, clean shutdown), trivy. **Green run pending a push**
+- [x] `scripts/release.sh` and `release.yml` (adapted from Sanctum); `scripts/smoke-live.sh` skeleton (three real checks, later ones print SKIP)
 - **Exit:** a clean checkout reaches a green build and a green CI run with every guard armed.
 
 ## M1 — Tryst reader *(read only)*

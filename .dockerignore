@@ -1,0 +1,27 @@
+# The build stage does `COPY . .`. Keep everything that is not Go source out of the
+# build context, so local secrets and real user data can never be sent to the Docker
+# daemon or baked into a builder layer (hard constraints 4 and 10).
+
+# VCS and CI
+.git
+.gitattributes
+.github
+
+# Secrets and real data (also gitignored; this covers the Docker context)
+.env
+.env.*
+!.env.example
+*.tryst
+*.key
+*.pem
+keys/
+data/
+inbox/
+vault/
+testdata/real/
+
+# Build output and non-build material
+bin/
+docs/
+scripts/
+*.md

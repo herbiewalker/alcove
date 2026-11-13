@@ -1,0 +1,124 @@
+# Alcove CI — gates from M0, never bolted on later (Phase 2 / principle 1).
+#
+# Two jobs on purpose: `go` is fast and gates every push; `image` gates what would
+# actually ship. The constraint guards run via scripts/guards.sh, the same script the
+# Makefile and bootstrap.ps1 call, so a guard cannot pass locally and mean something
+# different here (principle 4).
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  go:
+    name: build · test · guards
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: gofmt
+        run: |
+          out=$(gofmt -l .)
+          if [ -n "$out" ]; then echo "::error::gofmt needed:"; echo "$out"; exit 1; fi
+
+      - name: go vet
+        run: go vet ./...
+
+      - name: Build
+        run: CGO_ENABLED=0 go build -trimpath ./...
+
+      # The race detector runs here and not on the Windows dev box (no C toolchain
+      # there); this job is the only place it actually runs.
+      - name: Test
+        run: go test -race ./...
+
+      - name: Constraint guards
+        run: bash scripts/guards.sh all
+
+      # Static analysis of the module graph for reachable known vulnerabilities.
+      - name: govulncheck
+        run: |
+          go install golang.org/x/vuln/cmd/govulncheck@latest
+          govulncheck ./...
+
+      # Dependency and licence gate (checklist 00, ADR D-2). Also part of `guards.sh all`;
+      # run by name so it fails as its own step. Every third-party module must be listed in
+      # scripts/dependencies.allow with an AGPL-compatible licence.
+      - name: Dependency and licence gate
+        run: bash scripts/guards.sh licenses
+
+  image:
+    name: image · least-privilege · scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Build image
+        run: docker build -t alcove:ci .
+
+      # Hard constraint 9. Asserted against the built image rather than trusted from
+      # the base image's default.
+      - name: 'Guard: runs as non-root'
+        run: |
+          U=$(docker inspect --format '{{.Config.User}}' alcove:ci)
+          if [ -z "$U" ] || [ "$U" = "root" ] || [ "$U" = "0" ]; then
+            echo "::error::image runs as root"; exit 1
+          fi
+          echo "image user: $U"
+
+      - name: 'Guard: base images pinned by digest'
+        run: bash scripts/guards.sh digest-pin
+
+      # Hard constraints 2 and 9 (N10): only the intended port, no host network, a
+      # read-only rootfs and resource limits present.
+      - name: 'Guard: compose exposure and limits'
+        run: |
+          cp .env.example .env
+          sed -i 's|^ALCOVE_DATA_PATH=.*|ALCOVE_DATA_PATH=/tmp/ci-data|' .env
+          docker compose config -q
+          cfg=$(docker compose config)
+          echo "$cfg" | grep -q 'network_mode: *host' && { echo "::error::host network"; exit 1; }
+          echo "$cfg" | grep -q 'read_only: *true'    || { echo "::error::rootfs not read-only"; exit 1; }
+          echo "$cfg" | grep -q 'memory:'             || { echo "::error::no memory limit"; exit 1; }
+          published=$(echo "$cfg" | grep -c 'published:')
+          if [ "$published" -ne 1 ]; then
+            echo "::error::expected exactly 1 published port, found $published"; exit 1
+          fi
+          rm -f .env
+          echo "compose exposure OK"
+
+      # Run the image once and prove it starts, answers /healthz and stops on SIGTERM
+      # (N10). The container runs as the shipped non-root user with the shipped flags.
+      - name: 'Smoke: starts, healthy, stops cleanly'
+        run: |
+          docker run -d --name alcove-ci -p 18080:8080 --read-only --cap-drop ALL \
+            --tmpfs /tmp:mode=1777,noexec,nosuid,nodev alcove:ci
+          for i in $(seq 1 20); do
+            if curl -fsS http://127.0.0.1:18080/healthz >/dev/null 2>&1; then ok=1; break; fi
+            sleep 1
+          done
+          [ "${ok:-0}" = "1" ] || { docker logs alcove-ci; echo "::error::no /healthz"; exit 1; }
+          curl -fsS http://127.0.0.1:18080/healthz
+          docker stop -t 10 alcove-ci
+          docker logs alcove-ci 2>&1 | grep -q 'shutdown complete' || { docker logs alcove-ci; echo "::error::no clean shutdown"; exit 1; }
+          echo "smoke OK"
+
+      # Secrets scan matters as much as CVEs: the image must never carry key material
+      # (hard constraint 4).
+      - name: Trivy — vulnerabilities and secrets
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: alcove:ci
+          exit-code: '1'
+          severity: CRITICAL,HIGH
+          scanners: vuln,secret

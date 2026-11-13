@@ -1,0 +1,10 @@
+# Approved third-party Go modules and their licences (ADR D-2, checklist 00).
+#
+# Format: <module path> <SPDX licence> [note]
+#
+# A dependency may only be added by adding a line here, after checking its licence is
+# compatible with AGPL-3.0 and that the dependency is worth its audit cost.
+# `scripts/guards.sh licenses` fails if a module in the build is not listed, or is
+# listed with a licence outside the allowed set.
+#
+# (none yet: the scaffold has no third-party dependencies)

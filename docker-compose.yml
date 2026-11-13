@@ -1,0 +1,73 @@
+# Alcove — deployment.
+#
+# Copy .env.example to .env and edit the paths. The .env holds PATHS AND PORTS ONLY —
+# never a key, passphrase or token (hard constraint 4). The data key lives in a key
+# file on a DIFFERENT host path than the data volume (ADR D-4); that mount is added
+# in M2a when storage lands.
+#
+# Verify before deploying:  docker compose config
+
+services:
+  alcove:
+    # Build from source (a git checkout of this repo). Once releases are published
+    # to GHCR the `image:` line below is what most people pull instead.
+    build:
+      context: ${ALCOVE_BUILD_CONTEXT:-.}
+      args:
+        VERSION: ${ALCOVE_VERSION:-dev}
+    image: ${ALCOVE_IMAGE:-ghcr.io/herbiewalker/alcove}:${ALCOVE_VERSION:-dev}
+    container_name: alcove
+    restart: unless-stopped
+
+    # --- exposure (ADR D-11: LAN only) ---------------------------------------
+    # Bound to a specific host interface, not 0.0.0.0. Do NOT port-forward this and
+    # do NOT put it behind an internet-facing reverse proxy. Remote access, if it is
+    # ever needed, is Tailscale or WireGuard.
+    ports:
+      - "${ALCOVE_BIND_IP:-127.0.0.1}:${ALCOVE_PORT:-8080}:8080"
+
+    # --- least privilege (hard constraint 9) ---------------------------------
+    user: "65532:65532"
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+
+    # --- storage -------------------------------------------------------------
+    # data holds only ciphertext (hard constraint 4): opaque uploads, encrypted
+    # photos and the sealed database. Nothing readable ever lands here.
+    volumes:
+      - ${ALCOVE_DATA_PATH:?set ALCOVE_DATA_PATH in .env}:/data
+
+    # tmpfs keeps decrypted data off the data volume. The live database and any
+    # transient decrypt buffer live here and die with the container (ADR D-16). It is
+    # also why read_only: true above is survivable.
+    tmpfs:
+      - /tmp:mode=1777,size=${ALCOVE_TMPFS_SIZE:-1g},noexec,nosuid,nodev
+
+    environment:
+      ALCOVE_ADDR: ":8080"
+      TZ: "${TZ:-UTC}"
+
+    # --- resource limits: cannot starve the host -----------------------------
+    deploy:
+      resources:
+        limits:
+          memory: ${ALCOVE_MEM_LIMIT:-2G}
+          cpus: "${ALCOVE_CPU_LIMIT:-2.0}"
+
+    # distroless has no shell or curl, so the healthcheck uses the binary's own mode.
+    healthcheck:
+      test: ["CMD", "/usr/local/bin/alcove", "-healthcheck"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+    # Bounded logs; they must never contain user data (constraint 8).
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
