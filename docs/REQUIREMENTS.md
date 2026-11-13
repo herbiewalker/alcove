@@ -29,6 +29,7 @@
 - **R7 Photos.** Share photos between members; location kept and shown only when the owner allows.
 - **R8 Admin.** Console for accounts, spaces, health, search over everything, and the admin log.
 - **R9 Recovery.** Soft delete with a 10 day user window and a 45 day admin window.
+- **R11 Phone workflow.** Mobile-first pages so a backup can be uploaded from, and an edited backup downloaded to, a phone over the LAN (D-22).
 - **R10 Profiles and invites.** Prefill a member profile from the Tryst profile in their backup (each field opt-in to share), and invite people to the server or a space with one-time, expiring, revocable invites.
 
 ## Non-goals (v1)
@@ -73,6 +74,8 @@
 | F27 | Invites: an admin invites a person to the server; a space owner invites a person to a space (new or existing account). Invites are single-use, expire (default 7 days), are stored hashed, can be revoked, and are rate-limited on redemption. No e-mail is sent; the link or code is handed over in person or by the family's own channel | Must |
 | F28 | A space shows its members as profile cards built from what each has chosen to share, plus pending invites and join requests for the owner | Should |
 | F29 | The export guide explains Tryst's two restore modes (wipe first or merge), recommends one for this export, and requires the user to confirm they exported a fresh backup from the phone first (D-15) | Must |
+| F30 | **Phone workflow over the LAN.** A person can export a backup in Tryst on the phone, open Alcove in the phone's browser on the same network, and upload it; and can download an edited `.tryst` to the phone and restore it from Downloads in Tryst. The pages are mobile-first and touch-friendly (D-22) | Must |
+| F31 | Optional QR codes for the server address and for invites, generated locally with no outbound call | Could |
 
 ## Non-functional requirements
 
@@ -91,7 +94,7 @@
 | N11 | Strict same-origin CSP; at most one same-origin script | Test |
 | N12 | Accounts cannot be created without authentication; sessions are rate-limited and expire | Tests |
 | N13 | Purge actually removes data after the window | Test |
-| N14 | Responsive in any current browser and at any width; light, dark or automatic theme | Manual and layout checks |
+| N14 | Mobile-first and responsive in any current browser at any width; light, dark or automatic theme; large touch targets; the upload and download flows work in a phone browser (Chrome on Android at minimum) | Layout checks at phone, tablet and desktop widths; a real-phone check at the first live deploy |
 | N15 | No personal information in the repo | `guards.sh no-secrets`, gitleaks, review |
 | N16 | Decrypted user data exists only in memory or tmpfs, never on the data volume (D-16) | `scripts/guards.sh no-plaintext`: ingest and edit a synthetic dataset, then scan the data directory for ZIP magic, JSON and sentinel strings |
 

@@ -96,3 +96,9 @@
 
 That the household's real adversary is a curious person on the LAN and not the admin. If a member ever needs privacy
 from the admin, D-3 must be revisited (per-owner keys, browser-side decryption), which is a large change.
+- **R14 — Plain HTTP on the LAN (D-11, D-22).** Phone uploads and downloads, passwords and viewed content cross the
+  home network unencrypted, so anyone able to sniff that network (a compromised device, a guest on an open wifi) can read
+  them (T2). Mitigated by running on a trusted, password-protected network, session cookies that are `HttpOnly` and
+  `SameSite=Strict`, and by treating optional TLS (a local certificate, or Tailscale's) as a later feature (O-15). The
+  README and runbook say so plainly. Uploaded files are still encrypted under the member's backup password, but the
+  decrypted views are not.

@@ -24,7 +24,7 @@ fixing entries on something bigger than a phone screen. [Sanctum](https://github
 solves the backup half. **Alcove** is the other direction: a small server you run yourself where each
 person uploads their backups, edits their entries on a computer, and chooses what to share.
 
-- **In scope (v1):** upload Tryst backups as immutable revisions · independent spaces for different
+- **In scope (v1):** upload Tryst backups (from your phone's browser over wifi) as immutable revisions · independent spaces for different
   groups · a shared calendar overlay and compare metrics from what each person shares · edit entries on a
   computer and export a fresh `.tryst` to restore on the phone · recover deleted items · an admin console
   with a full, tamper-evident log.
@@ -82,6 +82,7 @@ On Linux or in CI, `make check` runs the same gates.
 - **Pre-implementation.** Everything above the quickstart is a plan.
 - **Server-side trust.** The host operator can read the data; there are no per-user keys that hide it from
   the admin.
+- **Plain HTTP on the LAN.** Content crosses your home network unencrypted until optional TLS exists (see R14).
 - **Manual phone round trip.** Edits reach the phone by exporting a backup and restoring it, not by sync.
 - **Tied to Tryst's backup format**, which changes with Tryst. Compatibility is a standing maintenance cost.
 

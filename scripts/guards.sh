@@ -95,7 +95,7 @@ guard_no_outbound() {
 # scans the data directory for ZIP magic, JSON and a sentinel string.
 guard_no_plaintext() {
   if [ ! -d internal/store ]; then
-    skip "no-plaintext: no storage layer yet (arrives in M2)"
+    skip "no-plaintext: no storage layer yet (arrives in M2a)"
     return
   fi
   if go test -run TestGuard_NoPlaintext -count=1 ./internal/store/ >/tmp/alcove-guard.log 2>&1; then

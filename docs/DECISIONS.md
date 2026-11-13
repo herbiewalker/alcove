@@ -1,6 +1,6 @@
 # Alcove — Decision Log (ADRs)
 
-> **Status:** Kickoff set and design pass 1 done, 2026-11-12 (D-15 to D-21; O-2, O-3, O-4, O-11 to O-13 resolved; O-10 withdrawn; O-1 and O-7 proposed). Newest at the bottom, open questions last. Never delete an ADR;
+> **Status:** Kickoff set and design pass 1 done, 2026-11-12 (D-15 to D-22; O-2, O-3, O-4, O-11 to O-13 resolved; O-10 withdrawn; O-1 and O-7 proposed). Newest at the bottom, open questions last. Never delete an ADR;
 > supersede it with a new one. Format: Nygard-style, trimmed.
 
 ---
@@ -250,6 +250,21 @@
   tests now cover non-members and other spaces rather than each category. Partner linking can return later as a
   separate feature if wanted.
 
+## D-22 — Mobile-first web UI and the phone workflow
+- **Status:** Accepted
+- **Context:** Tryst lives on a phone. The natural flow is: export a backup in Tryst, open Alcove in the phone's browser
+  on the home network, upload it; later download the edited backup to the phone and restore it from Downloads.
+- **Decision:** the web UI is **mobile-first**: designed at phone width first, large touch targets, no hover-only
+  controls, light, dark and automatic themes, the same plain HTML and CSS approach as Sanctum with at most one
+  same-origin script (upload progress). The upload page works with the Android file picker, shows a progress bar, and
+  hints to keep the screen on during a large upload. Exports download with a clear filename
+  (`alcove-<name>-<date>.tryst`), and the export guide explains how to restore from Downloads. The server's LAN address
+  is shown prominently to the admin, with an optional QR code (F31).
+- **Alternatives:** a native app or a PWA (more surface, store distribution); desktop-first pages (the phone is the main device here).
+- **Consequences:** real-phone checks are part of the first live deploy and the audit. Plain HTTP on a LAN is fine for
+  file upload and download; features that need a secure context (service workers, clipboard APIs) are not used.
+  A phone browser may sleep mid-upload, so resumable uploads are tracked as a later item (O-14).
+
 
 ## Open questions
 > Decisions deferred on purpose. Each is a future ADR. Do not let these rot silently.
@@ -267,3 +282,8 @@
 - **O-11 — Time zone.** *Resolved in D-20.*
 - **O-12 — Admin search terms.** *Resolved in D-20: not recorded.*
 - **O-13 — Restore default.** *Resolved in D-20.*
+- **O-14 — Resumable uploads.** A phone browser can sleep or drop wifi during a large upload. First version: progress bar
+  and a keep-the-screen-on hint. Chunked, resumable upload is a later step if it proves a problem.
+- **O-15 — Optional TLS on the LAN.** Whether to offer a built-in TLS option (a locally generated certificate that phones
+  must trust) or rely on a private overlay such as Tailscale for encrypted transport. Matters more here than in Sanctum
+  because Alcove serves decrypted content (R14).

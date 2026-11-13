@@ -48,7 +48,7 @@ and ADRs they feed are reviewed.
    so members never wait on the admin. A locked mode with a typed passphrase stays an option, ADR D-4.)
    Decrypted user data exists only in memory or tmpfs, never on the data volume (D-16).
    *Guard:* `scripts/guards.sh no-secrets`; a startup test for the key-file location; trivy secret scan;
-   `scripts/guards.sh no-plaintext` (armed when storage lands in M2).
+   `scripts/guards.sh no-plaintext` (armed when storage lands in M2a).
 
 5. **A space is collaborative, and nothing leaks outside it.** Inside a space every member sees every other
    member's entries (D-21). Nothing is visible to non-members or in other spaces. Joining is the act of consent,
@@ -93,7 +93,7 @@ and ADRs they feed are reviewed.
 
 ## What it does (v1 scope)
 
-- **Upload** Tryst backups; keep every one as an immutable revision, verified by a real trial decrypt.
+- **Upload** Tryst backups, including from a phone browser over the LAN; keep every one as an immutable revision, verified by a real trial decrypt.
 - **Profiles and invites.** Prefill a member profile from the Tryst `profile` in their backup (each field opt-in
   to share) and invite people to the server or a space with one-time, expiring, revocable invites (D-14).
 - **Multiple independent spaces**, each with its own members. A space owner approves who joins, and a
@@ -122,7 +122,7 @@ See [docs/REQUIREMENTS.md](docs/REQUIREMENTS.md).
   Argon2id from `golang.org/x/crypto`. Never hand-roll the streaming AEAD.
 - **Storage:** SQLite via `modernc.org/sqlite` (pure Go, no cgo), encrypted at rest. The exact scheme
   (per-user data keys, how the working copy is protected) is decided in the design pass.
-- **HTTP / UI:** stdlib `net/http` with server-rendered `html/template`, inline CSS, at most one
+- **HTTP / UI:** stdlib `net/http` with server-rendered `html/template`, **mobile-first** inline CSS, at most one
   same-origin script. No web framework. Reuse Sanctum's responsive, light/dark/auto UI approach.
 - **Build:** `go build`, `make`, multi-stage `Dockerfile` to distroless, non-root. **Deploy:**
   `docker compose` on Unraid. **Test:** `go test ./...` with synthetic fixtures.

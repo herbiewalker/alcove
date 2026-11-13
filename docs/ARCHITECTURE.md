@@ -104,3 +104,10 @@ mode, and shows a diff of what each mode would change.
 
 That a sealed in-memory database plus per-user data keys is enough at household scale without surprising RAM use or
 losing recent writes on a crash. Mitigation: seal on every important write; measure with a synthetic large dataset in M2.
+
+## Web UI and the phone workflow (D-22)
+
+Server-rendered, mobile-first pages with inline CSS and at most one same-origin script (upload progress). The phone flow:
+export in Tryst, open Alcove in the phone browser on the LAN, upload; later download the edited `.tryst` and restore it from
+Downloads in Tryst. Uploads stream to the server with a progress bar; exports download with a clear filename. Reuse
+Sanctum's layout, themes and strict CSP.
