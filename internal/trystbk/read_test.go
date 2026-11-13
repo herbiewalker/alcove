@@ -1,6 +1,7 @@
 package trystbk_test
 
 import (
+	"archive/zip"
 	"bytes"
 	"encoding/binary"
 	"encoding/json"
@@ -391,4 +392,22 @@ func TestWriteSample(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Logf("wrote %s (%d bytes); password: %s; counts: %v", out, len(r.File), r.Password, r.Counts)
+}
+
+// Tryst restores with a streaming ZipInputStream (S1 finding): every entry must be DEFLATED so
+// sizes are known without a data descriptor on a STORED entry, and data.json must come first.
+func TestSynth_ZIPIsReadableByTrystsStreamingReader(t *testing.T) {
+	r := build(t, synth.Options{Seed: 14, Photos: 5, IncludeSettings: true})
+	zr, err := zip.NewReader(bytes.NewReader(r.ZIP), int64(len(r.ZIP)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if zr.File[0].Name != "data.json" {
+		t.Errorf("first entry is %q, want data.json", zr.File[0].Name)
+	}
+	for _, f := range zr.File {
+		if f.Method != zip.Deflate {
+			t.Errorf("%s uses method %d; Tryst's streaming reader needs DEFLATE", f.Name, f.Method)
+		}
+	}
 }

@@ -112,6 +112,11 @@ func mediaList(m map[string][]byte) []mediaBlob {
 	return out
 }
 
+// ZIP rules learned from restoring in Tryst (S1): Tryst reads the archive with a streaming
+// java.util.zip.ZipInputStream, which cannot read a STORED entry whose size and CRC come after
+// the data (the usual output of a streaming writer). A backup that used STORED media restored
+// every table but silently kept only the first photo. So every entry is DEFLATED, data.json comes
+// first, as Tryst writes them.
 func buildZIP(dataJSON []byte, media []mediaBlob, settings bool) ([]byte, error) {
 	var buf bytes.Buffer
 	zw := zip.NewWriter(&buf)
@@ -133,7 +138,7 @@ func buildZIP(dataJSON []byte, media []mediaBlob, settings bool) ([]byte, error)
 		}
 	}
 	for _, m := range media {
-		if err := add("media/"+m.id, m.data, zip.Store); err != nil {
+		if err := add("media/"+m.id, m.data, zip.Deflate); err != nil {
 			return nil, err
 		}
 	}

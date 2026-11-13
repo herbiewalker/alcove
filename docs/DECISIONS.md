@@ -156,6 +156,34 @@
 - **Consequences:** an export is a guided procedure, not a button. Requirement F15 and F29 cover it. The emulator
   round trip tests both modes, including a deletion and a phone-only entry.
 
+### D-15 addendum: S1 findings, observed on an emulator (2026-11-13)
+
+Tested on an Android emulator (API 35) with Tryst 0.6.5 (container v2, database schema v19), using synthetic backups only.
+Method: restore a backup, export a fresh one from the app, read it with Alcove's reader, and compare row by row.
+
+1. **Wipe-first restore is exact.** Restoring the edited backup E onto a phone holding extra data: the edit applied, the new
+   entry was added, the deleted entry and its photo were gone, the phone-only entry and the phone-only partner link were gone.
+   The app's re-export matched E row for row. Wipe is the safe mode for an Alcove export.
+2. **Merge restore is NOT safe.** The edit applied and the new entry was added, but (a) the entry deleted on the server stayed,
+   as predicted, and (b) **every partner link (`encounter_partner`) not present in the backup was deleted**, including the
+   links of entries that stayed. The cause: partners are restored first with `INSERT OR REPLACE`, which deletes each partner
+   row and cascades to all link rows; only links carried by the backup come back. So a phone-only entry survived but lost
+   its partners, and so did the entry the server had deleted. Merge silently damages data.
+3. **ZIP entries must be DEFLATED.** Tryst reads the archive with a streaming `ZipInputStream`, which cannot read a STORED
+   entry whose size comes after the data. A first sample restored every table but only 1 of 6 photos, with no error shown.
+   Alcove's writer uses DEFLATE for every entry and puts `data.json` first (regression test added).
+4. **Tryst's export is a faithful, lossless copy.** Restoring then exporting reproduced every row of every table. The only
+   differences were cosmetic or device-specific: JSON strings escape `/` as `\/`, `media.encFilePath` is rewritten to the
+   device path, and the media `mimeType` is re-escaped. Pass-through of unknown columns is therefore safe.
+5. **Interop with a genuine Tryst container is proven.** Alcove's reader read the files the app itself exported (container v2,
+   schema v19). The data was synthetic, so a run against a real private backup (the interop test) remains the user's call.
+6. **The restore dialog shows counts** ("40 trysts, 3 partners and 6 photos"), which the export guide can quote as what to expect.
+
+**Decision amendments:** the export guide **always recommends wipe first** and treats merge as unsafe (it warns about the partner-link
+loss). The "fresh phone backup first" confirmation matters more, because a wipe loses anything newer on the phone. D-20 point 3
+is superseded by this. Remaining risk: the app's restore behaviour can change in a later Tryst release, so the emulator round trip
+is a recurring check, not a one-off.
+
 ## D-16 — Storage: a sealed in-memory database, per-user data keys, one master key (resolves O-1)
 - **Status:** Proposed
 - **Context:** the server must read, query and edit members' data without writing plaintext to disk, and start
@@ -221,8 +249,7 @@
 - **Status:** Accepted
 - **Decisions:** (1) Day boundaries use a **per-member time zone** that defaults to the server's and is shown in the UI.
   (2) **Nothing sensitive in the logs:** the admin log records that a search happened, its scope, result count and the
-  term's length, never the term (constraint 8). (3) The export guide **recommends wipe first** when an export has
-  deletions or must be exact, merge otherwise, always behind the "fresh phone backup first" confirmation (D-15).
+  term's length, never the term (constraint 8). (3) *(Superseded by the D-15 addendum: the export guide always recommends wipe first, never merge.)*
 
 ---
 ## D-21 — A space is collaborative: members see each other's entries (supersedes D-5, withdraws O-10)

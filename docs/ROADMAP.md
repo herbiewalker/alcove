@@ -26,17 +26,17 @@
 - [x] Generic, lossless table reader for `data.json` (raw values, column and table order, unknown keys and entries kept); schema-version recording and `SchemaStatus` (D-25)
 - [x] Synthetic-backup generator `internal/trystbk/synth`, shaped by Tryst's v19 Room schema, deterministic per seed, plus `trystbk.Seal` (the container writer M6 builds on)
 - [x] Forced negative tests: wrong password, flipped and truncated ciphertext, tampered header, absurd KDF count, Zip-Slip, zip bomb (entry count and declared size), oversize body, malformed data.json, too many rows. Six code mutations each made a test fail
-- **Exit:** interop against a real backup on a private copy; every negative test fires; a generated backup restores in
-  Tryst on an emulator (so our test data is proven realistic).
+- **Exit:** interop against a real backup on a private copy (still the user's call; a genuine Tryst-written container was read on 2026-11-13 from an emulator export); every negative test fires; a generated backup restores in
+  Tryst on an emulator (proven 2026-11-13: restored and re-exported row for row).
 
 ## S1 — Round-trip spike *(de-risks the edit idea before anything depends on it)*
 
-- [ ] A throwaway minimal writer: take a backup read by M1, change one entry, add one, delete one, re-encrypt as `TRYSTBK1`
-- [ ] On an **emulator** (never a physical phone), restore it in both Tryst modes and record what happens: edit applied,
+- [x] A throwaway minimal writer: take a backup read by M1, change one entry, add one, delete one, re-encrypt as `TRYSTBK1` (done 2026-11-13; the code is kept outside the repo)
+- [x] On an **emulator** (never a physical phone), restore it in both Tryst modes and record what happens: edit applied,
       new entry added, deleted entry gone (wipe) or kept (merge), a phone-only entry lost (wipe) or kept (merge),
       link rows after a parent replace (D-15)
-- [ ] Write the findings into `DECISIONS.md` (confirm or amend D-15)
-- **Exit:** D-15 is confirmed on a device, or the edit design is revised before M2 starts. The spike code is discarded.
+- [x] Write the findings into `DECISIONS.md` (confirm or amend D-15): wipe confirmed exact, **merge found unsafe (deletes partner links)**, ZIP must be DEFLATE
+- **Exit:** met 2026-11-13. D-15 is confirmed on an emulator for wipe-first restore and amended for merge (D-15 addendum). The edit design stands: exports are restored with wipe first.
 
 ## M2a — Storage foundation
 
@@ -94,8 +94,8 @@
 
 ## M6 — Backup writer and export *(the riskiest milestone; S1 has already de-risked the concept)*
 
-- [ ] Writer: materialize a revision, re-encrypt as a fresh `TRYSTBK1`; base-revision warning and diff (F15)
-- [ ] Guided restore procedure with both modes explained and the "fresh phone backup first" confirmation (F29, D-15)
+- [ ] Writer: materialize a revision, re-encrypt as a fresh `TRYSTBK1` (all entries DEFLATED, `data.json` first); base-revision warning and diff (F15)
+- [ ] Guided restore procedure: wipe first only, merge warned against, plus the "fresh phone backup first" confirmation (F29, D-15 addendum)
 - [ ] **Phone download flow (F30):** the export downloads on a phone with a clear filename, and the guide says how to
       restore it from Downloads in Tryst
 - [ ] **Emulator round trip:** export an edited backup, restore it in Tryst in both modes, confirm the edits (N8).

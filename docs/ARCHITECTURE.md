@@ -95,10 +95,10 @@
 
 ## Restore modes and the export flow (D-15)
 
-Tryst restores in one of two modes. **Wipe first** replaces everything, so server deletions propagate and any phone
-entry newer than the backup is lost. **Merge** overwrites rows by id and adds new ones, but deletions do not
-propagate and link rows can cascade. The export guide asks the user to confirm a fresh phone backup first, recommends a
-mode, and shows a diff of what each mode would change.
+Tryst restores in one of two modes. **Wipe first** replaces everything exactly (server deletions propagate; any phone entry newer
+than the backup is lost). **Merge** overwrites rows by id and adds new ones, but deletions do not propagate and it deletes every
+partner link not in the backup (observed on an emulator, D-15 addendum). The export guide asks the user to confirm a fresh phone
+backup first, then always recommends wipe first, and shows a diff of what the restore would change.
 
 ## Riskiest assumption
 

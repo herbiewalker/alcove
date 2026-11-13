@@ -82,10 +82,7 @@
 
 ## Updates from the design pass (2026-11-12)
 
-- **R5 revised.** Tryst's restore has two modes (D-15). **Wipe first** loses any phone entry newer than the backup;
-  **merge** leaves server-side deletions on the phone and can drop link rows added on the phone. Both are data-loss
-  risks, not disclosure ones. Mitigated by the "fresh phone backup first" confirmation, the diff, and keeping every
-  original upload.
+- **R5 revised (S1, observed).** Wipe-first restore replaces everything exactly and loses any phone entry newer than the backup. Merge restore deletes every partner link not in the backup (it also leaves server-side deletions on the phone), so Alcove never recommends it. Both are data-loss risks, not disclosure ones. Mitigated by the "fresh phone backup first" confirmation, the diff, the guided wipe procedure and keeping every original upload.
 - **R7 revised.** With the unattended default the master key is on the host. A key file on the same disk as the data
   protects nothing against a pulled disk; the runbook puts it on separate media (for example the Unraid flash drive).
 - **R12 — Search terms in the admin log.** Recording what the admin searched for would put content in the log
