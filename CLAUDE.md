@@ -8,7 +8,7 @@ Project name **Alcove**, Go module **`github.com/herbiewalker/alcove`**, contain
 users, the most sensitive data category the owner holds, persistent state and cryptography. Full doc
 suite, `THREAT_MODEL` and `DATA_MODEL` included, all checklists at full weight. Adapter:
 `docker-service` (the author's private playbook).
-**License:** AGPL-3.0-or-later (see ADR D-A2).
+**License:** AGPL-3.0-or-later (see ADR D-2).
 
 A sibling of **[Sanctum](https://github.com/herbiewalker/sanctum)** (a simple, public backup vault that
 stays small and never shows data) and a companion to **[Tryst](https://github.com/herbiewalker/tryst)**
@@ -45,7 +45,7 @@ and ADRs they feed are reviewed.
 4. **Encrypted at rest; the key lives apart from the data.** No key or passphrase in the repo, the
    image, `docker-compose.yml`, or the data volume. The app **refuses to start** if its key file sits
    inside the data directory. (This replaces Sanctum's "key never at rest": Alcove starts unattended
-   so members never wait on the admin. A locked mode with a typed passphrase stays an option, ADR D-A4.)
+   so members never wait on the admin. A locked mode with a typed passphrase stays an option, ADR D-4.)
    *Guard:* `scripts/guards.sh no-secrets`; a startup test for the key-file location; trivy secret scan.
 
 5. **Sharing is opt-in and private by default.** Nothing is visible to another member until its owner
