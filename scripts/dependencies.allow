@@ -1,4 +1,4 @@
-# Approved third-party Go modules and their licences (ADR D-2, checklist 00).
+# Approved third-party Go modules and their licences (ADR D-2, D-24, checklist 00).
 #
 # Format: <module path> <SPDX licence> [note]
 #
@@ -6,5 +6,8 @@
 # compatible with AGPL-3.0 and that the dependency is worth its audit cost.
 # `scripts/guards.sh licenses` fails if a module in the build is not listed, or is
 # listed with a licence outside the allowed set.
-#
-# (none yet: the scaffold has no third-party dependencies)
+
+github.com/tink-crypto/tink-go/v2 Apache-2.0 streaming AEAD, the primitive Tryst writes (D-13)
+golang.org/x/crypto BSD-3-Clause PBKDF2 and Argon2id
+golang.org/x/sys BSD-3-Clause indirect, via x/crypto
+google.golang.org/protobuf BSD-3-Clause indirect, via tink-go

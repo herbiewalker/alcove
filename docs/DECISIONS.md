@@ -1,6 +1,6 @@
 # Alcove — Decision Log (ADRs)
 
-> **Status:** Kickoff set and design pass 1 done, 2026-11-12 (D-15 to D-24; O-2, O-3, O-4, O-11 to O-13 resolved; O-10 withdrawn; O-1 and O-7 proposed). Newest at the bottom, open questions last. Never delete an ADR;
+> **Status:** Kickoff set and design pass 1 done, 2026-11-12 (D-15 to D-25; O-2, O-3, O-4, O-11 to O-13 resolved; O-10 withdrawn; O-1 and O-7 proposed). Newest at the bottom, open questions last. Never delete an ADR;
 > supersede it with a new one. Format: Nygard-style, trimmed.
 
 ---
@@ -298,6 +298,22 @@
 - **Alternatives:** `go-licenses` (see above); no gate (a dependency could arrive unreviewed).
 - **Consequences:** a small manual step per new dependency, which is also where its audit cost gets weighed. The gate
   was forced to fail on a bad licence and on a failing `go list` before being trusted.
+
+## D-25 — The Tryst reader is lossless, lives with the writer, and bounds everything
+- **Status:** Accepted
+- **Context:** Alcove must read every row (Sanctum only counts), edit some fields and write a backup Tryst accepts. A reader
+  that interprets rows into typed structs would drop any column it does not know and break on the next Tryst schema.
+- **Decision:** (1) A `Row` keeps its column order and every value as **raw JSON**, a `Backup` keeps table order, unknown
+  top-level `data.json` keys and unknown small ZIP entries, so re-serialising reproduces `data.json` byte for byte (tested).
+  (2) `Seal` (the container writer) lives in the same package as the reader and uses the same primitives and parameters, and
+  refuses any header Tryst would refuse. (3) Every size has an enforced bound (body, `data.json`, declared total size, entry
+  count, row count, per-entry sizes), held in one `limits` value tests can lower. (4) A schema above `LatestKnownSchema` is
+  held and readable but reported as `SchemaNewer` so editing and export stay off (F10). (5) Media bytes are never read at
+  upload time, only on demand and bounded; the decrypted body is zeroed by `Close`.
+- **Alternatives:** typed row structs (lossy, breaks on schema change); a separate writer package (the two could drift).
+- **Consequences:** callers handle raw JSON through small accessors until an editor needs typed values. Holding the body in
+  memory costs up to 512 MiB for a hostile file; the container memory limit is the backstop. The writer is only proven once
+  an emulator restores its output (S1 and M6).
 
 
 ## Open questions

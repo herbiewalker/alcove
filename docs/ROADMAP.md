@@ -22,10 +22,10 @@
 
 ## M1 — Tryst reader *(read only)*
 
-- [ ] Copy and extend `trystbk` (D-9): header parse with bounds, PBKDF2, streaming AEAD, ZIP walk with Zip-Slip checks
-- [ ] Generic table reader for `data.json`; schema-version recording; supported-version table
-- [ ] A synthetic-backup generator for tests (never real data)
-- [ ] Forced negative tests: wrong password, flipped byte, truncation, absurd KDF count, Zip-Slip, zip bomb
+- [x] Copy and extend `trystbk` (D-9): header parse with bounds, PBKDF2, streaming AEAD, ZIP walk with Zip-Slip checks (`internal/trystbk`, MIT notice kept)
+- [x] Generic, lossless table reader for `data.json` (raw values, column and table order, unknown keys and entries kept); schema-version recording and `SchemaStatus` (D-25)
+- [x] Synthetic-backup generator `internal/trystbk/synth`, shaped by Tryst's v19 Room schema, deterministic per seed, plus `trystbk.Seal` (the container writer M6 builds on)
+- [x] Forced negative tests: wrong password, flipped and truncated ciphertext, tampered header, absurd KDF count, Zip-Slip, zip bomb (entry count and declared size), oversize body, malformed data.json, too many rows. Six code mutations each made a test fail
 - **Exit:** interop against a real backup on a private copy; every negative test fires; a generated backup restores in
   Tryst on an emulator (so our test data is proven realistic).
 

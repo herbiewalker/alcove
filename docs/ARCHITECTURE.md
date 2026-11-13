@@ -111,3 +111,11 @@ Server-rendered, mobile-first pages with inline CSS and at most one same-origin 
 export in Tryst, open Alcove in the phone browser on the LAN, upload; later download the edited `.tryst` and restore it from
 Downloads in Tryst. Uploads stream to the server with a progress bar; exports download with a clear filename. Reuse
 Sanctum's layout, themes and strict CSP.
+
+## The Tryst reader and writer (`internal/trystbk`, D-25)
+
+`trystbk.Read(r, password)` validates the 29-byte header (magic, version, KDF bounds) before any key derivation, derives the
+key, decrypts the AEAD stream into a bounded in-memory buffer, then walks the inner ZIP: every entry name is validated, data.json
+is parsed into tables of **raw-JSON rows** in file order, small unknown entries and unknown top-level keys are carried, and media
+entries are listed but only read on demand. `Backup.Close` zeroes the plaintext. `trystbk.Seal` writes a container with the same
+primitives. `trystbk/synth` generates deterministic synthetic backups shaped like Tryst's v19 schema for every test in the project.
