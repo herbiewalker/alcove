@@ -90,7 +90,7 @@
   protects nothing against a pulled disk; the runbook puts it on separate media (for example the Unraid flash drive).
 - **R12 — Search terms in the admin log.** Recording what the admin searched for would put content in the log
   (O-12). The default records scope, result count and term length only. The trade-off is less accountability.
-- **R13 — Everyone in a space sees everything, by design (D-21).** A new member sees all existing entries at once, so joining needs the owner and each current member to agree, and the join screen says what will be shared. A member who regrets it can pause or leave, but what was seen cannot be unseen. Third parties named in entries are protected only by partner names being hidden by default.
+- **R13 — Everyone in a space sees everything, by design (D-21).** A new member sees all existing entries at once, so the owner approves each join (a stricter all-members mode comes later) and the join screen says what will be shared. A member who regrets it can pause or leave, but what was seen cannot be unseen. Third parties named in entries are protected only by partner names being hidden by default.
 
 ## Riskiest assumption
 

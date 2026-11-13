@@ -20,7 +20,7 @@
 |--------|-------|
 | `user` | id, login, display name, role flag (admin), password hash, TOTP secret (encrypted), status (active, disabled, deleted), timestamps |
 | `session` | server-side, expiring, bound to a user; cleared on password reset |
-| `space` | id, name, status |
+| `space` | id, name, status, `join_approval` (`owner` in v1; `all_members` later) |
 | `membership` | user, space, role (owner or member), state (requested, active, left, removed), timestamps |
 | `invite` | one-time code or link stored as a hash, scope (server account or a space, with the role granted), target (new or existing account), expiry (default 7 days), creator, state (open, used, revoked, expired), redemption attempts |
 | `profile` | one per user: display name, avatar media, and optional demographic fields copied from a Tryst `profile` row (sex, gender, birth date, ethnicity, height, body type, orientation). Each field carries its own share setting (default private) and a pointer to the revision it was imported from |
@@ -31,7 +31,7 @@
 | `row_cache` | a materialized view of a revision's tables for fast reads (derivable, rebuildable) |
 | `space_sharing` | per membership: include notes, include photos, show partner names, paused flag (defaults: notes and photos on, partner names hidden, not paused) |
 | `entry_flag` | per entry: private (kept out of the space). Keyed by owner and entry id, so it survives new revisions |
-| `join_consent` | per join request: the owner's decision and each current member's yes or no, with timestamps |
+| `join_consent` | per join request: the owner's decision and, in `all_members` mode, each current member's yes or no, with timestamps |
 | `media` | owner, blob path, SHA-256, size, kind, has-location flag, location visibility |
 | `tombstone` | what was deleted, by whom, when, and when it purges |
 | `admin_log` | sequence, time, actor, action, target type and id, fields touched, previous hash, hash |

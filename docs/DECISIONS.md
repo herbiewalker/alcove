@@ -226,7 +226,7 @@
 
 ---
 ## D-21 — A space is collaborative: members see each other's entries (supersedes D-5, withdraws O-10)
-- **Status:** Accepted (the join-consent rule below is proposed and needs the user's OK)
+- **Status:** Accepted
 - **Context:** the per-category and per-entry sharing matrix and the optional partner-linking feature were judged too
   complicated. A space exists to see and compare everyone's entries together, including solo sessions, sessions with
   people outside the space, and sessions with several partners. Matching one event across two members' data would
@@ -240,8 +240,9 @@
      photo location shown only when its owner enables it.
   2. **Mark an entry private** with one tap, so a single entry can stay out of the space.
   3. **Leaving** removes a member's contributions from the space at once.
-  4. **Proposed join consent:** a new member needs the owner's approval **and** a yes from each current member,
-     because a newcomer would see everyone's existing entries.
+  4. **Join approval is a per-space setting.** v1 default and only implemented mode: the **owner approves alone**.
+     A stricter `all_members` mode (every current member must agree) is modelled in the data model and built later,
+     for more social spaces where a newcomer sees everyone's existing entries.
 - **Alternatives:** the per-category and per-entry matrix (D-5), partner linking and entry matching (O-10), a
   per-pair sharing model.
 - **Consequences:** the sharing code shrinks to a visibility check on one space membership plus a per-entry flag.

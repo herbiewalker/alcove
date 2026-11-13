@@ -44,7 +44,7 @@
 
 ## M4 — Sharing, calendar overlay, compare
 
-- [ ] Metrics registry per D-18 (reviewed whenever Tryst Insights changes); space visibility, pause, per-entry private, include settings and the join consent rule (F5, F11; D-21)
+- [ ] Metrics registry per D-18 (reviewed whenever Tryst Insights changes); space visibility, pause, per-entry private, include settings and owner approval of joins (F5, F11; D-21); the `all_members` mode is a later per-space setting
 - [ ] Profile prefill from the Tryst profile with per-field sharing, and member cards (F26, F28; D-14)
 - [ ] Shared calendar overlay (F12), then compare metrics (F13)
 - **Exit:** a non-member and another space see nothing; pause, the private flag and leave are honoured; the join consent rule holds.

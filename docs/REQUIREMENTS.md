@@ -48,7 +48,7 @@
 | F2 | Admin can create, disable, delete and reset users; a user is disabled before deletion and has a grace period | Must |
 | F3 | A user can download all of their own data before deletion | Must |
 | F4 | Create independent spaces; each has an owner; a person may belong to several | Must |
-| F5 | Any user can request to join a space; the join screen states exactly what will be shared; the owner and each current member must agree (D-21) | Must |
+| F5 | Any user can request to join a space; the join screen states exactly what will be shared; the owner approves (D-21); an `all_members` approval mode is a later per-space setting | Must |
 | F6 | Leaving or removal stops that person's sharing at once and removes their shared contributions from the space | Must |
 | F7 | Upload a `.tryst`; verify by trial decrypt with the member's stored password; refuse duplicates by SHA-256 | Must |
 | F8 | Every upload is an immutable revision; edits create new revisions; full history per person | Must |

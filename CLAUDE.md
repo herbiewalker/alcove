@@ -52,12 +52,12 @@ and ADRs they feed are reviewed.
 
 5. **A space is collaborative, and nothing leaks outside it.** Inside a space every member sees every other
    member's entries (D-21). Nothing is visible to non-members or in other spaces. Joining is the act of consent,
-   so the join screen states exactly what will be shared, and a new member needs the owner and each current member
-   to agree. A member can pause sharing, mark one entry private, and leave at any time (leaving removes their
+   so the join screen states exactly what will be shared, and the space owner approves who joins (a stricter
+   all-members mode is a later per-space setting). A member can pause sharing, mark one entry private, and leave at any time (leaving removes their
    contributions). Partner names (people outside the space) are hidden by default, and a photo's location is
    shown only when its owner enables it.
    *Guard:* tests for non-member and cross-space isolation, the pause, the per-entry private flag, leave,
-   and the join consent rule.
+   and the owner-approval rule.
 
 6. **The admin can see and search everything, and every admin action is logged.** Soft-deleted items,
    paused shares and every space are visible to the admin. Every admin view, search, edit, restore and
