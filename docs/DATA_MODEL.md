@@ -29,7 +29,9 @@
 | `revision` | id, owner, parent revision, kind (upload or edit), created by, created at |
 | `change` | revision, table, row id, field, old value, new value, op (set, delete, restore) |
 | `row_cache` | a materialized view of a revision's tables for fast reads (derivable, rebuildable) |
-| `share_rule` | owner, space, scope (all, category, entry), visibility flags, paused flag |
+| `space_sharing` | per membership: include notes, include photos, show partner names, paused flag (defaults: notes and photos on, partner names hidden, not paused) |
+| `entry_flag` | per entry: private (kept out of the space). Keyed by owner and entry id, so it survives new revisions |
+| `join_consent` | per join request: the owner's decision and each current member's yes or no, with timestamps |
 | `media` | owner, blob path, SHA-256, size, kind, has-location flag, location visibility |
 | `tombstone` | what was deleted, by whom, when, and when it purges |
 | `admin_log` | sequence, time, actor, action, target type and id, fields touched, previous hash, hash |
@@ -66,7 +68,7 @@ index) in [DECISIONS.md](DECISIONS.md).
 ## Storage layout (D-16, proposed)
 
 - **Sealed database:** one SQLite database on tmpfs holds `user`, `session`, `space`, `membership`, `invite`,
-  `profile`, `backup_password`, `upload` (metadata), `revision`, `change`, `row_cache`, `share_rule`, `media`
+  `profile`, `backup_password`, `upload` (metadata), `revision`, `change`, `row_cache`, `space_sharing`, `entry_flag`, `join_consent`, `media`
   (metadata), `tombstone`, `admin_log` and `meta`, plus the FTS5 search index. It is sealed to the data directory as an
   AES-256-GCM blob with one previous generation.
 - **Blobs:** original uploads (as Tryst wrote them) and photos (encrypted under the owner's data key) are files named

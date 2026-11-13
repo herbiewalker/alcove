@@ -1,7 +1,7 @@
 # Alcove — Project Context for Claude Code
 
 > A self-hosted, LAN-only server where a couple (or a family) can upload their **Tryst** backups,
-> manage and edit their entries on a computer, and see a shared, opt-in view of each other's data.
+> manage and edit their entries on a computer, and see everyone else in their space, side by side.
 
 Project name **Alcove**, Go module **`github.com/herbiewalker/alcove`**, container **`alcove`**.
 **Size class:** **L · app-service** — per the DevPlaybook sizing matrix. Network service, multiple
@@ -50,11 +50,14 @@ and ADRs they feed are reviewed.
    *Guard:* `scripts/guards.sh no-secrets`; a startup test for the key-file location; trivy secret scan;
    `scripts/guards.sh no-plaintext` (armed when storage lands in M2).
 
-5. **Sharing is opt-in and private by default.** Nothing is visible to another member until its owner
-   shares it: per space, per person, per category, per entry, with a one-tap **pause** and a
-   **share all**. Partner names are hidden in shared views by default. A photo's location data is kept
-   but shown to others only when the owner turns that on for it.
-   *Guard:* tests for the default (nothing visible) and for cross-user and cross-space isolation.
+5. **A space is collaborative, and nothing leaks outside it.** Inside a space every member sees every other
+   member's entries (D-21). Nothing is visible to non-members or in other spaces. Joining is the act of consent,
+   so the join screen states exactly what will be shared, and a new member needs the owner and each current member
+   to agree. A member can pause sharing, mark one entry private, and leave at any time (leaving removes their
+   contributions). Partner names (people outside the space) are hidden by default, and a photo's location is
+   shown only when its owner enables it.
+   *Guard:* tests for non-member and cross-space isolation, the pause, the per-entry private flag, leave,
+   and the join consent rule.
 
 6. **The admin can see and search everything, and every admin action is logged.** Soft-deleted items,
    paused shares and every space are visible to the admin. Every admin view, search, edit, restore and

@@ -22,7 +22,7 @@
 |----|-----------|------------|----------|
 | T1 | **Curious household member** or guest | On the LAN, can open the page or an unlocked screen; no admin rights | High |
 | T2 | **Another LAN device** | Can reach the port and scan; no host access | High |
-| T3 | **A member overreaching** | A valid account trying to see another member's or another space's unshared data | High |
+| T3 | **A non-member or another space reaching in** | A valid account trying to see a space it does not belong to, or a member trying to see entries marked private or paused | High |
 | T4 | **A member who saves or leaks** what was shared | Legitimately saw it; can screenshot or forward | Accepted (R2) |
 | T5 | **Offline media** | A pulled or RMA'd disk, a copied backup of the data directory | High |
 | T6 | **A hostile backup file** | Crafted headers, absurd KDF counts, Zip-Slip, zip bombs, truncated streams | Medium |
@@ -41,7 +41,7 @@
 |--------|-----------|
 | T1 opens the page on a shared screen | Authentication, short idle timeout, "hide screen" button, photos blurred until clicked, step-up re-login for export and delete |
 | T2 reaches the port | LAN only, one published port, rate-limited login, strict CSP, no open sign-up |
-| T3 reads unshared data | Every view reads through the sharing check; default is nothing visible; isolation tests across users and spaces (N1) |
+| T3 reads outside their space | Every view reads through the visibility check; isolation tests across non-members, spaces, pause and the private flag (N1) |
 | T5 reads a pulled disk | Data encrypted at rest; the key file lives outside the data directory and the app refuses to start otherwise (N2) |
 | T6 sends a hostile backup | Header bounds, Zip-Slip validation, size and entry caps, streaming, clean rejection (N9) |
 | T7 modifies stored uploads | SHA-256 recorded and re-verified; AEAD fails on a flipped byte; uploads are immutable (N6) |
@@ -78,7 +78,7 @@
   limits, and joins that still need the space owner's approval. The admin log records issue, use and revoke.
 - **R11 — Profile fields are sensitive.** Sex, gender, birth date, ethnicity, body type and orientation can be
   imported from a Tryst profile. Mitigated by importing only display name and photo by default, a separate
-  private-by-default share setting per field, and showing others only what is shared.
+  share setting per field (sensitive fields are never imported unless chosen), and showing others only what is shared.
 
 ## Updates from the design pass (2026-11-12)
 
@@ -90,7 +90,7 @@
   protects nothing against a pulled disk; the runbook puts it on separate media (for example the Unraid flash drive).
 - **R12 — Search terms in the admin log.** Recording what the admin searched for would put content in the log
   (O-12). The default records scope, result count and term length only. The trade-off is less accountability.
-- **R13 — Partner linking (O-10)** reveals that one member recorded another. It is optional, bilateral and logged.
+- **R13 — Everyone in a space sees everything, by design (D-21).** A new member sees all existing entries at once, so joining needs the owner and each current member to agree, and the join screen says what will be shared. A member who regrets it can pause or leave, but what was seen cannot be unseen. Third parties named in entries are protected only by partner names being hidden by default.
 
 ## Riskiest assumption
 

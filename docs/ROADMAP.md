@@ -44,10 +44,10 @@
 
 ## M4 — Sharing, calendar overlay, compare
 
-- [ ] Metrics registry per D-18 (reviewed whenever Tryst Insights changes); sharing rules per space, person, category and entry, pause, share all (F11)
+- [ ] Metrics registry per D-18 (reviewed whenever Tryst Insights changes); space visibility, pause, per-entry private, include settings and the join consent rule (F5, F11; D-21)
 - [ ] Profile prefill from the Tryst profile with per-field sharing, and member cards (F26, F28; D-14)
 - [ ] Shared calendar overlay (F12), then compare metrics (F13)
-- **Exit:** default visibility is nothing; cross-user and cross-space tests pass.
+- **Exit:** a non-member and another space see nothing; pause, the private flag and leave are honoured; the join consent rule holds.
 
 ## M5 — Editing
 

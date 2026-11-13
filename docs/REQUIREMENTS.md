@@ -22,7 +22,7 @@
 - **R1 Accounts and spaces.** Admin-created or invited accounts, independent spaces, owner-approved joining,
   people in several spaces, leaving and removal.
 - **R2 Upload and revisions.** Verified, immutable uploads with a revision history per person.
-- **R3 Sharing.** Opt-in, private by default, per space, person, category and entry, with pause and share all.
+- **R3 Sharing.** A space is collaborative: members see each other's entries (D-21). Nothing is visible outside the space. Pause, per-entry private, and consent at join.
 - **R4 Views.** Shared calendar overlay and compare metrics.
 - **R5 Editing.** Edit entries in the browser as new revisions with history, diff and recovery.
 - **R6 Export.** Write a fresh, Tryst-compatible `.tryst` from a revision.
@@ -48,14 +48,14 @@
 | F2 | Admin can create, disable, delete and reset users; a user is disabled before deletion and has a grace period | Must |
 | F3 | A user can download all of their own data before deletion | Must |
 | F4 | Create independent spaces; each has an owner; a person may belong to several | Must |
-| F5 | Any user can request to join a space; the owner approves or declines | Must |
+| F5 | Any user can request to join a space; the join screen states exactly what will be shared; the owner and each current member must agree (D-21) | Must |
 | F6 | Leaving or removal stops that person's sharing at once and removes their shared contributions from the space | Must |
 | F7 | Upload a `.tryst`; verify by trial decrypt with the member's stored password; refuse duplicates by SHA-256 | Must |
 | F8 | Every upload is an immutable revision; edits create new revisions; full history per person | Must |
 | F9 | Read any supported Tryst schema generically; unknown tables and columns survive a round trip untouched | Must |
 | F10 | Refuse or open read-only any backup with a schema newer than supported | Must |
-| F11 | Sharing rules per space, person, category and entry; one-tap pause; share all; partner names hidden by default | Must |
-| F12 | Shared calendar overlay computed only from shared rows | Must |
+| F11 | Inside a space every member sees every other member's entries; per-membership settings (include notes, include photos, show partner names, pause) and a per-entry private flag; partner names hidden by default (D-21) | Must |
+| F12 | Calendar overlay showing every member's entries in the space (solo, with others and multi-partner entries all appear as the logging member's own) | Must |
 | F13 | Compare metrics across members of a space (the registry in D-18) | Should |
 | F14 | Edit an entry's editable fields (O-3) in the browser; each save is a revision with a diff | Must |
 | F15 | Export a revision to a fresh `.tryst`; show which upload it is based on, warn if a newer upload exists, show a diff first, and give a guided restore procedure (D-15) | Must |
@@ -78,7 +78,7 @@
 
 | ID | Requirement | How it is verified |
 |----|-------------|--------------------|
-| N1 | Another member or space never sees unshared data | Tests: default visibility is nothing; cross-user and cross-space isolation |
+| N1 | A non-member or another space never sees a member's entries; a paused membership and a private-flagged entry are never shown to the space | Tests: non-member and cross-space isolation, pause, per-entry private, leave removes contributions |
 | N2 | Data is encrypted at rest; the key is stored apart from the data; the app refuses to start if the key file is inside the data directory | Startup test; `guards.sh no-secrets`; trivy |
 | N3 | No outbound network calls or telemetry by default | `guards.sh no-outbound`; CSP |
 | N4 | Logs, alerts and errors carry no content | Log-scrape test over a full upload, edit and export |

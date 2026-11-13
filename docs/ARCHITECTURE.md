@@ -26,7 +26,7 @@
  ┌─────────────┐  download ┌──────────────────────┐       │       │                           │
  │  .tryst     │ ◄──────── │ browser (LAN)        │ ◄──── │   writer ─► fresh .tryst          │
  └─────────────┘           └──────────────────────┘       │                                   │
-                                                          │ sharing rules ─► SPACE VIEWS      │
+                                                          │ space visibility ─► SPACE VIEWS  │
                                                           │ admin log (hash chain)            │
                                                           └───────────────┬───────────────────┘
                                                                           ▼
@@ -44,7 +44,7 @@
 | `internal/auth` | accounts, password hashing, sessions, rate limiting, TOTP, step-up |
 | `internal/spaces` | spaces, memberships, invites and join requests, roles, member profile cards |
 | `internal/profile` | profile prefill from a Tryst `profile` row, per-field share settings |
-| `internal/sharing` | sharing rules and the visibility check every view goes through |
+| `internal/sharing` | the visibility check every view goes through: space membership, pause, per-entry private flag, include settings |
 | `internal/views` | calendar overlay and compare metrics computed from shared rows |
 | `internal/edit` | change-sets, diff, history, restore from revisions |
 | `internal/adminlog` | append-only hash-chained log and its verifier |
@@ -63,7 +63,7 @@
    as a fresh `TRYSTBK1`, and offer it as a new file. Show the base upload, warn if a newer one exists, and
    show a diff first. Requires step-up re-login.
 4. **Profile and invite.** Prefill reads the `profile` row of a verified upload and proposes display name and photo; every other field is imported only if the member ticks it, each with its own private-by-default share setting. An invite is a random one-time token (only its hash is stored) with a scope, expiry and role; redeeming it creates an account or a membership. No e-mail is sent.
-5. **Share.** A member's sharing rules select rows; views read only through the sharing check. Isolation is
+5. **Share.** Views read every member's entries in a space through the visibility check (membership, pause, the per-entry private flag, include settings). Isolation is
    tested across users and spaces.
 6. **Recover.** Deletes write tombstones; a user restores within 10 days, the admin within 45; retention purges later.
 

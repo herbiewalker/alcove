@@ -7,7 +7,7 @@
 ![License](https://img.shields.io/badge/license-AGPL--3.0-blue)
 ![Platform](https://img.shields.io/badge/platform-Docker%20%2F%20Unraid-0969da)
 ![LAN only](https://img.shields.io/badge/network-LAN_only-2ea44f)
-![Private by default](https://img.shields.io/badge/sharing-private_by_default-2ea44f)
+![Nothing leaks outside a space](https://img.shields.io/badge/spaces-isolated-2ea44f)
 
 **Status: design phase.** Nothing here runs yet except an empty server that answers `/healthz`. The
 design documents are being written; no feature code exists.
@@ -30,7 +30,7 @@ person uploads their backups, edits their entries on a computer, and chooses wha
   with a full, tamper-evident log.
 - **Not in scope:** social features, live sync, internet exposure, any change to Tryst. Video waits for
   Tryst to support it.
-- **Promises:** sharing is **private by default**, the server is **LAN only**, it makes **no outbound
+- **Promises:** a space is collaborative but **nothing leaves it** (consent at join, pause, per-entry private), the server is **LAN only**, it makes **no outbound
   calls** by default, data is **encrypted at rest** with the key kept apart from it, and the admin's
   access is total but **always logged**. Each is meant to be enforced by a CI check where it can be.
 

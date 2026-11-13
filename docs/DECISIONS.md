@@ -1,6 +1,6 @@
 # Alcove — Decision Log (ADRs)
 
-> **Status:** Kickoff set and design pass 1 done, 2026-11-12 (D-15 to D-20; O-2, O-3, O-4, O-11 to O-13 resolved; O-1 and O-7 proposed; O-10 awaiting a call). Newest at the bottom, open questions last. Never delete an ADR;
+> **Status:** Kickoff set and design pass 1 done, 2026-11-12 (D-15 to D-21; O-2, O-3, O-4, O-11 to O-13 resolved; O-10 withdrawn; O-1 and O-7 proposed). Newest at the bottom, open questions last. Never delete an ADR;
 > supersede it with a new one. Format: Nygard-style, trimmed.
 
 ---
@@ -42,7 +42,7 @@
 - **Consequences:** protects a pulled or RMA'd disk, not root on the live host. Constraint 4 replaces Sanctum's
   "key never at rest". The key file is a single root of failure and its second copy must be proved (CRITICAL_ASSETS).
 
-## D-5 — Sharing model: private by default, opt-in at several levels
+## D-5 — Sharing model: private by default, opt-in at several levels (SUPERSEDED by D-21)
 - **Status:** Accepted
 - **Decision:** nothing is visible to another member until its owner shares it, per space, per person, per
   category and per entry. There is a one-tap **pause** and a **share all**. Partner names are hidden in shared
@@ -225,6 +225,30 @@
   deletions or must be exact, merge otherwise, always behind the "fresh phone backup first" confirmation (D-15).
 
 ---
+## D-21 — A space is collaborative: members see each other's entries (supersedes D-5, withdraws O-10)
+- **Status:** Accepted (the join-consent rule below is proposed and needs the user's OK)
+- **Context:** the per-category and per-entry sharing matrix and the optional partner-linking feature were judged too
+  complicated. A space exists to see and compare everyone's entries together, including solo sessions, sessions with
+  people outside the space, and sessions with several partners. Matching one event across two members' data would
+  need linking; showing everyone's own entries side by side does not.
+- **Decision:** inside a space, **every member sees every other member's entries by default**. Nothing is visible to
+  non-members or in other spaces. Joining a space is the act of consent, so the join screen states exactly what will
+  be shared. There is **no entry matching and no partner linking**: each entry belongs to the member who logged it, and
+  the views (calendar overlay, compare metrics) simply show all members' entries. The small safeguards that stay:
+  1. **Per-space settings** on a membership: include notes, include photos, show partner names, and a **pause**.
+     Defaults: notes and photos on, partner names **hidden** (people who are not members never agreed to appear),
+     photo location shown only when its owner enables it.
+  2. **Mark an entry private** with one tap, so a single entry can stay out of the space.
+  3. **Leaving** removes a member's contributions from the space at once.
+  4. **Proposed join consent:** a new member needs the owner's approval **and** a yes from each current member,
+     because a newcomer would see everyone's existing entries.
+- **Alternatives:** the per-category and per-entry matrix (D-5), partner linking and entry matching (O-10), a
+  per-pair sharing model.
+- **Consequences:** the sharing code shrinks to a visibility check on one space membership plus a per-entry flag.
+  What a member has already shown to the space cannot be unseen, and the join and leave screens say so. Isolation
+  tests now cover non-members and other spaces rather than each category. Partner linking can return later as a
+  separate feature if wanted.
+
 
 ## Open questions
 > Decisions deferred on purpose. Each is a future ADR. Do not let these rot silently.
@@ -238,9 +262,7 @@
 - **O-7 — Admin search.** *Proposed in D-17; term logging resolved in D-20.*
 - **O-8 — Member activity view.** Whether to ship the optional "activity on my data" view and its default.
 - **O-9 — Shared library extraction.** When and how to extract `trystbk` for both projects.
-- **O-10 — Linking members to Tryst partners.** *Awaiting the user's call after a worked example.* Optional, bilateral,
-  off by default; see the example in the design notes. Linking reveals that one member recorded the other, so it needs
-  both opt-ins and appears in the admin log.
+- **O-10 — Linking members to Tryst partners.** *Withdrawn in D-21 (the collaborative model needs no matching). May return later as its own feature.*
 - **O-11 — Time zone.** *Resolved in D-20.*
 - **O-12 — Admin search terms.** *Resolved in D-20: not recorded.*
 - **O-13 — Restore default.** *Resolved in D-20.*
