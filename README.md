@@ -1,5 +1,7 @@
 <div align="center">
 
+<img src="deploy/icon.png" alt="Alcove" width="220">
+
 # Alcove
 
 ### A private, self-hosted space for couples and families to bring their Tryst backups together

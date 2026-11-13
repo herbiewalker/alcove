@@ -52,6 +52,7 @@
 - [ ] First-run admin; accounts; password hashing; sessions; rate limiting; step-up re-login
 - [ ] Append-only hash-chained admin log, its verifier (N5), and a **basic log viewer**
 - [ ] Strict CSP and a **mobile-first** responsive UI shell (light, dark, auto), reusing Sanctum's approach (D-22)
+- [ ] Use the Alcove logo (`docs/img/alcove-logo.png`, `deploy/icon.png`): header mark and favicon need a square crop of the A and heart without the wordmark, with a dark and a light variant
 - [ ] Transport security per D-23: CSRF tokens, allowed networks (private ranges by default), proxy mode, insecure-connection banner and require-TLS mode, with the auto-revert on allowed-network changes (F32, N17)
 - **Exit:** no unauthenticated route creates an account; the chain verifies and a tampered entry is detected; the shell
   is usable on a phone-width screen with the keyboard and touch.
