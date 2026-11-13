@@ -59,3 +59,21 @@ func TestNoSecretVariablesAreRead(t *testing.T) {
 		t.Errorf("a secret-looking variable changed the config: %+v", c)
 	}
 }
+
+func TestTransportEnvironment(t *testing.T) {
+	c, err := Load(env(nil))
+	if err != nil || c.Net.AllowedNets != nil || c.Net.ProxyMode != nil || c.Net.RequireTLS != nil || c.Net.TrustedProxies != nil {
+		t.Fatalf("unset variables must stay nil so the console decides: %+v %v", c.Net, err)
+	}
+	c, err = Load(env(map[string]string{
+		"ALCOVE_ALLOWED_NETWORKS": " 192.168.1.0/24 ", "ALCOVE_TRUSTED_PROXIES": "10.0.0.2",
+		"ALCOVE_PROXY_MODE": "true", "ALCOVE_REQUIRE_TLS": "false",
+	}))
+	if err != nil || *c.Net.AllowedNets != "192.168.1.0/24" || *c.Net.TrustedProxies != "10.0.0.2" ||
+		!*c.Net.ProxyMode || *c.Net.RequireTLS {
+		t.Fatalf("transport env: %+v %v", c.Net, err)
+	}
+	if _, err := Load(env(map[string]string{"ALCOVE_REQUIRE_TLS": "maybe"})); err == nil {
+		t.Fatal("a bad boolean must be refused")
+	}
+}

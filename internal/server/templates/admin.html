@@ -1,0 +1,19 @@
+{{define "content"}}
+<h1>Admin console</h1>
+<div class="stats">
+  <div><b>{{.Stats.Users}}</b><span class="muted small">accounts</span></div>
+  <div><b>{{.Stats.LogEntries}}</b><span class="muted small">admin log entries</span></div>
+  <div><b>{{.Stats.Sealed}}</b><span class="muted small">last sealed to disk</span></div>
+</div>
+<section class="card">
+  <h2>Admin log</h2>
+  <p>Every admin action is written to an append-only log that is chained by hash, so a changed or removed line is detected. It records what was touched, never the content.</p>
+  <p><a class="btn" href="/admin/log">Open the log</a></p>
+</section>
+<section class="card">
+  <h2>Network and security</h2>
+  <p>Which networks may reach this server, reverse-proxy mode and requiring HTTPS.</p>
+  <p><a class="btn" href="/admin/settings">Open settings</a></p>
+</section>
+<p class="muted small">Opening this page is itself written to the admin log. Version {{.Version}}, schema {{.Stats.Schema}}.</p>
+{{end}}

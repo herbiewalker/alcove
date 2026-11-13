@@ -1,0 +1,25 @@
+{{define "content"}}
+<h1>Account</h1>
+<section class="card">
+  <p><b>{{.User.DisplayName}}</b> <span class="muted">@{{.User.Username}} · {{.User.Role}}</span></p>
+  <p class="muted small">Last sign-in: {{.LastLogin}}</p>
+</section>
+<form class="card" method="post" action="/account" autocomplete="off">
+  <h2>Change password</h2>
+  <input type="hidden" name="csrf" value="{{.CSRF}}">
+  <div class="field">
+    <label for="current">Current password</label>
+    <input id="current" name="current" type="password" autocomplete="current-password" required>
+  </div>
+  <div class="field">
+    <label for="password">New password</label>
+    <input id="password" name="password" type="password" autocomplete="new-password" required>
+    <p class="hint">At least 10 characters. Other devices are signed out when you change it.</p>
+  </div>
+  <div class="field">
+    <label for="confirm">Repeat the new password</label>
+    <input id="confirm" name="confirm" type="password" autocomplete="new-password" required>
+  </div>
+  <div class="actions"><button class="btn" type="submit">Change password</button></div>
+</form>
+{{end}}

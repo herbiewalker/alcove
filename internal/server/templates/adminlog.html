@@ -1,0 +1,24 @@
+{{define "content"}}
+<h1>Admin log</h1>
+<form class="card" method="post" action="/admin/log/verify">
+  <input type="hidden" name="csrf" value="{{.CSRF}}">
+  <p class="muted">Check that every entry still matches the one before it. {{if .Head}}Current head: <code>{{.Head}}</code>. Note it somewhere else to catch even a wholesale rewrite.{{end}}</p>
+  <div class="actions"><button class="btn secondary" type="submit">Verify the chain now</button></div>
+</form>
+<div class="scroll">
+<table>
+  <thead><tr><th>#</th><th>Time (UTC)</th><th>Who</th><th>Action</th><th>Target</th><th>Fields</th></tr></thead>
+  <tbody>
+  {{range .Entries}}
+    <tr><td>{{.Seq}}</td><td>{{.Time}}</td><td>{{.Who}}</td><td><code>{{.Action}}</code></td><td>{{.Target}}</td><td><code>{{.Fields}}</code></td></tr>
+  {{else}}
+    <tr><td colspan="6" class="muted">No entries yet.</td></tr>
+  {{end}}
+  </tbody>
+</table>
+</div>
+<div class="pager">
+  {{if .Newer}}<a class="btn secondary" href="/admin/log?page={{.Newer}}">Newer</a>{{else}}<span></span>{{end}}
+  {{if .Older}}<a class="btn secondary" href="/admin/log?page={{.Older}}">Older</a>{{end}}
+</div>
+{{end}}

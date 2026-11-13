@@ -1,0 +1,19 @@
+{{define "content"}}
+<section class="card center">
+  <img class="mark-large" src="/static/mark-192.png" width="96" height="96" alt="">
+  <h1>Sign in</h1>
+  <p class="muted">Private to this home network. Invite only.</p>
+</section>
+<form class="card" method="post" action="/login">
+  <input type="hidden" name="csrf" value="{{.CSRF}}">
+  <div class="field">
+    <label for="username">Username</label>
+    <input id="username" name="username" type="text" autocapitalize="none" autocomplete="username" spellcheck="false" required autofocus>
+  </div>
+  <div class="field">
+    <label for="password">Password</label>
+    <input id="password" name="password" type="password" autocomplete="current-password" required>
+  </div>
+  <div class="actions"><button class="btn" type="submit">Sign in</button></div>
+</form>
+{{end}}

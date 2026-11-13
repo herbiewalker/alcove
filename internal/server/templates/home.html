@@ -1,0 +1,14 @@
+{{define "content"}}
+<h1>Hello, {{.User.DisplayName}}</h1>
+<section class="card">
+  <h2>Your space</h2>
+  <p class="muted">Nothing is stored here yet. Uploading Tryst backups, spaces and sharing arrive in the next milestones. Until then this server only holds accounts.</p>
+</section>
+{{if .IsAdmin}}
+<section class="card">
+  <h2>Administrator</h2>
+  <p>You can see and manage everything on this server, and every action is written to the admin log.</p>
+  <p><a class="btn" href="/admin">Open the admin console</a></p>
+</section>
+{{end}}
+{{end}}

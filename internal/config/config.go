@@ -9,6 +9,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/herbiewalker/alcove/internal/netsec"
 )
 
 // Config is everything the server needs to start.
@@ -21,6 +23,9 @@ type Config struct {
 	AllowNonTmpfsTmp bool
 	// SealEvery is how often a changed database is sealed in the background.
 	SealEvery time.Duration
+	// Net holds the transport-security values set in the environment (D-23). An unset variable is a
+	// nil field: the admin console decides. A set variable wins and shows as "set by environment".
+	Net netsec.Env
 }
 
 // Load builds a Config from getenv (os.Getenv in production, a map in tests).
@@ -42,6 +47,22 @@ func Load(getenv func(string) string) (Config, error) {
 			return Config{}, fmt.Errorf("ALCOVE_SEAL_EVERY_SECONDS must be 1..3600, got %q", v)
 		}
 		c.SealEvery = time.Duration(n) * time.Second
+	}
+	if v := strings.TrimSpace(getenv("ALCOVE_ALLOWED_NETWORKS")); v != "" {
+		c.Net.AllowedNets = &v
+	}
+	if v := strings.TrimSpace(getenv("ALCOVE_TRUSTED_PROXIES")); v != "" {
+		c.Net.TrustedProxies = &v
+	}
+	for key, dst := range map[string]**bool{"ALCOVE_PROXY_MODE": &c.Net.ProxyMode, "ALCOVE_REQUIRE_TLS": &c.Net.RequireTLS} {
+		if strings.TrimSpace(getenv(key)) == "" {
+			continue
+		}
+		b, berr := boolEnv(getenv, key, false)
+		if berr != nil {
+			return Config{}, berr
+		}
+		*dst = &b
 	}
 	return c, nil
 }

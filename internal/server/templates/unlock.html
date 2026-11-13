@@ -1,0 +1,15 @@
+{{define "content"}}
+<section class="card center">
+  <img class="mark-large" src="/static/mark-192.png" width="96" height="96" alt="">
+  <h1>Locked</h1>
+  <p class="muted">This server's key is protected by a passphrase. Nothing can be read until it is unlocked.</p>
+</section>
+<form class="card" method="post" action="/unlock" autocomplete="off">
+  <input type="hidden" name="csrf" value="{{.CSRF}}">
+  <div class="field">
+    <label for="passphrase">Key passphrase</label>
+    <input id="passphrase" name="passphrase" type="password" autocomplete="off" required autofocus>
+  </div>
+  <div class="actions"><button class="btn" type="submit">Unlock</button></div>
+</form>
+{{end}}

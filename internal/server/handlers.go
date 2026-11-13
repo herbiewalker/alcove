@@ -1,0 +1,661 @@
+package server
+
+import (
+	"crypto/subtle"
+	"database/sql"
+	"errors"
+	"fmt"
+	"net/http"
+
+	"strconv"
+	"strings"
+	"time"
+
+	"github.com/herbiewalker/alcove/internal/adminlog"
+	"github.com/herbiewalker/alcove/internal/auth"
+	"github.com/herbiewalker/alcove/internal/netsec"
+)
+
+const timeFmt = "2006-01-02 15:04:05"
+
+// tlsGate refuses sign-in pages over plain HTTP when require-TLS is on (N17). It reports true when
+// it wrote the refusal.
+func (q *rq) tlsGate() bool {
+	if q.s.net.Load().TLSRequiredButMissing(q.c) {
+		q.message(http.StatusForbidden, "Encrypted connection required",
+			"This server only accepts sign-ins over HTTPS. Open it through its HTTPS address.", "")
+		return true
+	}
+	return false
+}
+
+// ---- unlock ----
+
+func (s *Server) getUnlock(q *rq) {
+	if q.st != nil {
+		q.redirect("/")
+		return
+	}
+	q.render(http.StatusOK, "unlock", &page{Title: "Locked"})
+}
+
+func (s *Server) postUnlock(q *rq) {
+	if q.st != nil {
+		q.redirect("/")
+		return
+	}
+	if !s.unlockLim.Allow(q.ip()) {
+		q.message(http.StatusTooManyRequests, "Too many attempts", "Wait a minute and try again.", "/unlock")
+		return
+	}
+	if err := s.be.Unlock(q.r.PostForm.Get("passphrase")); err != nil {
+		s.log.Warn("unlock failed", "ip", q.ip())
+		q.render(http.StatusUnauthorized, "unlock", &page{Title: "Locked", Error: "That passphrase did not unlock the key."})
+		return
+	}
+	s.log.Info("unlocked from the web page", "ip", q.ip())
+	s.ensure()
+	q.redirect("/")
+}
+
+// ---- first run ----
+
+func (s *Server) getSetup(q *rq) {
+	if s.hasUsers.Load() {
+		q.notFound()
+		return
+	}
+	if q.tlsGate() {
+		return
+	}
+	q.render(http.StatusOK, "setup", &page{Title: "Welcome"})
+}
+
+// postSetup is the ONLY route that creates an account (constraint 11). It works once, with the
+// one-time code from the server log, and only while there are no accounts at all.
+func (s *Server) postSetup(q *rq) {
+	if s.hasUsers.Load() {
+		q.notFound()
+		return
+	}
+	if q.tlsGate() {
+		return
+	}
+	fail := func(status int, msg string) {
+		q.render(status, "setup", &page{Title: "Welcome", Error: msg})
+	}
+	if !s.setupLim.Allow(q.ip()) {
+		q.message(http.StatusTooManyRequests, "Too many attempts", "Wait a minute and try again.", "/setup")
+		return
+	}
+	f := q.r.PostForm
+	s.mu.Lock()
+	code := s.setupCode
+	s.mu.Unlock()
+	if code == "" || subtle.ConstantTimeCompare([]byte(normalizeCode(f.Get("code"))), []byte(normalizeCode(code))) != 1 {
+		s.log.Warn("setup refused: wrong code", "ip", q.ip())
+		fail(http.StatusUnauthorized, "That setup code is not right. Look in the server log for the one shown at start-up.")
+		return
+	}
+	username, err := auth.NormalizeUsername(f.Get("username"))
+	if err != nil {
+		fail(http.StatusBadRequest, err.Error())
+		return
+	}
+	pw := f.Get("password")
+	if pw != f.Get("confirm") {
+		fail(http.StatusBadRequest, "The two passwords are not the same.")
+		return
+	}
+	if err := auth.CheckPassword(pw, username); err != nil {
+		fail(http.StatusBadRequest, strings.TrimPrefix(err.Error(), "password policy: "))
+		return
+	}
+	hash, err := auth.Hash(pw, s.params)
+	if err != nil {
+		q.serverError("hash password", err)
+		return
+	}
+	var u auth.User
+	err = q.st.Update(q.r.Context(), true, func(tx *sql.Tx) error {
+		n, err := auth.Count(tx)
+		if err != nil {
+			return err
+		}
+		if n > 0 {
+			return errAlreadySetUp
+		}
+		if u, err = auth.Create(tx, s.now(), username, f.Get("display"), auth.RoleAdmin, hash); err != nil {
+			return err
+		}
+		_, err = adminlog.Append(tx, s.now(), u.ID, "admin.first_run", "user", u.ID, "username,password,role")
+		return err
+	})
+	switch {
+	case errors.Is(err, errAlreadySetUp):
+		q.notFound()
+		return
+	case err != nil:
+		q.serverError("first-run setup", err)
+		return
+	}
+	s.mu.Lock()
+	s.setupCode = ""
+	s.mu.Unlock()
+	s.hasUsers.Store(true)
+	s.log.Info("first administrator created", "user", u.ID)
+	s.signIn(q, u)
+}
+
+var errAlreadySetUp = errors.New("already set up")
+
+// signIn issues a session and goes home.
+func (s *Server) signIn(q *rq, u auth.User) {
+	sess, err := s.sessions.Issue(u.ID, q.ip())
+	if err != nil {
+		q.serverError("issue session", err)
+		return
+	}
+	q.setSession(sess)
+	q.redirect("/")
+}
+
+// ---- sign in and out ----
+
+func (s *Server) getLogin(q *rq) {
+	if q.id != nil {
+		q.redirect("/")
+		return
+	}
+	if q.tlsGate() {
+		return
+	}
+	q.render(http.StatusOK, "login", &page{Title: "Sign in"})
+}
+
+func (s *Server) postLogin(q *rq) {
+	if q.tlsGate() {
+		return
+	}
+	if !s.loginLim.Allow(q.ip()) {
+		s.log.Warn("sign-in rate limited", "ip", q.ip())
+		q.message(http.StatusTooManyRequests, "Too many attempts", "Wait a little and try again.", "/login")
+		return
+	}
+	username, password := q.r.PostForm.Get("username"), q.r.PostForm.Get("password")
+	var u auth.User
+	var uerr error
+	if err := q.st.View(q.r.Context(), func(tx *sql.Tx) error { u, uerr = auth.ByUsername(tx, username); return nil }); err != nil {
+		q.serverError("sign-in lookup", err)
+		return
+	}
+	ok, rehash := false, false
+	if uerr == nil && u.Status == auth.StatusActive {
+		ok, rehash = auth.Verify(password, u.PWHash, s.params)
+	} else {
+		auth.DummyVerify(password, s.params) // same work, same answer, for a missing or disabled account
+	}
+	if !ok {
+		s.log.Warn("sign-in failed", "ip", q.ip())
+		q.render(http.StatusUnauthorized, "login", &page{Title: "Sign in", Error: "Wrong username or password."})
+		return
+	}
+	var newHash string
+	if rehash {
+		newHash, _ = auth.Hash(password, s.params)
+	}
+	err := q.st.Update(q.r.Context(), false, func(tx *sql.Tx) error {
+		if err := auth.TouchLogin(tx, u.ID, s.now()); err != nil {
+			return err
+		}
+		if newHash != "" {
+			if err := auth.SetPassword(tx, u.ID, newHash); err != nil {
+				return err
+			}
+		}
+		if u.Role == auth.RoleAdmin {
+			_, err := adminlog.Append(tx, s.now(), u.ID, "session.login", "user", u.ID, "")
+			return err
+		}
+		return nil
+	})
+	if err != nil {
+		q.serverError("sign-in bookkeeping", err)
+		return
+	}
+	s.loginLim.Reset(q.ip())
+	s.signIn(q, u)
+}
+
+func (s *Server) postLogout(q *rq) {
+	if q.id != nil {
+		s.sessions.Delete(q.id.sess.ID)
+	}
+	http.SetCookie(q.w, &http.Cookie{Name: sessionCookie, Value: "", Path: "/", MaxAge: -1, HttpOnly: true})
+	q.redirect("/login")
+}
+
+func (s *Server) postTheme(q *rq) {
+	c := &http.Cookie{Name: themeCookie, Path: "/", SameSite: http.SameSiteLaxMode, Secure: q.c.Secure, HttpOnly: true}
+	switch v := q.r.PostForm.Get("theme"); v {
+	case "light", "dark":
+		c.Value, c.MaxAge = v, 365*24*3600
+	default:
+		c.Value, c.MaxAge = "", -1
+	}
+	http.SetCookie(q.w, c)
+	next := "/"
+	if n := q.r.PostForm.Get("next"); knownPaths[n] {
+		next = n
+	}
+	q.redirect(next)
+}
+
+// ---- home and account ----
+
+func (s *Server) getHome(q *rq) {
+	q.render(http.StatusOK, "home", &page{Title: "Home", Active: "home"})
+}
+
+func (s *Server) getAccount(q *rq) {
+	last := "this is your first"
+	if !q.id.user.LastLoginAt.IsZero() {
+		last = q.id.user.LastLoginAt.Format(timeFmt) + " UTC"
+	}
+	q.render(http.StatusOK, "account", &page{Title: "Account", Active: "account", LastLogin: last})
+}
+
+func (s *Server) postAccount(q *rq) {
+	f := q.r.PostForm
+	again := func(status int, msg string) {
+		q.render(status, "account", &page{Title: "Account", Active: "account", Error: msg, LastLogin: "-"})
+	}
+	if !s.stepLim.Allow(q.ip() + "|pw") {
+		q.message(http.StatusTooManyRequests, "Too many attempts", "Wait a little and try again.", "/account")
+		return
+	}
+	if ok, _ := auth.Verify(f.Get("current"), q.id.user.PWHash, s.params); !ok {
+		again(http.StatusUnauthorized, "The current password is not right.")
+		return
+	}
+	pw := f.Get("password")
+	if pw != f.Get("confirm") {
+		again(http.StatusBadRequest, "The two new passwords are not the same.")
+		return
+	}
+	if err := auth.CheckPassword(pw, q.id.user.Username); err != nil {
+		again(http.StatusBadRequest, strings.TrimPrefix(err.Error(), "password policy: "))
+		return
+	}
+	hash, err := auth.Hash(pw, s.params)
+	if err != nil {
+		q.serverError("hash password", err)
+		return
+	}
+	u := q.id.user
+	err = q.st.Update(q.r.Context(), true, func(tx *sql.Tx) error {
+		if err := auth.SetPassword(tx, u.ID, hash); err != nil {
+			return err
+		}
+		if u.Role == auth.RoleAdmin {
+			_, err := adminlog.Append(tx, s.now(), u.ID, "account.password.change", "user", u.ID, "password")
+			return err
+		}
+		return nil
+	})
+	if err != nil {
+		q.serverError("change password", err)
+		return
+	}
+	s.sessions.RevokeUserExcept(u.ID, q.id.sess.ID)
+	q.setFlash("pw")
+	q.redirect("/account")
+}
+
+// ---- step-up ----
+
+func stepUpTarget(s string) string {
+	if s == "/admin/settings" || s == "/admin" {
+		return s
+	}
+	return "/admin"
+}
+
+func (s *Server) getStepUp(q *rq) {
+	q.render(http.StatusOK, "stepup", &page{Title: "Confirm it is you", Active: "admin", Next: stepUpTarget(q.r.URL.Query().Get("next"))})
+}
+
+func (s *Server) postStepUp(q *rq) {
+	next := stepUpTarget(q.r.PostForm.Get("next"))
+	if !s.stepLim.Allow(q.ip() + "|stepup") {
+		q.message(http.StatusTooManyRequests, "Too many attempts", "Wait a little and try again.", next)
+		return
+	}
+	if ok, _ := auth.Verify(q.r.PostForm.Get("password"), q.id.user.PWHash, s.params); !ok {
+		q.render(http.StatusUnauthorized, "stepup", &page{Title: "Confirm it is you", Active: "admin", Next: next, Error: "That password is not right."})
+		return
+	}
+	if err := q.audit("session.stepup", "user", q.id.user.ID, "", nil); err != nil {
+		q.serverError("log step-up", err)
+		return
+	}
+	s.sessions.StepUp(q.id.sess.ID)
+	q.redirect(next)
+}
+
+// needStepUp redirects to the password prompt when the session has not re-authenticated lately.
+func (q *rq) needStepUp(next string) bool {
+	if q.id.sess.SteppedUp(q.s.now()) {
+		return false
+	}
+	q.redirect("/stepup?next=" + next)
+	return true
+}
+
+// ---- admin console ----
+
+func (s *Server) getAdmin(q *rq) {
+	p := &page{Title: "Admin", Active: "admin"}
+	err := q.st.Update(q.r.Context(), false, func(tx *sql.Tx) error {
+		if _, err := adminlog.Append(tx, s.now(), q.id.user.ID, "admin.console.view", "console", "home", ""); err != nil {
+			return err
+		}
+		users, err := auth.Count(tx)
+		if err != nil {
+			return err
+		}
+		var entries int
+		if err := tx.QueryRow(`SELECT COUNT(*) FROM admin_log`).Scan(&entries); err != nil {
+			return err
+		}
+		p.Stats.Users, p.Stats.LogEntries = users, entries
+		return nil
+	})
+	if err != nil {
+		q.serverError("admin console", err)
+		return
+	}
+	p.Stats.Sealed = "never"
+	if t := q.st.LastSealed(); !t.IsZero() {
+		p.Stats.Sealed = t.UTC().Format("15:04:05") + " UTC"
+	}
+	if v, err := q.st.SchemaVersionInDB(); err == nil {
+		p.Stats.Schema = strconv.Itoa(v)
+	}
+	q.render(http.StatusOK, "admin", p)
+}
+
+const logPageSize = 50
+
+func (s *Server) logPage(q *rq, p *page, page int, action string) bool {
+	if page < 1 {
+		page = 1
+	}
+	var entries []adminlog.Entry
+	names := map[string]string{}
+	var total int
+	err := q.st.Update(q.r.Context(), false, func(tx *sql.Tx) error {
+		if action != "" {
+			if _, err := adminlog.Append(tx, s.now(), q.id.user.ID, action, "admin_log", "all", ""); err != nil {
+				return err
+			}
+		}
+		var err error
+		if entries, err = adminlog.List(tx, logPageSize, (page-1)*logPageSize); err != nil {
+			return err
+		}
+		rows, err := tx.Query(`SELECT id, username FROM user`)
+		if err != nil {
+			return err
+		}
+		defer rows.Close()
+		for rows.Next() {
+			var id, name string
+			if err := rows.Scan(&id, &name); err != nil {
+				return err
+			}
+			names[id] = name
+		}
+		if err := rows.Err(); err != nil {
+			return err
+		}
+		return tx.QueryRow(`SELECT COUNT(*) FROM admin_log`).Scan(&total)
+	})
+	if err != nil {
+		q.serverError("read admin log", err)
+		return false
+	}
+	for _, e := range entries {
+		who := e.Actor
+		if n, ok := names[e.Actor]; ok {
+			who = n
+		}
+		p.Entries = append(p.Entries, logRow{Seq: e.Seq, Time: e.Time.Format(timeFmt), Who: who, Action: e.Action,
+			Target: strings.Trim(e.TargetType+" "+e.TargetID, " "), Fields: e.Fields})
+	}
+	if page > 1 {
+		p.Newer = page - 1
+	}
+	if total > page*logPageSize {
+		p.Older = page + 1
+	}
+	if v, ok, err := q.st.GetMeta("adminlog.head"); err == nil && ok {
+		if i := strings.IndexByte(v, ':'); i >= 0 {
+			p.Head = v[i+1:]
+		}
+	}
+	return true
+}
+
+func (s *Server) getAdminLog(q *rq) {
+	n, _ := strconv.Atoi(q.r.URL.Query().Get("page"))
+	p := &page{Title: "Admin log", Active: "admin"}
+	if s.logPage(q, p, n, "adminlog.view") {
+		q.render(http.StatusOK, "adminlog", p)
+	}
+}
+
+func (s *Server) postVerifyLog(q *rq) {
+	p := &page{Title: "Admin log", Active: "admin"}
+	var res adminlog.Result
+	var verr error
+	err := q.st.Update(q.r.Context(), true, func(tx *sql.Tx) error {
+		res, verr = adminlog.Verify(tx)
+		outcome := "ok"
+		if verr != nil {
+			outcome = "failed"
+		}
+		_, err := adminlog.Append(tx, s.now(), q.id.user.ID, "adminlog.verify", "admin_log", "all", outcome)
+		return err
+	})
+	if err != nil {
+		q.serverError("verify admin log", err)
+		return
+	}
+	status := http.StatusOK
+	if verr != nil {
+		s.log.Error("admin log verification FAILED", "reason", verr.Error())
+		p.Error = "The chain does NOT verify: " + verr.Error() + ". Treat the log as tampered with."
+		status = http.StatusConflict
+	} else {
+		p.Flash = fmt.Sprintf("The chain verifies: %d entries, each matching the one before.", res.Entries)
+	}
+	if s.logPage(q, p, 1, "") {
+		q.render(status, "adminlog", p)
+	}
+}
+
+// ---- network and security settings ----
+
+func (s *Server) settingsPage(q *rq) *page {
+	nm := s.net.Load()
+	v := nm.View()
+	p := &page{Title: "Network and security", Active: "admin",
+		SteppedUp: q.id.sess.SteppedUp(s.now()), Pending: !v.PendingUntil.IsZero(),
+		AllowedText: strings.ReplaceAll(netsec.FormatNets(v.AllowedNets), ",", "\n"),
+		ProxiesText: strings.ReplaceAll(netsec.FormatNets(v.TrustedProxies), ",", "\n"),
+		YourIP:      q.c.IP.String(), ProxyMode: v.ProxyMode, RequireTLS: v.RequireTLS,
+		EnvNets: v.AllowedSrc == netsec.FromEnv, EnvProxy: v.ProxySrc == netsec.FromEnv, EnvTLS: v.TLSSrc == netsec.FromEnv,
+		AllowedSource: sourceNote(v.AllowedSrc), ProxySource: sourceNote(v.ProxySrc), TLSSource: sourceNote(v.TLSSrc)}
+	if p.Pending {
+		left := v.PendingUntil.Sub(s.now()).Round(time.Second)
+		if left < 0 {
+			left = 0
+		}
+		p.PendingLeft = fmt.Sprintf("%d seconds", int(left.Seconds()))
+	}
+	return p
+}
+
+func sourceNote(s netsec.Source) string {
+	switch s {
+	case netsec.FromEnv:
+		return "Set by environment: change it there."
+	case netsec.FromConsole:
+		return "Set in this console."
+	}
+	return "Using the default."
+}
+
+func (s *Server) getSettings(q *rq) {
+	if err := q.audit("settings.view", "settings", "network", "", nil); err != nil {
+		q.serverError("log settings view", err)
+		return
+	}
+	q.render(http.StatusOK, "settings", s.settingsPage(q))
+}
+
+func (q *rq) settingsError(status int, msg string) {
+	p := q.s.settingsPage(q)
+	p.Error = msg
+	q.render(status, "settings", p)
+}
+
+// putMeta persists settings values inside the caller's transaction.
+func putMeta(tx *sql.Tx, kv map[string]string, keys ...string) error {
+	for _, k := range keys {
+		if _, err := tx.Exec(`INSERT INTO meta(key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value`, k, kv[k]); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (s *Server) postNetworks(q *rq) {
+	if q.needStepUp("/admin/settings") {
+		return
+	}
+	nets, err := netsec.ParseNets(q.r.PostForm.Get("networks"))
+	if err != nil {
+		q.settingsError(http.StatusBadRequest, err.Error())
+		return
+	}
+	// Refuse the obvious self-lockout. The 60-second revert is the safety net, not the plan.
+	covered := false
+	for _, n := range nets {
+		if n.Contains(q.c.IP) {
+			covered = true
+		}
+	}
+	if !covered && !q.c.IP.IsLoopback() {
+		q.settingsError(http.StatusBadRequest, "That list does not include your own address ("+q.c.IP.String()+"), so you would lose access. Add it, then try again.")
+		return
+	}
+	if _, err := s.net.Load().ProposeNetworks(nets); err != nil {
+		q.settingsError(http.StatusBadRequest, errText(err))
+		return
+	}
+	if err := q.audit("settings.networks.propose", "settings", "networks", "allowed_networks", nil); err != nil {
+		s.net.Load().CancelNetworks()
+		q.serverError("log network change", err)
+		return
+	}
+	q.setFlash("net-prop")
+	q.redirect("/admin/settings")
+}
+
+func (s *Server) postNetworksConfirm(q *rq) {
+	if q.needStepUp("/admin/settings") {
+		return
+	}
+	cur, err := s.net.Load().ConfirmNetworks()
+	if err != nil {
+		q.settingsError(http.StatusBadRequest, errText(err))
+		return
+	}
+	m := cur.Marshal()
+	if err := q.audit("settings.networks.confirm", "settings", "networks", "allowed_networks", func(tx *sql.Tx) error {
+		return putMeta(tx, m, "setting.allowed_networks")
+	}); err != nil {
+		q.serverError("save network list", err)
+		return
+	}
+	q.setFlash("net-ok")
+	q.redirect("/admin/settings")
+}
+
+func (s *Server) postNetworksCancel(q *rq) {
+	if q.needStepUp("/admin/settings") {
+		return
+	}
+	s.net.Load().CancelNetworks()
+	if err := q.audit("settings.networks.cancel", "settings", "networks", "allowed_networks", nil); err != nil {
+		q.serverError("log network cancel", err)
+		return
+	}
+	q.setFlash("net-undo")
+	q.redirect("/admin/settings")
+}
+
+func (s *Server) postProxy(q *rq) {
+	if q.needStepUp("/admin/settings") {
+		return
+	}
+	proxies, err := netsec.ParseNets(q.r.PostForm.Get("proxies"))
+	if err != nil {
+		q.settingsError(http.StatusBadRequest, err.Error())
+		return
+	}
+	cur, err := s.net.Load().SetProxy(q.r.PostForm.Get("proxy") == "1", proxies)
+	if err != nil {
+		q.settingsError(http.StatusBadRequest, errText(err))
+		return
+	}
+	m := cur.Marshal()
+	if err := q.audit("settings.proxy.change", "settings", "proxy", "proxy_mode,trusted_proxies", func(tx *sql.Tx) error {
+		return putMeta(tx, m, "setting.proxy_mode", "setting.trusted_proxies")
+	}); err != nil {
+		q.serverError("save proxy settings", err)
+		return
+	}
+	q.setFlash("proxy")
+	q.redirect("/admin/settings")
+}
+
+func (s *Server) postTLS(q *rq) {
+	if q.needStepUp("/admin/settings") {
+		return
+	}
+	cur, err := s.net.Load().SetRequireTLS(q.r.PostForm.Get("tls") == "1", q.c)
+	if err != nil {
+		q.settingsError(http.StatusBadRequest, errText(err))
+		return
+	}
+	m := cur.Marshal()
+	if err := q.audit("settings.tls.change", "settings", "tls", "require_tls", func(tx *sql.Tx) error {
+		return putMeta(tx, m, "setting.require_tls")
+	}); err != nil {
+		q.serverError("save HTTPS setting", err)
+		return
+	}
+	q.setFlash("tls")
+	q.redirect("/admin/settings")
+}
+
+func errText(err error) string {
+	if errors.Is(err, netsec.ErrEnvLocked) {
+		return "That value is set by the server's environment, so it cannot be changed here."
+	}
+	s := err.Error()
+	return strings.ToUpper(s[:1]) + s[1:] + "."
+}

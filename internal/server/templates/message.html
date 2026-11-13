@@ -1,0 +1,7 @@
+{{define "content"}}
+<section class="card center">
+  <h1>{{.Title}}</h1>
+  <p>{{.Message}}</p>
+  {{if .Back}}<p><a class="btn secondary" href="{{.Back}}">Back</a></p>{{end}}
+</section>
+{{end}}

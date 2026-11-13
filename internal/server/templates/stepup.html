@@ -1,0 +1,13 @@
+{{define "content"}}
+<h1>Confirm it is you</h1>
+<form class="card" method="post" action="/stepup" autocomplete="off">
+  <p class="muted">This part of the console changes how the server protects itself, so it asks for your password again. It stays unlocked for a few minutes.</p>
+  <input type="hidden" name="csrf" value="{{.CSRF}}">
+  <input type="hidden" name="next" value="{{.Next}}">
+  <div class="field">
+    <label for="password">Password</label>
+    <input id="password" name="password" type="password" autocomplete="current-password" required autofocus>
+  </div>
+  <div class="actions"><button class="btn" type="submit">Continue</button> <a class="btn secondary" href="/admin">Cancel</a></div>
+</form>
+{{end}}

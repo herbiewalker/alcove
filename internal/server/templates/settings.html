@@ -1,0 +1,47 @@
+{{define "content"}}
+<h1>Network and security</h1>
+<p class="muted">The default is a password-protected wifi with plain HTTP. These options add protection when you are ready. A value set by the environment wins and cannot be changed here.</p>
+{{if not .SteppedUp}}<p class="notice warn">Changing anything here asks for your password again. <a href="/stepup?next=/admin/settings">Confirm it is you</a>.</p>{{end}}
+
+{{if .Pending}}
+<form class="card" method="post" action="/admin/settings/networks/confirm">
+  <h2>Confirm the new network list</h2>
+  <input type="hidden" name="csrf" value="{{.CSRF}}">
+  <p class="notice warn">You are reading this over the new list, so it works for you. If you do not confirm within {{.PendingLeft}}, it reverts by itself.</p>
+  <div class="actions"><button class="btn" type="submit">Keep the new list</button>
+  <button class="btn secondary" type="submit" formaction="/admin/settings/networks/cancel">Revert now</button></div>
+</form>
+{{end}}
+
+<form class="card" method="post" action="/admin/settings/networks">
+  <h2>Allowed networks</h2>
+  <input type="hidden" name="csrf" value="{{.CSRF}}">
+  <p class="muted">Requests from anywhere else are refused. {{.AllowedSource}}</p>
+  <div class="field">
+    <label for="nets">Networks (one per line or comma separated)</label>
+    <textarea id="nets" name="networks" spellcheck="false" {{if .EnvNets}}disabled{{end}}>{{.AllowedText}}</textarea>
+    <p class="hint">For example <code>192.168.1.0/24</code>. Your own address is <code>{{.YourIP}}</code>; keep it covered. A change must be confirmed within a minute or it undoes itself.</p>
+  </div>
+  <div class="actions"><button class="btn" type="submit" {{if .EnvNets}}disabled{{end}}>Apply for a minute</button></div>
+</form>
+
+<form class="card" method="post" action="/admin/settings/proxy">
+  <h2>Reverse-proxy mode</h2>
+  <input type="hidden" name="csrf" value="{{.CSRF}}">
+  <p class="muted">Use this when Caddy, Nginx Proxy Manager or <code>tailscale serve</code> sits in front and provides HTTPS. Forwarded addresses are believed only from the proxies listed. {{.ProxySource}}</p>
+  <label class="check"><input type="checkbox" name="proxy" value="1" {{if .ProxyMode}}checked{{end}} {{if .EnvProxy}}disabled{{end}}><span>Trust a reverse proxy</span></label>
+  <div class="field">
+    <label for="proxies">Proxy addresses</label>
+    <textarea id="proxies" name="proxies" spellcheck="false" {{if .EnvProxy}}disabled{{end}}>{{.ProxiesText}}</textarea>
+  </div>
+  <div class="actions"><button class="btn" type="submit" {{if .EnvProxy}}disabled{{end}}>Save</button></div>
+</form>
+
+<form class="card" method="post" action="/admin/settings/tls">
+  <h2>Require HTTPS</h2>
+  <input type="hidden" name="csrf" value="{{.CSRF}}">
+  <p class="muted">Refuse sign-ins over plain HTTP. It can only be switched on from an encrypted connection, so you cannot lock yourself out. {{.TLSSource}}</p>
+  <label class="check"><input type="checkbox" name="tls" value="1" {{if .RequireTLS}}checked{{end}} {{if .EnvTLS}}disabled{{end}}><span>Require an encrypted connection</span></label>
+  <div class="actions"><button class="btn" type="submit" {{if .EnvTLS}}disabled{{end}}>Save</button></div>
+</form>
+{{end}}

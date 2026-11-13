@@ -1,0 +1,34 @@
+{{define "content"}}
+<section class="card center">
+  <img class="mark-large" src="/static/mark-192.png" width="96" height="96" alt="">
+  <h1>Welcome to Alcove</h1>
+  <p class="muted">Alcove is a private space for consenting adults. It is invite only: there is no public sign-up. The account you create now becomes the administrator, who can see and manage everything on this server, with every action written to a tamper-evident log.</p>
+</section>
+<form class="card" method="post" action="/setup" autocomplete="off">
+  <input type="hidden" name="csrf" value="{{.CSRF}}">
+  <div class="field">
+    <label for="code">Setup code</label>
+    <input id="code" name="code" type="text" inputmode="text" autocapitalize="characters" autocomplete="off" spellcheck="false" required>
+    <p class="hint">Shown once in the server log when it started with no accounts (the container log, in Unraid's Docker tab). It proves you are the person running this server.</p>
+  </div>
+  <div class="field">
+    <label for="username">Username</label>
+    <input id="username" name="username" type="text" autocapitalize="none" autocomplete="username" spellcheck="false" required>
+    <p class="hint">3 to 32 characters: letters, digits, dot, dash, underscore.</p>
+  </div>
+  <div class="field">
+    <label for="display">Name shown to others</label>
+    <input id="display" name="display" type="text" autocomplete="nickname">
+  </div>
+  <div class="field">
+    <label for="password">Password</label>
+    <input id="password" name="password" type="password" autocomplete="new-password" required>
+    <p class="hint">At least 10 characters. A few ordinary words make a strong, memorable passphrase.</p>
+  </div>
+  <div class="field">
+    <label for="confirm">Repeat the password</label>
+    <input id="confirm" name="confirm" type="password" autocomplete="new-password" required>
+  </div>
+  <div class="actions"><button class="btn" type="submit">Create the administrator</button></div>
+</form>
+{{end}}

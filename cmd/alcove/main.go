@@ -22,10 +22,18 @@ import (
 	"github.com/herbiewalker/alcove/internal/config"
 	"github.com/herbiewalker/alcove/internal/keycli"
 	"github.com/herbiewalker/alcove/internal/server"
+	"github.com/herbiewalker/alcove/internal/store"
 )
 
 // version is stamped at build time: -ldflags "-X main.version=..."
 var version = "dev"
+
+// backend adapts the application to what the web server needs.
+type backend struct{ a *app.App }
+
+func (b backend) State() string         { return string(b.a.State()) }
+func (b backend) Store() *store.Store   { return b.a.Store() }
+func (b backend) Unlock(p string) error { return b.a.Unlock(p) }
 
 func main() {
 	if len(os.Args) > 1 {
@@ -63,10 +71,20 @@ func run(cfg config.Config) int {
 		return 1
 	}
 
+	web, err := server.New(backend{a}, server.Options{Version: version, Env: cfg.Net, Logger: logger})
+	if err != nil {
+		logger.Error("refusing to start", "reason", err.Error())
+		fmt.Fprintln(os.Stderr, "alcove: refusing to start:", err)
+		_ = a.Close()
+		return 1
+	}
 	srv := &http.Server{
 		Addr:              cfg.Addr,
-		Handler:           server.Handler(version, func() string { return string(a.State()) }),
+		Handler:           web,
 		ReadHeaderTimeout: 10 * time.Second,
+		ReadTimeout:       60 * time.Second,
+		WriteTimeout:      60 * time.Second,
+		IdleTimeout:       120 * time.Second,
 	}
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
