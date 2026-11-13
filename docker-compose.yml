@@ -37,8 +37,15 @@ services:
     # --- storage -------------------------------------------------------------
     # data holds only ciphertext (hard constraint 4): opaque uploads, encrypted
     # photos and the sealed database. Nothing readable ever lands here.
+    #
+    # The master key is ONE FILE, mounted read-only from a host path that is NOT inside the
+    # data volume (ADR D-4): the server refuses to start otherwise. On Unraid the flash drive
+    # (/boot/config/alcove/alcove.key) is a good home: it is separate from the array. Create it
+    # once with `docker run --rm <image> keygen -out /keys/alcove.key` (mounting a host folder at
+    # /keys), keep a second copy elsewhere and prove it with `alcove keycheck`.
     volumes:
       - ${ALCOVE_DATA_PATH:?set ALCOVE_DATA_PATH in .env}:/data
+      - ${ALCOVE_KEY_PATH:?set ALCOVE_KEY_PATH in .env}:/run/keys/alcove.key:ro
 
     # tmpfs keeps decrypted data off the data volume. The live database and any
     # transient decrypt buffer live here and die with the container (ADR D-16). It is
@@ -48,6 +55,9 @@ services:
 
     environment:
       ALCOVE_ADDR: ":8080"
+      ALCOVE_DATA_DIR: "/data"
+      ALCOVE_KEY_FILE: "/run/keys/alcove.key"
+      ALCOVE_TMP_DIR: "/tmp/alcove"
       TZ: "${TZ:-UTC}"
 
     # --- resource limits: cannot starve the host -----------------------------

@@ -98,3 +98,6 @@ from the admin, D-3 must be revisited (per-owner keys, browser-side decryption),
   them (T2). The default accepts this on a secured, password-protected wifi. Options in D-23: reverse-proxy mode (Caddy, Nginx Proxy Manager or `tailscale serve`) for real HTTPS, allowed networks (private LAN ranges by default), an insecure-connection banner and a require-TLS mode. Cookies are `HttpOnly` and `SameSite=Strict` with CSRF tokens in every mode. The
   README and runbook say so plainly. Uploaded files are still encrypted under the member's backup password, but the
   decrypted views are not.
+- **R15 — A purge is complete only after the backups that predate it age out (D-26).** Destroying a user's wrapped data key makes their
+  photos unreadable on the live instance. Older sealed generations and instance backups still contain that key, so they can still
+  open the blobs they also contain. Mitigated by retention on instance backups and by saying so plainly in the runbook.

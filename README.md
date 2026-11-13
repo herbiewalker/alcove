@@ -52,15 +52,19 @@ cd alcove
 powershell -NoProfile -ExecutionPolicy Bypass -File .\bootstrap.ps1
 ```
 
-Expect `BOOTSTRAP GREEN`. Then:
+Expect `BOOTSTRAP GREEN`. The server needs a master key file kept outside its data folder, and it
+refuses to start without one:
 
 ```powershell
+.\bin\alcove.exe keygen -out C:\alcove-dev\keys\alcove.key
+$env:ALCOVE_KEY_FILE = "C:\alcove-dev\keys\alcove.key"; $env:ALCOVE_DATA_DIR = "C:\alcove-dev\data"
+$env:ALCOVE_TMP_DIR = "C:\alcove-dev\tmp"; $env:ALCOVE_ALLOW_NONTMPFS_TMPDIR = "true"   # dev box only
 $env:ALCOVE_ADDR = "127.0.0.1:8080"; .\bin\alcove.exe
 ```
 
 ```bash
 curl http://127.0.0.1:8080/healthz
-# {"status":"ok","version":"dev"}
+# {"state":"unlocked","status":"ok","version":"dev"}
 ```
 
 On Linux or in CI, `make check` runs the same gates.

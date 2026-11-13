@@ -77,6 +77,7 @@
 | F30 | **Phone workflow over the LAN.** A person can export a backup in Tryst on the phone, open Alcove in the phone's browser on the same network, and upload it; and can download an edited `.tryst` to the phone and restore it from Downloads in Tryst. The pages are mobile-first and touch-friendly (D-22) | Must |
 | F31 | Optional QR codes for the server address and for invites, generated locally with no outbound call | Could |
 | F32 | Admin settings for transport security (D-23): reverse-proxy mode, allowed networks (default: private LAN ranges), an insecure-connection banner, and a require-TLS mode. Changes need step-up; allowed-network changes auto-revert unless confirmed within 60 seconds; an environment value wins and is shown as such | Should |
+| F33 | `alcove keygen` creates the master key (never overwriting one) and `alcove keycheck` proves a copy by printing a fingerprint; the server never creates a key; the key file must be outside the data directory (D-26) | Must |
 
 ## Non-functional requirements
 

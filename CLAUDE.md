@@ -49,7 +49,7 @@ and ADRs they feed are reviewed.
    so members never wait on the admin. A locked mode with a typed passphrase stays an option, ADR D-4.)
    Decrypted user data exists only in memory or tmpfs, never on the data volume (D-16).
    *Guard:* `scripts/guards.sh no-secrets`; a startup test for the key-file location; trivy secret scan;
-   `scripts/guards.sh no-plaintext` (armed when storage lands in M2a).
+   `scripts/guards.sh no-plaintext` (armed since M2a).
 
 5. **A space is collaborative, and nothing leaks outside it.** Inside a space every member sees every other
    member's entries (D-21). Nothing is visible to non-members or in other spaces. Joining is the act of consent,

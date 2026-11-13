@@ -77,7 +77,7 @@
 - **Schema drift.** Tryst's schema moves. The reader is generic; only a named set of editable fields is typed,
   and an unsupported newer schema is refused or opened read-only (F10).
 
-## Storage and keys (D-16, proposed)
+## Storage and keys (D-16 and D-26, implemented in M2a)
 
 ```
  key file (outside the data dir) ──► master key ──┬─► seals the database blob
@@ -119,3 +119,17 @@ key, decrypts the AEAD stream into a bounded in-memory buffer, then walks the in
 is parsed into tables of **raw-JSON rows** in file order, small unknown entries and unknown top-level keys are carried, and media
 entries are listed but only read on demand. `Backup.Close` zeroes the plaintext. `trystbk.Seal` writes a container with the same
 primitives. `trystbk/synth` generates deterministic synthetic backups shaped like Tryst's v19 schema for every test in the project.
+
+### Packages added in M2a
+
+| Package | What it does |
+|---------|--------------|
+| `internal/keyfile` | the master key file: generate, plain and passphrase-wrapped text forms, load, fingerprint, and the outside-the-data-directory check |
+| `internal/keycli` | the `alcove keygen` and `alcove keycheck` commands |
+| `internal/seal` | AES-256-GCM seal of the database snapshot, bound to the manifest, atomic write with one previous generation and crash recovery |
+| `internal/store` | the SQLite database on tmpfs: migrations, durable and lazy writes, the background sealer, per-user data keys, full-text search |
+| `internal/blobstore` | uploads verbatim and immutable with a SHA-256; photos encrypted under the owner's data key |
+| `internal/config`, `internal/app` | environment settings and the startup sequence that refuses to start when a hard constraint would be broken |
+
+Start-up order: configuration, then the key-outside-data check, then reading the key (a wrapped key stops here and waits for an unlock),
+then the tmpfs check, then unsealing or creating the store, then listening. A refused start creates nothing.

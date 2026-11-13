@@ -11,3 +11,11 @@ github.com/tink-crypto/tink-go/v2 Apache-2.0 streaming AEAD, the primitive Tryst
 golang.org/x/crypto BSD-3-Clause PBKDF2 and Argon2id
 golang.org/x/sys BSD-3-Clause indirect, via x/crypto
 google.golang.org/protobuf BSD-3-Clause indirect, via tink-go
+modernc.org/sqlite BSD-3-Clause pure-Go SQLite, no cgo (D-13); bundles SQLite itself (public domain)
+modernc.org/libc BSD-3-Clause indirect, via modernc.org/sqlite
+modernc.org/mathutil BSD-3-Clause indirect, via modernc.org/sqlite
+modernc.org/memory BSD-3-Clause indirect, via modernc.org/sqlite
+github.com/dustin/go-humanize MIT indirect, via modernc.org/sqlite
+github.com/mattn/go-isatty MIT indirect, via modernc.org/sqlite
+github.com/ncruces/go-strftime MIT indirect, via modernc.org/sqlite
+github.com/remyoudompheng/bigfft BSD-3-Clause indirect, via modernc.org/sqlite

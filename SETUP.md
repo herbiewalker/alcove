@@ -15,7 +15,19 @@
 ## Environment variables / local config
 
 - Nothing is required to build or test.
-- `ALCOVE_ADDR` (default `:8080`) is the listen address.
+- Running the server needs a master key file. Create it once and prove a second copy:
+  ```powershell
+  .\bin\alcove.exe keygen -out C:\alcove-dev\keys\alcove.key
+  .\bin\alcove.exe keycheck -file C:\alcove-dev\keys\alcove.key
+  ```
+  (in a container: `docker run --rm -v <host folder>:/keys <image> keygen -out /keys/alcove.key`).
+- `ALCOVE_ADDR` (default `:8080`) is the listen address. `ALCOVE_DATA_DIR` (`/data`), `ALCOVE_KEY_FILE`
+  (`/run/keys/alcove.key`) and `ALCOVE_TMP_DIR` (`/tmp/alcove`) are the paths. The key file must be
+  outside the data directory.
+- `ALCOVE_ALLOW_NONTMPFS_TMPDIR=true` lets the scratch directory be an ordinary folder. Use it on a dev
+  box only: on Linux the server otherwise refuses a scratch directory that is not tmpfs, so decrypted
+  data cannot reach disk.
+- `ALCOVE_SEAL_EVERY_SECONDS` (default 10) is how often a changed database is sealed.
 - Secrets never go in env vars in the repo. The data key lives in a key file kept **outside** the data
   directory (see CLAUDE.md constraint 4). `.env` files are gitignored.
 

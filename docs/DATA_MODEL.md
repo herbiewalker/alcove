@@ -80,3 +80,12 @@ index) in [DECISIONS.md](DECISIONS.md).
 
 That keeping each Tryst table generically as rows, with edits as change-sets, can be materialized back into a backup that
 Tryst accepts for every supported schema version. This is the writer milestone's job to prove on an emulator.
+
+## Implemented in M2a (store schema v1)
+
+`schema_info` (the version), `meta` (small facts), `data_key` (owner id, the data key wrapped by the master key with the owner id as
+associated data, created at) and the FTS5 table `search` (owner id, kind and ref as filters; `body` as the searchable text).
+`manifest.json` in the data directory holds a random store id and the layout version, and binds every seal to it. Blobs live under
+`blobs/<owner>/u/<id>` (uploads, verbatim, read-only) and `blobs/<owner>/m/<id>` (photos, encrypted under the owner's data key).
+Owner ids and blob ids are limited to letters, digits, `-` and `_`, so a hostile name cannot leave its directory. The domain tables
+arrive with M2b and M3, each as an additive forward migration.

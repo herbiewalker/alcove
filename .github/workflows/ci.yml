@@ -97,20 +97,75 @@ jobs:
           rm -f .env
           echo "compose exposure OK"
 
-      # Run the image once and prove it starts, answers /healthz and stops on SIGTERM
-      # (N10). The container runs as the shipped non-root user with the shipped flags.
-      - name: 'Smoke: starts, healthy, stops cleanly'
+      # Run the shipped image the way an operator would and prove the M2a promises (N10, N2):
+      # a key is made deliberately and the server never makes one, it starts unattended with a
+      # plain key, it refuses to start without a key / with the key inside the data directory /
+      # with the wrong key, it seals ciphertext only, it survives a restart, and it stops cleanly.
+      - name: 'Smoke: key, unattended start, refusals, restart, clean stop'
         run: |
-          docker run -d --name alcove-ci -p 18080:8080 --read-only --cap-drop ALL \
-            --tmpfs /tmp:mode=1777,noexec,nosuid,nodev alcove:ci
-          for i in $(seq 1 20); do
-            if curl -fsS http://127.0.0.1:18080/healthz >/dev/null 2>&1; then ok=1; break; fi
-            sleep 1
-          done
-          [ "${ok:-0}" = "1" ] || { docker logs alcove-ci; echo "::error::no /healthz"; exit 1; }
-          curl -fsS http://127.0.0.1:18080/healthz
-          docker stop -t 10 alcove-ci
+          set -eu
+          W=$(mktemp -d)
+          mkdir -p "$W/keys" "$W/keys2" "$W/data"
+          chmod 777 "$W/keys" "$W/keys2" "$W/data"
+          IMG=alcove:ci
+          RUNFLAGS="--read-only --cap-drop ALL --security-opt no-new-privileges:true --tmpfs /tmp:mode=1777,noexec,nosuid,nodev"
+
+          # 1. The operator makes keys deliberately (the server never does).
+          docker run --rm $RUNFLAGS -v "$W/keys:/keys" $IMG keygen -out /keys/alcove.key
+          docker run --rm $RUNFLAGS -v "$W/keys2:/keys" $IMG keygen -out /keys/other.key
+          docker run --rm $RUNFLAGS -v "$W/keys:/keys:ro" $IMG keycheck -file /keys/alcove.key
+
+          # 2. No key: refuses, and says how to fix it. Nothing is created.
+          if out=$(docker run --rm $RUNFLAGS -v "$W/data:/data" $IMG 2>&1); then
+            echo "::error::started without a key"; exit 1
+          fi
+          echo "$out" | grep -q "alcove keygen" || { echo "$out"; echo "::error::no keygen hint"; exit 1; }
+          [ -z "$(ls -A "$W/data")" ] || { ls -la "$W/data"; echo "::error::a refused start left files"; exit 1; }
+
+          # 3. Key inside the data directory: refuses (before it even reads the key).
+          cp "$W/keys/alcove.key" "$W/data/alcove.key"
+          if out=$(docker run --rm $RUNFLAGS -v "$W/data:/data" -e ALCOVE_KEY_FILE=/data/alcove.key $IMG 2>&1); then
+            echo "::error::started with the key inside the data directory"; exit 1
+          fi
+          echo "$out" | grep -q "inside" || { echo "$out"; echo "::error::wrong refusal reason"; exit 1; }
+          rm -f "$W/data/alcove.key"
+
+          # 4. A plain key starts unattended and answers /healthz as unlocked.
+          start() {
+            docker run -d --name alcove-ci -p 18080:8080 $RUNFLAGS \
+              -v "$1:/run/keys/alcove.key:ro" -v "$W/data:/data" $IMG >/dev/null
+          }
+          wait_health() {
+            for i in $(seq 1 30); do
+              if curl -fsS http://127.0.0.1:18080/healthz 2>/dev/null; then echo; return 0; fi
+              sleep 1
+            done
+            docker logs alcove-ci || true; return 1
+          }
+          start "$W/keys/alcove.key"
+          out=$(wait_health) || { echo "::error::no /healthz"; exit 1; }
+          echo "$out" | grep -q '"state":"unlocked"' || { echo "$out"; echo "::error::not unlocked unattended"; exit 1; }
+
+          # 5. Only ciphertext on the data volume: no SQLite header, no JSON other than the manifest.
+          docker stop -t 15 alcove-ci >/dev/null
           docker logs alcove-ci 2>&1 | grep -q 'shutdown complete' || { docker logs alcove-ci; echo "::error::no clean shutdown"; exit 1; }
+          docker rm alcove-ci >/dev/null
+          test -f "$W/data/manifest.json" && test -f "$W/data/alcove.sealed" || { ls -la "$W/data"; echo "::error::no sealed store"; exit 1; }
+          if grep -rl "SQLite format 3" "$W/data" >/dev/null 2>&1; then echo "::error::plaintext database on the data volume"; exit 1; fi
+
+          # 6. Restart: same data, same key, nothing typed.
+          start "$W/keys/alcove.key"
+          wait_health >/dev/null || { echo "::error::no /healthz after restart"; exit 1; }
+          docker stop -t 15 alcove-ci >/dev/null; docker rm alcove-ci >/dev/null
+
+          # 7. A different key against that data: refuses cleanly and leaves the data alone.
+          before=$(sha256sum "$W/data/alcove.sealed" | cut -d' ' -f1)
+          if out=$(docker run --rm $RUNFLAGS -v "$W/keys2/other.key:/run/keys/alcove.key:ro" -v "$W/data:/data" $IMG 2>&1); then
+            echo "::error::started with the wrong key"; exit 1
+          fi
+          echo "$out" | grep -qi "unseal failed\|wrong key" || { echo "$out"; echo "::error::wrong-key message"; exit 1; }
+          after=$(sha256sum "$W/data/alcove.sealed" | cut -d' ' -f1)
+          [ "$before" = "$after" ] || { echo "::error::a wrong key changed the sealed data"; exit 1; }
           echo "smoke OK"
 
       # Secrets scan matters as much as CVEs: the image must never carry key material

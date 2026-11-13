@@ -1,6 +1,6 @@
 # Alcove — Decision Log (ADRs)
 
-> **Status:** Kickoff set and design pass 1 done, 2026-11-12 (D-15 to D-25; O-2, O-3, O-4, O-11 to O-13 resolved; O-10 withdrawn; O-1 and O-7 proposed). Newest at the bottom, open questions last. Never delete an ADR;
+> **Status:** Kickoff set and design pass 1 done, 2026-11-12 (D-15 to D-26; O-2, O-3, O-4, O-11 to O-13 resolved; O-10 withdrawn; O-1 and O-7 proposed). Newest at the bottom, open questions last. Never delete an ADR;
 > supersede it with a new one. Format: Nygard-style, trimmed.
 
 ---
@@ -185,7 +185,7 @@ is superseded by this. Remaining risk: the app's restore behaviour can change in
 is a recurring check, not a one-off.
 
 ## D-16 — Storage: a sealed in-memory database, per-user data keys, one master key (resolves O-1)
-- **Status:** Proposed
+- **Status:** Accepted (implemented and measured in M2a, 2026-11-13)
 - **Context:** the server must read, query and edit members' data without writing plaintext to disk, and start
   unattended (D-4). SQLCipher needs cgo (rejected in Sanctum D-5).
 - **Decision:**
@@ -210,7 +210,7 @@ is a recurring check, not a one-off.
   do not hide anything from the admin (D-3); they help purge and isolation.
 
 ## D-17 — Admin search: SQLite FTS5 inside the sealed database (resolves O-7)
-- **Status:** Proposed
+- **Status:** Accepted (FTS5 verified in M2a)
 - **Decision:** search is an FTS5 index in the same tmpfs database, sealed with it, so no plaintext index ever sits on
   disk. It covers notes, partner names, labels and profile text, for all users and spaces, including soft-deleted
   and paused content, for the admin. Members search only what they may see, through the sharing check.
@@ -342,17 +342,41 @@ is a recurring check, not a one-off.
   memory costs up to 512 MiB for a hostile file; the container memory limit is the backstop. The writer is only proven once
   an emulator restores its output (S1 and M6).
 
+## D-26 — The master key file: text format, deliberate creation, fingerprint (implements D-4 and D-16)
+- **Status:** Accepted
+- **Context:** the master key seals the database and wraps every data key. Losing every copy loses everything, and Sanctum
+  already lost a passphrase to a "second copy" that did not exist.
+- **Decision:**
+  1. **The server never creates a key.** `alcove keygen` does, deliberately; with no key file the server refuses to start and
+     prints that command. `keygen -out` refuses to overwrite an existing file.
+  2. **The file is one line of ASCII** (`alcove-key-1:<base64url>`), so it can be copied into a password manager and pasted back.
+     An optional wrapped form (`alcove-key-1w:argon2id:t=,m=,p=:salt:nonce:ciphertext`) protects it with a passphrase using
+     Argon2id and AES-256-GCM with the parameters bound in as associated data; parameters below the production floor
+     (t 3, m 64 MiB, p 1) are refused when loading, as in Sanctum.
+  3. **A plain key starts the server unattended. A wrapped key starts it locked.** The unlock page arrives with the web UI (M2b);
+     M2a ships the loading, the `Unlock` call and the tests.
+  4. **`alcove keycheck -file P` opens a key file and prints a fingerprint** (a short hash of the key, not the key). Two files with
+     the same fingerprint hold the same key, which is how a second copy is proved by opening it.
+  5. **The key must be outside the data directory,** checked before the key is even read, with symlinks resolved and a
+     case-insensitive comparison on Windows and macOS.
+  6. **No environment variable carries a key or a passphrase** (a test pins this).
+- **Alternatives:** auto-create on first start (a silently created, never-backed-up key is the one unrecoverable mistake); a binary key
+  file (cannot be copied to a password manager); a passphrase in an environment variable (leaks via `docker inspect`).
+- **Consequences:** first setup has one extra step (run `keygen`, save a copy, `keycheck` it). The crypto-shred of a purged user
+  (destroying their wrapped data key) makes their blobs unreadable on the live instance; older sealed generations and instance backups
+  still contain that key until they age out, so a purge is complete only after the backups that predate it are gone.
+
 
 ## Open questions
 > Decisions deferred on purpose. Each is a future ADR. Do not let these rot silently.
 
-- **O-1 — Storage scheme.** *Proposed in D-16; awaiting review.*
+- **O-1 — Storage scheme.** *Implemented in M2a (D-16, D-26) and measured; D-16 stands.*
 - **O-2 — Compare metrics.** *Resolved in D-18.*
 - **O-3 — Editable fields.** *Resolved in D-19.*
 - **O-4 — Restore semantics.** *Resolved from code in D-15; emulator proof gates M6.*
 - **O-5 — TOTP scope.** Admins only, or any user; recovery-code handling.
 - **O-6 — Location features.** Whether and how to show photo locations on a map, and the default visibility.
-- **O-7 — Admin search.** *Proposed in D-17; term logging resolved in D-20.*
+- **O-7 — Admin search.** *FTS5 inside the sealed database works (M2a); term logging resolved in D-20.*
 - **O-8 — Member activity view.** Whether to ship the optional "activity on my data" view and its default.
 - **O-9 — Shared library extraction.** When and how to extract `trystbk` for both projects.
 - **O-10 — Linking members to Tryst partners.** *Withdrawn in D-21 (the collaborative model needs no matching). May return later as its own feature.*

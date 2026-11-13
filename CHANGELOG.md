@@ -8,6 +8,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) · Versioning: 
 ## [Unreleased]
 
 ### Added
+- M2a storage foundation: the master key file (`alcove keygen`, `alcove keycheck`, optional passphrase-wrapped form), the sealed in-memory database with full-text search and per-user data keys (`internal/store`, `internal/seal`), the blob store, startup that refuses to run with the key inside the data directory, a missing or wrong key, or a scratch directory that is not tmpfs, and the armed `no-plaintext` guard. Smoke checks in CI and `scripts/smoke-live.sh` cover the real image.
 - S1 round-trip spike (emulator, Tryst 0.6.5, schema v19): wipe-first restore is exact, merge restore deletes partner links, ZIP entries must be DEFLATED. Findings in the D-15 addendum; synthetic generator now writes DEFLATED media entries (regression test).
 - The Alcove logo: `docs/img/alcove-logo.png` (master), `deploy/icon.png` (512 px, for Unraid and the README).
 - M1 Tryst reader: `internal/trystbk` (header, bounded decrypt, Zip-Slip and zip-bomb checks, lossless generic table reader, `Seal` writer, `SchemaStatus`) and the synthetic backup generator `internal/trystbk/synth`. Adapted from Sanctum's reader (MIT notice kept in `internal/trystbk/NOTICE`). First third-party dependencies: tink-go and x/crypto.

@@ -40,12 +40,12 @@
 
 ## M2a — Storage foundation
 
-- [ ] Storage per D-16 (review it first): sealed tmpfs database with FTS5, per-user data keys, master key from a key file
-      outside the data directory with the refuse-to-start check, optional passphrase-wrapped locked mode
-- [ ] Arm `scripts/guards.sh no-plaintext`; measure RAM and seal time on a large synthetic dataset
-- [ ] Rebuild path for the row cache and search index from revisions
-- **Exit:** a restart needs no human unlock (default mode); the key file inside the data directory refuses to start;
-  the plaintext guard passes and was forced to fail; wrong key fails cleanly.
+- [x] Storage per D-16: sealed tmpfs database (`internal/store`) with FTS5 search, per-user data keys wrapped by the master key, an atomic seal with one previous generation (`internal/seal`), the master key file with the refuse-to-start check and the optional passphrase-wrapped form (`internal/keyfile`, D-26), `alcove keygen` and `keycheck`
+- [x] Blob store (`internal/blobstore`): uploads verbatim and immutable with a SHA-256, photos encrypted under the owner's data key, owner and id validated
+- [x] `scripts/guards.sh no-plaintext` armed (`TestGuard_NoPlaintext`, forced to fail by making the seal leak a plaintext copy); the scanner itself is tested against each signature it claims to catch
+- [x] Measured on a Windows dev box (a Linux tmpfs figure comes from CI and the live smoke): **50,000 entries with 50,000 search rows**: database 29 MiB, seal 145 ms, reopen 187 ms, search 51 ms. **200,000 of each**: 116 MiB, seal 532 ms, reopen 777 ms, search 219 ms. A household is a small fraction of that, and photos are not in the database. On tmpfs the live database is the RAM cost (SQLite memory sits outside the Go heap, so the Go heap figure is not the one to read)
+- [ ] Rebuild path for the row cache and search index from revisions *(moved to M3, where revisions first exist)*
+- **Exit:** met 2026-11-13 locally and in tests (CI and the live smoke confirm it on Linux and in the image): a restart needs no human unlock (default mode); the key file inside the data directory refuses to start; the plaintext guard passes and was forced to fail; a wrong key fails cleanly and leaves the sealed data untouched.
 
 ## M2b — Accounts, admin log, UI shell
 
@@ -60,6 +60,7 @@
 ## M3 — Spaces, upload, revisions, recovery *(real data starts here)*
 
 - [ ] Spaces, memberships, invites (F27), join requests, leave and removal (F4 to F6)
+- [ ] Rebuild path: the row cache and search index can be rebuilt from revisions (moved here from M2a)
 - [ ] Upload and verify; immutable revisions; duplicate refusal (F7, F8). **Upload works from a phone browser over the LAN
       (F30)**, with a progress bar
 - [ ] User lifecycle: add, disable, delete with grace, reset, data download (F2, F3), with **basic admin pages**

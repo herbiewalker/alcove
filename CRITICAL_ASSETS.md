@@ -12,7 +12,7 @@
 
 | Asset | Type | Lives at | Second copy | Expires / rotate | Loses what if lost |
 |-------|------|----------|-------------|------------------|--------------------|
-| **Data key file** | encryption key | a path on the host **outside** the data directory (see CLAUDE.md constraint 4) | a copy in a password manager or other offline storage, proved by opening it | on suspected exposure (rotation procedure in the runbook) | **every stored backup and edit becomes unreadable. Unrecoverable** |
+| **Data key file** | encryption key | a one-line text file on the host **outside** the data directory (see CLAUDE.md constraint 4 and D-26); on Unraid the flash drive, separate from the array | a copy in a password manager or other offline storage, proved by opening it | on suspected exposure (rotation procedure in the runbook) | **every stored backup and edit becomes unreadable. Unrecoverable** |
 | **Admin account password** (and TOTP secret + recovery codes, if enabled) | credential | the admin's password manager | recovery codes stored offline | on exposure | admin access; a break-glass reset is a runbook procedure |
 | **Alcove instance backup** | encrypted snapshot of the data directory | a second disk or machine, not the same array | a second, offline copy | per the backup schedule | edits and revisions made on the server (**Alcove becomes a system of record once it holds edits**) |
 | **Members' Tryst backup passwords** | passphrases stored inside the app so it can open uploads | encrypted inside the data store; each member's own password manager | each member's own copy | per member | the ability to open that member's uploaded backups |
@@ -30,7 +30,7 @@
 
 ## Checks
 
-- [ ] The data key's second copy has been **opened and used** to start a test instance.
+- [ ] The data key's second copy has been **opened and used**: `alcove keycheck -file <copy>` prints the same fingerprint as the live key file, and a test instance started from the copy opens the real data.
 - [ ] An instance backup has been restored to a scratch location and the data read back.
 - [ ] Nothing in this file is a secret value.
 - [ ] Re-audit at each release: did this release mint a new key, token or artifact that belongs here?
