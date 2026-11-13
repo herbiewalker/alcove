@@ -56,7 +56,7 @@
 | F10 | Refuse or open read-only any backup with a schema newer than supported | Must |
 | F11 | Sharing rules per space, person, category and entry; one-tap pause; share all; partner names hidden by default | Must |
 | F12 | Shared calendar overlay computed only from shared rows | Must |
-| F13 | Compare metrics across members of a space (set defined in O-2) | Should |
+| F13 | Compare metrics across members of a space (the registry in D-18) | Should |
 | F14 | Edit an entry's editable fields (O-3) in the browser; each save is a revision with a diff | Must |
 | F15 | Export a revision to a fresh `.tryst`; show which upload it is based on, warn if a newer upload exists, show a diff first, and give a guided restore procedure (D-15) | Must |
 | F16 | Soft delete everywhere; "recently deleted" restore for the user (10 days) and for the admin (45 days); purge is real | Must |

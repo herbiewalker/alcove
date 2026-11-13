@@ -1,6 +1,6 @@
 # Alcove — Decision Log (ADRs)
 
-> **Status:** Kickoff set and design pass 1 done, 2026-11-12 (D-15 to D-17 added; O-1 and O-7 proposed, O-4 resolved). Newest at the bottom, open questions last. Never delete an ADR;
+> **Status:** Kickoff set and design pass 1 done, 2026-11-12 (D-15 to D-20; O-2, O-3, O-4, O-11 to O-13 resolved; O-1 and O-7 proposed; O-10 awaiting a call). Newest at the bottom, open questions last. Never delete an ADR;
 > supersede it with a new one. Format: Nygard-style, trimmed.
 
 ---
@@ -192,47 +192,55 @@
 - **Consequences:** the index is rebuildable from the revisions.
 
 
+## D-18 — Compare metrics are a versioned registry that grows with Tryst's Insights (resolves O-2)
+- **Status:** Accepted
+- **Context:** Tryst's Insights engine keeps changing. Catalog names (acts, kinks, positions, toys) are per-user custom
+  labels, so they cannot be compared across members by name.
+- **Decision:** each metric is a small named, versioned definition in a **registry**, built only on neutral derived
+  fields (`startAt`, `durationMin`, `satisfactionRating`, counts of set members) so it survives schema changes. The v1
+  set: (1) a calendar overlay with a day marker per member and a "both active" highlight; (2) per member and period:
+  entries, active days, average rating, average duration; (3) longest weekly streak, busiest weekday and month; (4)
+  trend lines side by side, month by month and year over year; (5) category diversity (distinct counts), with named
+  top categories only where both members share them. New metrics are added to the registry as Tryst Insights grows; a
+  metric records which Tryst schema versions it supports and is hidden, not wrong, on one it does not.
+- **Consequences:** a periodic review step in the roadmap: when Tryst ships a new Insights card, decide whether it joins
+  the registry. Metrics are computed only from shared rows (D-5).
+
+## D-19 — Editing scope for v1 (resolves O-3)
+- **Status:** Accepted
+- **Decision:** members can **edit** an entry's `startAt`, `durationMin`, `note`, `satisfactionRating`, `mood`,
+  `initiator`, `protectionUsed`, `orgasmCountSelf`, and the set fields (`practicesPerformed`, `practicesReceived`,
+  `positions`, `kinks`, `contexts`, `occasions`, `toys`), choosing only from the member's **existing** catalog entries;
+  rename a partner's `displayName` and edit simple partner fields; **add a brand-new entry** (a new UUID, inserted on
+  restore); and delete and restore whole entries. Every edit sets `updatedAt`. **Read-only in v1:** the two per-orgasm
+  maps, the catalog tables, attaching or detaching media, and settings.
+- **Consequences:** a new entry carries a new id, so merge restore adds it and wipe restore keeps it. Creating new
+  catalog entries is a later step because it changes more tables.
+
+## D-20 — Small decisions: time zone, search logging, export default (resolves O-11, O-12, O-13)
+- **Status:** Accepted
+- **Decisions:** (1) Day boundaries use a **per-member time zone** that defaults to the server's and is shown in the UI.
+  (2) **Nothing sensitive in the logs:** the admin log records that a search happened, its scope, result count and the
+  term's length, never the term (constraint 8). (3) The export guide **recommends wipe first** when an export has
+  deletions or must be exact, merge otherwise, always behind the "fresh phone backup first" confirmation (D-15).
+
+---
+
 ## Open questions
 > Decisions deferred on purpose. Each is a future ADR. Do not let these rot silently.
 
 - **O-1 — Storage scheme.** *Proposed in D-16; awaiting review.*
-- **O-2 — Compare metrics.** *Options drafted below; needs the user's call.*
-  The Tryst Insights engine already gives totals, week streaks, averages, monthly and weekday trends and
-  per-attribute breakdowns. Catalog names (acts, kinks, positions, toys) are **per-user custom labels**, so they
-  cannot be compared across members without matching names. Proposed v1 set, built only on neutral derived fields
-  (`startAt`, `durationMin`, `satisfactionRating`, counts of set members) so it survives Tryst schema changes:
-  1. Calendar overlay: a day marker per member, and a "both active" highlight.
-  2. Per member and period: number of entries, active days, average rating, average duration.
-  3. Longest weekly streak, busiest weekday and month.
-  4. Trend lines side by side, month by month and year over year.
-  5. Category *diversity* (distinct counts) rather than names; named top categories only where both members share them.
-  Day boundaries need a time zone (O-11).
-- **O-3 — Editable fields.** *Options drafted below; needs the user's call.*
-  Encounter fields in Tryst's schema: `startAt`, `durationMin`, `note`, `satisfactionRating`, `mood`, `initiator`,
-  `protectionUsed`, `orgasmCountSelf`, `partnerOrgasms` and `ejaculationLocations` (maps), the set fields
-  (`practicesPerformed`, `practicesReceived`, `positions`, `kinks`, `contexts`, `occasions`, `toys`), partner links
-  via `encounter_partner`, and attached media. Proposed v1: edit `startAt`, `durationMin`, `note`,
-  `satisfactionRating`, `mood`, `initiator`, `protectionUsed`, `orgasmCountSelf` and the set fields (choosing only
-  from the member's **existing** catalog entries, never creating new ones); rename a partner's `displayName` and
-  edit simple partner fields; delete and restore whole entries; set `updatedAt` on every edit. Read-only in v1:
-  the two map fields, catalog tables, media attach and detach, settings. Open sub-question: may a member **add
-  a brand-new entry** on the computer (new UUID, inserted on restore)?
+- **O-2 — Compare metrics.** *Resolved in D-18.*
+- **O-3 — Editable fields.** *Resolved in D-19.*
 - **O-4 — Restore semantics.** *Resolved from code in D-15; emulator proof gates M6.*
 - **O-5 — TOTP scope.** Admins only, or any user; recovery-code handling.
 - **O-6 — Location features.** Whether and how to show photo locations on a map, and the default visibility.
-- **O-7 — Admin search.** *Proposed in D-17; the term-recording question is O-12.*
+- **O-7 — Admin search.** *Proposed in D-17; term logging resolved in D-20.*
 - **O-8 — Member activity view.** Whether to ship the optional "activity on my data" view and its default.
 - **O-9 — Shared library extraction.** When and how to extract `trystbk` for both projects.
-- **O-10 — Linking members to Tryst partners.** *Options drafted below; needs the user's call.*
-  A member may appear as a named partner in someone else's entries. Proposed, **optional and off by default**:
-  a member links one of their partners to another member's account, and the other member must confirm
-  (bilateral consent). Linked pairs allow *suggested* matches of entries from both sides (same time window), shown
-  side by side only for the fields each side shares. Without linking, nothing about who-is-who is inferred.
-  Linking reveals that one member recorded the other, so it needs both opt-ins and appears in the admin log.
-- **O-11 — Time zone for day boundaries.** Tryst stores epoch milliseconds but no zone. Proposed: a per-member
-  zone (default the server's) used for day buckets, shown in the UI.
-- **O-12 — Record admin search terms?** Proposed default: no (the log stores scope, count and term length only).
-  The alternative records the term so members can later learn who searched for what, at the cost of putting
-  content in the log (conflicts with constraint 8).
-- **O-13 — Default restore mode in the export guide.** Proposed: recommend wipe first when the export contains
-  deletions or must be exact, merge otherwise, always behind the "fresh backup first" confirmation (D-15).
+- **O-10 — Linking members to Tryst partners.** *Awaiting the user's call after a worked example.* Optional, bilateral,
+  off by default; see the example in the design notes. Linking reveals that one member recorded the other, so it needs
+  both opt-ins and appears in the admin log.
+- **O-11 — Time zone.** *Resolved in D-20.*
+- **O-12 — Admin search terms.** *Resolved in D-20: not recorded.*
+- **O-13 — Restore default.** *Resolved in D-20.*

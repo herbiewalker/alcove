@@ -44,14 +44,14 @@
 
 ## M4 — Sharing, calendar overlay, compare
 
-- [ ] Resolve O-2; sharing rules per space, person, category and entry, pause, share all (F11)
+- [ ] Metrics registry per D-18 (reviewed whenever Tryst Insights changes); sharing rules per space, person, category and entry, pause, share all (F11)
 - [ ] Profile prefill from the Tryst profile with per-field sharing, and member cards (F26, F28; D-14)
 - [ ] Shared calendar overlay (F12), then compare metrics (F13)
 - **Exit:** default visibility is nothing; cross-user and cross-space tests pass.
 
 ## M5 — Editing
 
-- [ ] Resolve O-3; change-sets, revisions, history and diff in the browser (F14)
+- [ ] Editing scope per D-19, including adding new entries; change-sets, revisions, history and diff in the browser (F14)
 - [ ] Admin edit of anyone's data, logged; recovery from any revision
 - **Exit:** edits never alter an upload; the admin log records every edit without content.
 
