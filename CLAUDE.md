@@ -36,7 +36,8 @@ and ADRs they feed are reviewed.
 
 2. **LAN only.** One published port. No port forwarding, no public DNS, no reverse proxy to the
    internet. A private overlay (Tailscale or WireGuard) may be added later; an exposed port never.
-   *Guard:* compose assertion (one port, no host network); `RUNBOOK.md`; review.
+   Requests from outside the private LAN ranges are refused by default (allowed networks, D-23).
+   *Guard:* compose assertion (one port, no host network); an allowed-networks test; `RUNBOOK.md`; review.
 
 3. **No outbound network calls and no telemetry by default.** The only exception is an optional
    notification URL the admin sets. No analytics, no update pings, no third-party scripts or fonts.

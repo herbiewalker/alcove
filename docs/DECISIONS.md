@@ -1,6 +1,6 @@
 # Alcove — Decision Log (ADRs)
 
-> **Status:** Kickoff set and design pass 1 done, 2026-11-12 (D-15 to D-22; O-2, O-3, O-4, O-11 to O-13 resolved; O-10 withdrawn; O-1 and O-7 proposed). Newest at the bottom, open questions last. Never delete an ADR;
+> **Status:** Kickoff set and design pass 1 done, 2026-11-12 (D-15 to D-23; O-2, O-3, O-4, O-11 to O-13 resolved; O-10 withdrawn; O-1 and O-7 proposed). Newest at the bottom, open questions last. Never delete an ADR;
 > supersede it with a new one. Format: Nygard-style, trimmed.
 
 ---
@@ -265,6 +265,28 @@
   file upload and download; features that need a secure context (service workers, clipboard APIs) are not used.
   A phone browser may sleep mid-upload, so resumable uploads are tracked as a later item (O-14).
 
+## D-23 — Transport security: secured wifi by default, admin-enabled options (resolves O-15)
+- **Status:** Accepted
+- **Context:** Alcove serves decrypted content over a home network, and a phone browser is the main client (D-22). Plain
+  HTTP exposes logins, cookies and pages to anyone who can sniff that network (R14). Uploaded and exported files stay
+  encrypted under the member's backup password either way.
+- **Decision:** the **default is a secured, password-protected wifi with plain HTTP**. The admin can switch on these
+  options in the admin console (Settings, step-up re-login required):
+  1. **Reverse-proxy mode.** Trust the forwarded protocol and client address only from configured proxy addresses; mark
+     cookies `Secure` and emit HSTS when the connection is encrypted. Runbook recipes: Caddy or Nginx Proxy Manager with a
+     DNS-challenge certificate, and `tailscale serve`.
+  2. **Allowed networks.** Refuse requests from outside a list of networks. The default is the private LAN ranges, so a
+     request from a public address is rejected (this also enforces constraint 2 inside the app).
+  3. **Insecure-connection banner** for the admin when the current connection is not encrypted, with a link to the fix.
+  4. **Require-TLS mode** (off by default): refuse logins over plain HTTP.
+  An environment value, when set, wins over the console and shows as "set by environment", which is also the break-glass
+  path. Changing allowed networks asks for confirmation from the new address within 60 seconds and **reverts itself** if
+  not confirmed, so the admin cannot lock themselves out.
+- **Alternatives:** a built-in TLS mode with a local certificate authority (rejected: phones must install and trust the CA,
+  which is awkward on Android, and the CA key becomes a new asset to protect); mandatory TLS (breaks the simple LAN setup).
+- **Consequences:** the first live deploy can be encrypted from day one through a proxy or Tailscale, but does not have to be.
+  CSRF tokens, `SameSite=Strict` cookies and short sessions apply in every mode. Built-in TLS is not planned.
+
 
 ## Open questions
 > Decisions deferred on purpose. Each is a future ADR. Do not let these rot silently.
@@ -284,6 +306,4 @@
 - **O-13 — Restore default.** *Resolved in D-20.*
 - **O-14 — Resumable uploads.** A phone browser can sleep or drop wifi during a large upload. First version: progress bar
   and a keep-the-screen-on hint. Chunked, resumable upload is a later step if it proves a problem.
-- **O-15 — Optional TLS on the LAN.** Whether to offer a built-in TLS option (a locally generated certificate that phones
-  must trust) or rely on a private overlay such as Tailscale for encrypted transport. Matters more here than in Sanctum
-  because Alcove serves decrypted content (R14).
+- **O-15 — Optional TLS on the LAN.** *Resolved in D-23: secured wifi by default, with admin-enabled proxy mode, allowed networks, a banner and require-TLS mode. A built-in local CA is not planned.*

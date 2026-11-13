@@ -52,6 +52,7 @@
 - [ ] First-run admin; accounts; password hashing; sessions; rate limiting; step-up re-login
 - [ ] Append-only hash-chained admin log, its verifier (N5), and a **basic log viewer**
 - [ ] Strict CSP and a **mobile-first** responsive UI shell (light, dark, auto), reusing Sanctum's approach (D-22)
+- [ ] Transport security per D-23: CSRF tokens, allowed networks (private ranges by default), proxy mode, insecure-connection banner and require-TLS mode, with the auto-revert on allowed-network changes (F32, N17)
 - **Exit:** no unauthenticated route creates an account; the chain verifies and a tampered entry is detected; the shell
   is usable on a phone-width screen with the keyboard and touch.
 
@@ -81,6 +82,7 @@
 - [ ] `RUNBOOK`, `docker-compose`, the live smoke script, deploy on the real host, LAN-only, limits applied
 - [ ] Validation ladder (principle 11): synthetic data, then one real backup, then the full history
 - [ ] Checked from a real phone browser: upload a backup from the phone, view the overlay
+- [ ] Runbook recipes for HTTPS (Caddy or Nginx Proxy Manager, `tailscale serve`); the default stays secured wifi (D-23)
 - **Exit:** the two of you use it for real. The README status line says what is and is not proven.
 
 ## M5 — Editing
@@ -107,7 +109,7 @@
 
 ## M8 — Admin console and operations
 
-- [ ] Account, space and health pages (full); search over everything (D-17); log viewer filters and export (F17, F18)
+- [ ] Settings page for the transport-security options (D-23); account, space and health pages (full); search over everything (D-17); log viewer filters and export (F17, F18)
 - [ ] Optional TOTP (F20); optional notifications (F24); optional member activity view (F25, O-8)
 - [ ] Optional QR codes for the server address and invites, generated locally (F31)
 - **Exit:** the admin can find and fix a user's problem without a shell; every admin action is in the log.

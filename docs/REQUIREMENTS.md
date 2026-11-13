@@ -76,6 +76,7 @@
 | F29 | The export guide explains Tryst's two restore modes (wipe first or merge), recommends one for this export, and requires the user to confirm they exported a fresh backup from the phone first (D-15) | Must |
 | F30 | **Phone workflow over the LAN.** A person can export a backup in Tryst on the phone, open Alcove in the phone's browser on the same network, and upload it; and can download an edited `.tryst` to the phone and restore it from Downloads in Tryst. The pages are mobile-first and touch-friendly (D-22) | Must |
 | F31 | Optional QR codes for the server address and for invites, generated locally with no outbound call | Could |
+| F32 | Admin settings for transport security (D-23): reverse-proxy mode, allowed networks (default: private LAN ranges), an insecure-connection banner, and a require-TLS mode. Changes need step-up; allowed-network changes auto-revert unless confirmed within 60 seconds; an environment value wins and is shown as such | Should |
 
 ## Non-functional requirements
 
@@ -97,6 +98,7 @@
 | N14 | Mobile-first and responsive in any current browser at any width; light, dark or automatic theme; large touch targets; the upload and download flows work in a phone browser (Chrome on Android at minimum) | Layout checks at phone, tablet and desktop widths; a real-phone check at the first live deploy |
 | N15 | No personal information in the repo | `guards.sh no-secrets`, gitleaks, review |
 | N16 | Decrypted user data exists only in memory or tmpfs, never on the data volume (D-16) | `scripts/guards.sh no-plaintext`: ingest and edit a synthetic dataset, then scan the data directory for ZIP magic, JSON and sentinel strings |
+| N17 | With allowed networks at the default, a request from a public address is refused; in proxy mode forwarded headers are trusted only from configured proxies; in require-TLS mode a login over plain HTTP is refused; an unconfirmed allowed-network change reverts | Tests for each mode |
 
 ## Riskiest assumption
 

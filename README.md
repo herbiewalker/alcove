@@ -82,7 +82,7 @@ On Linux or in CI, `make check` runs the same gates.
 - **Pre-implementation.** Everything above the quickstart is a plan.
 - **Server-side trust.** The host operator can read the data; there are no per-user keys that hide it from
   the admin.
-- **Plain HTTP on the LAN.** Content crosses your home network unencrypted until optional TLS exists (see R14).
+- **Plain HTTP on the LAN.** Content crosses your home network unencrypted by default (a secured wifi is assumed). HTTPS is available through a reverse proxy or Tailscale, enabled by the admin (R14, D-23).
 - **Manual phone round trip.** Edits reach the phone by exporting a backup and restoring it, not by sync.
 - **Tied to Tryst's backup format**, which changes with Tryst. Compatibility is a standing maintenance cost.
 
