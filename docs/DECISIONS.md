@@ -1,6 +1,6 @@
 # Alcove — Decision Log (ADRs)
 
-> **Status:** Kickoff set and design pass 1 done, 2026-11-12 (D-15 to D-23; O-2, O-3, O-4, O-11 to O-13 resolved; O-10 withdrawn; O-1 and O-7 proposed). Newest at the bottom, open questions last. Never delete an ADR;
+> **Status:** Kickoff set and design pass 1 done, 2026-11-12 (D-15 to D-24; O-2, O-3, O-4, O-11 to O-13 resolved; O-10 withdrawn; O-1 and O-7 proposed). Newest at the bottom, open questions last. Never delete an ADR;
 > supersede it with a new one. Format: Nygard-style, trimmed.
 
 ---
@@ -286,6 +286,18 @@
   which is awkward on Android, and the CA key becomes a new asset to protect); mandatory TLS (breaks the simple LAN setup).
 - **Consequences:** the first live deploy can be encrypted from day one through a proxy or Tailscale, but does not have to be.
   CSRF tokens, `SameSite=Strict` cookies and short sessions apply in every mode. Built-in TLS is not planned.
+
+## D-24 — Dependency and licence gate is an allowlist, not a scanner
+- **Status:** Accepted
+- **Context:** checklist 00 wants a licence and dependency check from M0. The usual scanner (`go-licenses`) is an extra
+  tool that classifies the project's own AGPL licence as restricted and has trouble with the standard library, so it
+  would fail for reasons unrelated to dependencies and would have to be installed in CI.
+- **Decision:** `scripts/dependencies.allow` lists every approved third-party module with its SPDX licence. `scripts/guards.sh
+  licenses` (pure bash and `go list`) fails if a module in the build is not listed, if `go list` itself fails, or if a
+  listed licence is outside the allowed set. Adding a dependency is a deliberate, reviewed line.
+- **Alternatives:** `go-licenses` (see above); no gate (a dependency could arrive unreviewed).
+- **Consequences:** a small manual step per new dependency, which is also where its audit cost gets weighed. The gate
+  was forced to fail on a bad licence and on a failing `go list` before being trusted.
 
 
 ## Open questions
