@@ -14,6 +14,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"strings"
 	"time"
 
 	"github.com/herbiewalker/alcove/internal/profile"
@@ -34,12 +35,20 @@ type Entry struct {
 	OwnerID   string
 	OwnerName string
 	ID        string
-	Start     time.Time
-	Duration  *int // minutes
-	Rating    *int // 1 to 5
+	Start     time.Time // the moment, in UTC
+	Local     time.Time // the same moment in the owner's own time zone (D-35)
+	Day       string    // the owner's calendar day, 2006-01-02
+	Duration  *int      // minutes
+	Rating    *int      // 1 to 5
 	Note      string
 	Mine      bool
+	// Sets holds, per Tryst set column (acts, positions, kinks, ...), the members the entry names.
+	// Compare views count them; they are labels or ids, never shown as text (D-35).
+	Sets map[string][]string
 }
+
+// SetColumns are the Tryst columns that hold a comma separated set, in the order compare views list them.
+var SetColumns = []string{"practicesPerformed", "practicesReceived", "positions", "kinks", "contexts", "occasions", "toys"}
 
 // Query narrows the entries. A zero From or To is open on that side. Limit 0 means no limit.
 type Query struct {
@@ -59,7 +68,7 @@ func Entries(tx *sql.Tx, spaceID, viewerID string, consent int, q Query) ([]Entr
 	if err := tx.QueryRow(`SELECT COUNT(*)`+where, args...).Scan(&total); err != nil {
 		return nil, 0, err
 	}
-	sel := `SELECT c.owner_id, u.display_name, u.username, c.rid, c.data, m.include_notes` + where +
+	sel := `SELECT c.owner_id, u.display_name, u.username, c.rid, c.data, m.include_notes, COALESCE((SELECT tz FROM user_tz z WHERE z.user_id = c.owner_id), '')` + where +
 		` ORDER BY json_extract(c.data, '$.startAt') DESC, c.owner_id, c.rid`
 	if q.Limit > 0 {
 		sel += ` LIMIT ? OFFSET ?`
@@ -71,10 +80,11 @@ func Entries(tx *sql.Tx, spaceID, viewerID string, consent int, q Query) ([]Entr
 	}
 	defer rows.Close()
 	var out []Entry
+	zs := zones{}
 	for rows.Next() {
-		var owner, display, username, rid, data string
+		var owner, display, username, rid, data, tz string
 		var notes int
-		if err := rows.Scan(&owner, &display, &username, &rid, &data, &notes); err != nil {
+		if err := rows.Scan(&owner, &display, &username, &rid, &data, &notes, &tz); err != nil {
 			return nil, 0, err
 		}
 		e, ok := parse(data)
@@ -82,6 +92,8 @@ func Entries(tx *sql.Tx, spaceID, viewerID string, consent int, q Query) ([]Entr
 			continue
 		}
 		e.OwnerID, e.ID, e.Mine = owner, rid, owner == viewerID
+		e.Local = e.Start.In(zs.get(tz))
+		e.Day = e.Local.Format("2006-01-02")
 		e.OwnerName = display
 		if e.OwnerName == "" {
 			e.OwnerName = username
@@ -133,38 +145,54 @@ func scope(spaceID string, consent int, q Query) (string, []any) {
 	return where, args
 }
 
-// Day is one calendar day (UTC) and how many entries each member has on it.
+// Day is one calendar day and how many entries each member has on it, each counted in its
+// owner's own time zone.
 type Day struct {
 	Date   string // 2006-01-02
 	ByUser map[string]int
 }
 
-// Days returns the days in [from, to) that have at least one shown entry, with a count per member.
-// It goes through the same gate as Entries: nothing appears that Entries would not show.
+// Days returns the days from the date of `from` up to but not including the date of `to`, that have
+// at least one shown entry, with a count per member. It goes through the same gate as Entries.
 func Days(tx *sql.Tx, spaceID, viewerID string, consent int, from, to time.Time) ([]Day, error) {
 	if err := check(tx, spaceID, viewerID, consent); err != nil {
 		return nil, err
 	}
-	where, args := scope(spaceID, consent, Query{From: from, To: to})
-	rows, err := tx.Query(`SELECT date(json_extract(c.data, '$.startAt') / 1000, 'unixepoch') AS d, c.owner_id, COUNT(*)`+where+
-		` GROUP BY d, c.owner_id ORDER BY d, c.owner_id`, args...)
+	// Zones differ by up to a day from UTC, so ask for a day more on each side and cut by date.
+	where, args := scope(spaceID, consent, Query{From: from.Add(-26 * time.Hour), To: to.Add(26 * time.Hour)})
+	rows, err := tx.Query(`SELECT c.owner_id, json_extract(c.data, '$.startAt'), COALESCE((SELECT tz FROM user_tz z WHERE z.user_id = c.owner_id), '')`+where, args...)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var out []Day
+	lo, hi := from.Format("2006-01-02"), to.Format("2006-01-02")
+	zs := zones{}
+	counts := map[string]map[string]int{}
 	for rows.Next() {
-		var d, owner string
-		var n int
-		if err := rows.Scan(&d, &owner, &n); err != nil {
+		var owner, tz string
+		var ms float64
+		if err := rows.Scan(&owner, &ms, &tz); err != nil {
 			return nil, err
 		}
-		if len(out) == 0 || out[len(out)-1].Date != d {
-			out = append(out, Day{Date: d, ByUser: map[string]int{}})
+		d := time.UnixMilli(int64(ms)).In(zs.get(tz)).Format("2006-01-02")
+		if d < lo || d >= hi {
+			continue
 		}
-		out[len(out)-1].ByUser[owner] = n
+		if counts[d] == nil {
+			counts[d] = map[string]int{}
+		}
+		counts[d][owner]++
 	}
-	return out, rows.Err()
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	var out []Day
+	for d := from; d.Before(to); d = d.AddDate(0, 0, 1) {
+		if m, ok := counts[d.Format("2006-01-02")]; ok {
+			out = append(out, Day{Date: d.Format("2006-01-02"), ByUser: m})
+		}
+	}
+	return out, nil
 }
 
 // Mine is one of the viewer's own entries, as the owner sees them on "My entries".
@@ -181,6 +209,7 @@ func Own(tx *sql.Tx, owner string, limit, offset int) ([]Mine, int, error) {
 	if err := tx.QueryRow(`SELECT COUNT(*)`+where, owner).Scan(&total); err != nil {
 		return nil, 0, err
 	}
+	loc := zones{}.get(ZoneName(tx, owner))
 	rows, err := tx.Query(`SELECT c.rid, c.data, COALESCE((SELECT f.private FROM entry_flag f WHERE f.owner_id = c.owner_id AND f.entry_id = c.rid), 0)`+where+
 		` ORDER BY json_extract(c.data, '$.startAt') DESC, c.rid LIMIT ? OFFSET ?`, owner, limit, offset)
 	if err != nil {
@@ -199,6 +228,8 @@ func Own(tx *sql.Tx, owner string, limit, offset int) ([]Mine, int, error) {
 			continue
 		}
 		e.OwnerID, e.ID, e.Mine = owner, rid, true
+		e.Local = e.Start.In(loc)
+		e.Day = e.Local.Format("2006-01-02")
 		out = append(out, Mine{Entry: e, Private: priv == 1})
 	}
 	return out, total, rows.Err()
@@ -237,6 +268,9 @@ func parse(data string) (Entry, bool) {
 	if json.Unmarshal([]byte(data), &r) != nil || r.StartAt == nil {
 		return Entry{}, false
 	}
+	var sets map[string]*string
+	// Not every column is a string. Unmarshal still fills the ones that are and reports the first mismatch, which is fine here.
+	_ = json.Unmarshal([]byte(data), &sets)
 	e := Entry{Start: time.UnixMilli(int64(*r.StartAt)).UTC()}
 	if r.Duration != nil {
 		d := int(*r.Duration)
@@ -248,6 +282,18 @@ func parse(data string) (Entry, bool) {
 	}
 	if r.Note != nil {
 		e.Note = *r.Note
+	}
+	for _, col := range SetColumns {
+		if v := sets[col]; v != nil && *v != "" {
+			for _, m := range strings.Split(*v, ",") {
+				if m = strings.TrimSpace(m); m != "" {
+					if e.Sets == nil {
+						e.Sets = map[string][]string{}
+					}
+					e.Sets[col] = append(e.Sets[col], m)
+				}
+			}
+		}
 	}
 	return e, true
 }
@@ -327,4 +373,42 @@ func Cards(tx *sql.Tx, spaceID, viewerID string, consent int, now time.Time) ([]
 		}
 	}
 	return cards, nil
+}
+
+// Member is a person the compare views may include: they pass every owner condition of the gate.
+type Member struct {
+	UserID, Name string
+	Schema       int // the Tryst database version of their current backup, 0 if unknown
+	Mine         bool
+}
+
+// Roster lists the members whose entries the viewer may see in the space (not paused, current
+// wording, live account), owner first, then by name. It is the member list for compare views.
+func Roster(tx *sql.Tx, spaceID, viewerID string, consent int) ([]Member, error) {
+	if err := check(tx, spaceID, viewerID, consent); err != nil {
+		return nil, err
+	}
+	rows, err := tx.Query(`SELECT m.user_id, u.display_name, u.username, COALESCE((SELECT h.tryst_schema FROM cache_head h WHERE h.owner_id = m.user_id), 0)
+		FROM membership m JOIN space s ON s.id = m.space_id JOIN user u ON u.id = m.user_id
+		WHERE m.space_id = ? AND m.state = 'active' AND m.paused = 0 AND m.consent_version >= ?
+		  AND s.deleted_at IS NULL AND u.status = 'active' AND u.deleted_at IS NULL
+		ORDER BY (m.role = 'owner') DESC, u.display_name COLLATE NOCASE, m.user_id`, spaceID, consent)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []Member
+	for rows.Next() {
+		var m Member
+		var username string
+		if err := rows.Scan(&m.UserID, &m.Name, &username, &m.Schema); err != nil {
+			return nil, err
+		}
+		if m.Name == "" {
+			m.Name = username
+		}
+		m.Mine = m.UserID == viewerID
+		out = append(out, m)
+	}
+	return out, rows.Err()
 }

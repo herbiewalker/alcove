@@ -1,8 +1,8 @@
 {{define "content"}}
 {{with .Cal}}
 <h1>{{$.SpaceName}}: calendar</h1>
-<p class="muted">Every member's shown entries on one calendar. Each person has a letter and a colour; a pink day means two or more members were active. Days are UTC. Tap a day to list its entries.</p>
-<p><a class="btn secondary" href="/spaces/{{$.SpaceID}}">Back to the space</a> <a class="btn secondary" href="/spaces/{{$.SpaceID}}/entries">Shared entries</a></p>
+<p class="muted">Every member's shown entries on one calendar. Each person has a letter and a colour; a pink day means two or more members were active. Each person's days follow their own time zone. Tap a day to list its entries.</p>
+<p><a class="btn secondary" href="/spaces/{{$.SpaceID}}">Back to the space</a> <a class="btn secondary" href="/spaces/{{$.SpaceID}}/compare">Compare</a> <a class="btn secondary" href="/spaces/{{$.SpaceID}}/entries">Shared entries</a></p>
 
 <ul class="cal-legend" aria-label="Who is who">
   {{range .Legend}}<li><span class="mk {{.Class}}" aria-hidden="true">{{.Initial}}</span> {{.Name}}</li>{{end}}
@@ -39,7 +39,7 @@
 {{if .DayRows}}
 <div class="scroll">
 <table>
-  <thead><tr><th>Time (UTC)</th><th>Who</th><th>Length</th><th>Rating</th><th>Note</th></tr></thead>
+  <thead><tr><th>Time</th><th>Who</th><th>Length</th><th>Rating</th><th>Note</th></tr></thead>
   <tbody>
   {{range .DayRows}}
     <tr><td>{{.When}}</td><td>{{.Who}}{{if .Mine}} <span class="muted">(you)</span>{{end}}</td><td>{{.Duration}}</td><td>{{.Rating}}</td><td>{{.Note}}</td></tr>

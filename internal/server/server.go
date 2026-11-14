@@ -156,7 +156,7 @@ func (s *Server) netOptions() netsec.Options {
 }
 
 func (s *Server) parseTemplates() error {
-	pages := []string{"message", "setup", "login", "unlock", "home", "account", "stepup", "admin", "adminlog", "settings", "backup", "uploads", "users", "usercreated", "forcepw", "mydeleted", "admindeleted", "spaces", "space", "join", "joinconsent", "codeshown", "adminspaces", "spaceentries", "myentries", "profile", "prefill", "calendar"}
+	pages := []string{"message", "setup", "login", "unlock", "home", "account", "stepup", "admin", "adminlog", "settings", "backup", "uploads", "users", "usercreated", "forcepw", "mydeleted", "admindeleted", "spaces", "space", "join", "joinconsent", "codeshown", "adminspaces", "spaceentries", "myentries", "profile", "prefill", "calendar", "compare"}
 	for _, p := range pages {
 		t, err := template.ParseFS(assets, "templates/base.html", "templates/"+p+".html")
 		if err != nil {
@@ -487,6 +487,9 @@ type page struct {
 	ProfileFields []profileField
 	Offers        []offerRow
 	Cal           *calView
+	Compare       *compareView
+	ProfileTZ     string
+	DefaultTZ     string
 }
 
 type logRow struct {
@@ -688,6 +691,7 @@ func (s *Server) routes_() {
 	s.handle("GET /spaces/{id}", user, s.getSpace)
 	s.handle("GET /spaces/{id}/entries", user, s.getSpaceEntries)
 	s.handle("GET /spaces/{id}/calendar", user, s.getSpaceCalendar)
+	s.handle("GET /spaces/{id}/compare", user, s.getSpaceCompare)
 	s.handle("POST /spaces/{id}/restore", user, s.postSpaceRestore)
 	s.handle("POST /spaces/{id}/{action}", user, s.postSpaceAction)
 	s.handle("GET /join", anyone, s.getJoin)

@@ -77,3 +77,18 @@ func TestTransportEnvironment(t *testing.T) {
 		t.Fatal("a bad boolean must be refused")
 	}
 }
+
+func TestTimezone(t *testing.T) {
+	c, err := Load(env(nil))
+	if err != nil || c.Timezone != "" {
+		t.Fatalf("default: %q %v", c.Timezone, err)
+	}
+	if c, err = Load(env(map[string]string{"ALCOVE_TZ": "Europe/Berlin"})); err != nil || c.Timezone != "Europe/Berlin" {
+		t.Errorf("a real zone: %q %v", c.Timezone, err)
+	}
+	for _, bad := range []string{"Mars/Olympus", "UTC+5", "../../etc/passwd"} {
+		if _, err := Load(env(map[string]string{"ALCOVE_TZ": bad})); err == nil {
+			t.Errorf("accepted %q", bad)
+		}
+	}
+}

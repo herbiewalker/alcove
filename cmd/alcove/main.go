@@ -29,6 +29,7 @@ import (
 	"github.com/herbiewalker/alcove/internal/config"
 	"github.com/herbiewalker/alcove/internal/keycli"
 	"github.com/herbiewalker/alcove/internal/server"
+	"github.com/herbiewalker/alcove/internal/share"
 	"github.com/herbiewalker/alcove/internal/store"
 )
 
@@ -93,6 +94,11 @@ func run(cfg config.Config) int {
 		return 1
 	}
 
+	if err := share.SetDefaultZone(cfg.Timezone); err != nil {
+		logger.Error("refusing to start", "reason", "ALCOVE_TZ is not a time zone")
+		fmt.Fprintln(os.Stderr, "alcove: refusing to start: ALCOVE_TZ is not a time zone name")
+		return 1
+	}
 	web, err := server.New(backend{a}, server.Options{Version: version, Env: cfg.Net, Logger: logger,
 		BackupDir: cfg.BackupDir, BackupKeep: cfg.BackupKeep, TmpDir: cfg.TmpDir, AllowNonTmpfs: cfg.AllowNonTmpfsTmp,
 		UserRecoveryDays: cfg.UserRecoveryDays, AdminRecoveryDays: cfg.AdminRecoveryDays,

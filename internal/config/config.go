@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	_ "time/tzdata" // so a zone name is checked the same way on every build
 
 	"github.com/herbiewalker/alcove/internal/netsec"
 )
@@ -30,6 +31,8 @@ type Config struct {
 	MaxUploadMB int
 	// UserRecoveryDays and AdminRecoveryDays are the two soft-delete windows (D-8, D-30).
 	UserRecoveryDays, AdminRecoveryDays int
+	// Timezone is the IANA zone used for people who have not chosen their own (D-35). Empty means UTC.
+	Timezone string
 	// BackupKeep is how many of the newest backups a run keeps (never fewer than one).
 	BackupKeep int
 	// Net holds the transport-security values set in the environment (D-23). An unset variable is a
@@ -67,6 +70,12 @@ func Load(getenv func(string) string) (Config, error) {
 			return Config{}, fmt.Errorf("ALCOVE_MAX_UPLOAD_MB must be 1..512, got %q", v)
 		}
 		c.MaxUploadMB = n
+	}
+	if v := strings.TrimSpace(getenv("ALCOVE_TZ")); v != "" {
+		if _, lerr := time.LoadLocation(v); lerr != nil {
+			return Config{}, fmt.Errorf("ALCOVE_TZ must be a time zone name like Europe/Berlin, got %q", v)
+		}
+		c.Timezone = v
 	}
 	for key, dst := range map[string]*int{"ALCOVE_USER_RECOVERY_DAYS": &c.UserRecoveryDays, "ALCOVE_ADMIN_RECOVERY_DAYS": &c.AdminRecoveryDays} {
 		if v := strings.TrimSpace(getenv(key)); v != "" {

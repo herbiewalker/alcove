@@ -7,6 +7,7 @@ import (
 
 	"github.com/herbiewalker/alcove/internal/auth"
 	"github.com/herbiewalker/alcove/internal/profile"
+	"github.com/herbiewalker/alcove/internal/share"
 )
 
 type profileField struct {
@@ -31,14 +32,14 @@ func (s *Server) profileFields(q *rq, values map[string]string, shared map[strin
 
 func (s *Server) profilePage(q *rq) (*page, error) {
 	var stored map[string]profile.Value
-	var name string
+	var name, tz string
 	err := q.st.View(q.r.Context(), func(tx *sql.Tx) (err error) {
 		stored, err = profile.Get(tx, q.id.user.ID)
 		if err != nil {
 			return err
 		}
 		u, err := auth.ByID(tx, q.id.user.ID)
-		name = u.DisplayName
+		name, tz = u.DisplayName, share.ZoneName(tx, q.id.user.ID)
 		return err
 	})
 	if err != nil {
@@ -48,7 +49,7 @@ func (s *Server) profilePage(q *rq) (*page, error) {
 	for k, v := range stored {
 		values[k], shared[k] = v.Value, v.Shared
 	}
-	return &page{Title: "Your profile", Active: "account", ProfileName: name, ProfileFields: s.profileFields(q, values, shared)}, nil
+	return &page{Title: "Your profile", Active: "account", ProfileName: name, ProfileFields: s.profileFields(q, values, shared), ProfileTZ: tz, DefaultTZ: share.DefaultZoneName()}, nil
 }
 
 func (s *Server) getProfile(q *rq) {
@@ -68,6 +69,8 @@ func profileMessage(err error) string {
 		return "Alcove is for adults, so the birth date must be at least 18 years ago."
 	case errors.Is(err, profile.ErrTooLong):
 		return "One of the fields is too long or holds characters that are not allowed."
+	case errors.Is(err, share.ErrBadZone):
+		return "That is not a time zone name. Use one like Europe/Berlin or America/New_York, or leave it empty."
 	case errors.Is(err, auth.ErrBadDisplayName):
 		return "The name shown to others must be 1 to 80 characters."
 	}
@@ -87,10 +90,13 @@ func (s *Server) postProfile(q *rq) {
 		if err := profile.Save(tx, s.now(), q.id.user.ID, values, shared); err != nil {
 			return err
 		}
-		return auth.SetDisplayName(tx, q.id.user.ID, f.Get("name"))
+		if err := auth.SetDisplayName(tx, q.id.user.ID, f.Get("name")); err != nil {
+			return err
+		}
+		return share.SetZone(tx, q.id.user.ID, f.Get("tz"))
 	})
 	if msg := profileMessage(err); msg != "" {
-		p := &page{Title: "Your profile", Active: "account", Error: msg, ProfileName: f.Get("name"), ProfileFields: s.profileFields(q, values, shared)}
+		p := &page{Title: "Your profile", Active: "account", Error: msg, ProfileName: f.Get("name"), ProfileFields: s.profileFields(q, values, shared), ProfileTZ: f.Get("tz"), DefaultTZ: share.DefaultZoneName()}
 		q.render(http.StatusBadRequest, "profile", p)
 		return
 	}

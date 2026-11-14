@@ -20,7 +20,7 @@ type entryRow struct {
 }
 
 func fmtEntry(e share.Entry) entryRow {
-	r := entryRow{ID: e.ID, Who: e.OwnerName, When: e.Start.Format(timeFmt), Note: e.Note, Mine: e.Mine}
+	r := entryRow{ID: e.ID, Who: e.OwnerName, When: e.Local.Format(timeFmt), Note: e.Note, Mine: e.Mine}
 	if e.Duration != nil {
 		r.Duration = fmt.Sprintf("%d min", *e.Duration)
 	}

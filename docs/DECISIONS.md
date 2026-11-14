@@ -644,9 +644,31 @@ is a recurring check, not a one-off.
   3. **Choosing a day lists that day's entries** (time, who, length, rating, and the note only if its owner includes notes), by `share.Entries`.
   4. **Same gate, one definition.** `share.Days` and `share.Entries` build on the same `scope`, and a test hides entries every way the gate can and
      checks that the calendar and the list stay in step. Paused, left, removed, disabled, deleted, older-wording and private entries never appear.
-  5. **Days are UTC for now.** A per-member time zone (D-20) arrives with the compare metrics, where day boundaries matter most; until then the page says
-     "UTC", as the list does.
+  5. **Days were UTC at first;** per-member time zones arrived in D-35 and now decide every day boundary.
   6. **The legend names only members whose cards are shown,** so a paused member is not listed as a colour.
 - **Alternatives:** a script-driven calendar (needs a second script and a looser CSP); per-pair "both active" only (a space can have more than two members, so
   it is "two or more").
 - **Consequences:** an entry near midnight local time can sit on a neighbouring UTC day until time zones arrive.
+
+## D-35 — Compare metrics as a registry, and per-member time zones (implements F13, D-20 part 1; M4 piece D)
+- **Status:** Accepted
+- **Context:** D-18 defines the compare metrics as a versioned registry on neutral derived fields; D-20 says day boundaries use a per-member time zone.
+- **Decision:**
+  1. **`internal/compare` holds the registry.** A metric has an id, a title, a version, the Tryst schema range it understands, and a build function. A member
+     whose backup is outside that range is named and left out of that metric, never shown wrongly. When Tryst's Insights grows, a periodic review decides
+     whether a new card joins the registry.
+  2. **Four metrics in v1:** *At a glance* (entries, active days, average rating, average length), *Rhythm* (longest streak of consecutive weeks, busiest weekday
+     and month), *Trend* (entries per month for the last twelve months and per year, side by side with bars), *Variety* (how many different acts, positions,
+     kinks, settings, occasions and toys each member used). The calendar overlay is the fifth, from piece C.
+  3. **Counts only.** Catalog names are each person's own labels (D-18), so Variety counts distinct items and never shows a name; "named top categories where
+     both share them" is left out of v1 and can return as its own decision. No metric reads a note.
+  4. **The same gate.** Metrics are computed from `share.Entries` and `share.Roster` only, so paused, private, left and stale-consent entries never count.
+  5. **Periods:** last 12 months (the default), this year, all time. The end of a period is exclusive.
+  6. **Time zones.** Each person may set their own IANA zone on their profile; with none, the server's zone `ALCOVE_TZ` applies, and with that unset, UTC.
+     Every day boundary (calendar days, active days, weekday, streak weeks, monthly trend) uses the owner's zone, and times are shown in it. Zone names work in
+     the distroless image because the zone database is built into the binary. A name is validated against the database; an empty name removes the choice.
+  7. **Supersedes D-34 point 5** (days were UTC until this piece).
+- **Alternatives:** per-pair "head to head" metrics (a space can have more than two members); named top categories now (needs a labelling decision); a viewer's
+  zone for everyone's entries (an entry would move day depending on who looks).
+- **Consequences:** the calendar and entries pages now say times follow each person's zone. A person who travels changes their own zone and their past entries
+  move days with it.

@@ -1,0 +1,31 @@
+{{define "content"}}
+{{with .Compare}}
+<h1>{{$.SpaceName}}: compare</h1>
+<p class="muted">Side by side, from what each member shows in this space. Counts only: nothing here repeats a note or a name from anyone's data. Each person's days follow their own time zone.</p>
+<p><a class="btn secondary" href="/spaces/{{$.SpaceID}}">Back to the space</a> <a class="btn secondary" href="/spaces/{{$.SpaceID}}/calendar">Calendar</a></p>
+
+<nav class="periods" aria-label="Period">
+  {{range .Periods}}<a class="btn {{if not .Current}}secondary{{end}}" href="{{.Link}}"{{if .Current}} aria-current="true"{{end}}>{{.Label}}</a> {{end}}
+</nav>
+<p class="muted small">At a glance, Rhythm and Variety use the period above. Trend always shows the last twelve months and each year.</p>
+
+{{if not .Members}}<p class="muted">Nobody is showing entries in this space right now.</p>{{end}}
+{{range .Sections}}
+<h2>{{.Title}}</h2>
+{{if .Skipped}}<p class="muted small">Not shown for {{range $i, $n := .Skipped}}{{if $i}}, {{end}}{{$n}}{{end}}: their backup is from a newer Tryst version than Alcove understands yet.</p>{{end}}
+{{if .Head}}
+<div class="scroll">
+<table class="cmp">
+  <thead><tr><th scope="col"><span class="sr">What</span></th>{{range .Head}}<th scope="col">{{.}}</th>{{end}}</tr></thead>
+  <tbody>
+  {{$bars := .Bars}}
+  {{range .Rows}}
+    <tr><th scope="row">{{.Label}}</th>{{range .Cells}}<td>{{.Text}}{{if and $bars (ge .Frac 0.0)}} <meter min="0" max="1" value="{{.Frac}}" aria-hidden="true"></meter>{{end}}</td>{{end}}</tr>
+  {{end}}
+  </tbody>
+</table>
+</div>
+{{end}}
+{{end}}
+{{end}}
+{{end}}

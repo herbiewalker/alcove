@@ -54,9 +54,9 @@ func TestDaysCountPerMemberPerDayInUTC(t *testing.T) {
 	if ds[1].Date != "2026-11-11" || ds[1].ByUser["uann"] != 2 || len(ds[1].ByUser) != 1 {
 		t.Errorf("the 11th: %+v", ds[1])
 	}
-	// The range is half open: [from, to).
-	ds, _ = r.days(sp, "ann", day.Add(24*time.Hour), day.Add(25*time.Hour))
-	if len(ds) != 1 || ds[0].ByUser["uann"] != 1 {
+	// The range is by date and half open: the 11th only.
+	ds, _ = r.days(sp, "ann", day.AddDate(0, 0, 1), day.AddDate(0, 0, 2))
+	if len(ds) != 1 || ds[0].ByUser["uann"] != 2 {
 		t.Errorf("half-open range: %+v", ds)
 	}
 }

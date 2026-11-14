@@ -220,6 +220,15 @@ echo "$cal" | grep -q 'class="cal"' || die "the calendar has no grid"
 [ "$(curl -s -o /dev/null -w '%{http_code}' "$URL/spaces/$spid/calendar")" != "200" ] || die "a signed-out visitor can open the calendar"
 ok "the calendar opens for a member and not for a signed-out visitor"
 
+# 4i. Compare and time zones: the compare page opens for a member, a zone can be set and a bad one is refused.
+cmp=$(curl -fsS -b "$J3" "$URL/spaces/$spid/compare")
+echo "$cmp" | grep -q "At a glance" || die "the compare page has no metrics"
+[ "$(curl -s -o /dev/null -w '%{http_code}' "$URL/spaces/$spid/compare")" != "200" ] || die "a signed-out visitor can open compare"
+[ "$(post /profile /profile --data-urlencode "name=Smoke Owner" -d tz=Mars/Olympus)" = "400" ] || die "a made-up time zone was accepted"
+[ "$(post /profile /profile --data-urlencode "name=Smoke Owner" -d tz=Europe/Berlin)" = "303" ] || die "a real time zone was refused (is the zone database in the image?)"
+curl -fsS -b "$J3" "$URL/spaces/$spid/calendar" | grep -q 'class="cal"' || die "the calendar broke after a zone was set"
+ok "compare opens for a member, a made-up time zone is refused and a real one works in the image"
+
 [ "$(JAR="$J3" post "/spaces/$spid" "/spaces/$spid/leave")" = "303" ] || die "a member could not leave"
 [ "$(curl -s -o /dev/null -w '%{http_code}' -b "$J3" "$URL/spaces/$spid")" = "404" ] || die "a member who left can still open the space"
 [ "$(curl -s -o /dev/null -w '%{http_code}' -b "$J3" "$URL/spaces/$spid/entries")" = "404" ] || die "a member who left can still read the shared entries"

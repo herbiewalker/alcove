@@ -103,7 +103,14 @@ func (s *Server) getSpaceCalendar(q *rq) {
 			return err
 		}
 		if !dayT.IsZero() {
-			dayEntries, _, err = share.Entries(tx, sp.ID, q.id.user.ID, spaces.ConsentVersion, share.Query{From: dayT, To: dayT.AddDate(0, 0, 1)})
+			// A day is each person's own calendar day, so ask for a day more on each side and keep the matching ones.
+			var all []share.Entry
+			all, _, err = share.Entries(tx, sp.ID, q.id.user.ID, spaces.ConsentVersion, share.Query{From: dayT.Add(-26 * time.Hour), To: dayT.AddDate(0, 0, 1).Add(26 * time.Hour)})
+			for _, e := range all {
+				if e.Day == dayT.Format("2006-01-02") {
+					dayEntries = append(dayEntries, e)
+				}
+			}
 		}
 		return err
 	})

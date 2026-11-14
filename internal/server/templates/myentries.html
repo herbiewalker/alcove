@@ -1,10 +1,10 @@
 {{define "content"}}
 <h1>My entries</h1>
-<p class="muted">{{.EntryTotal}} from your latest upload, newest first. Every entry is shown in your spaces unless you make it private here. A private entry stays on this server for you but is never shown to anyone in a space. Times are UTC.</p>
+<p class="muted">{{.EntryTotal}} from your latest upload, newest first. Every entry is shown in your spaces unless you make it private here. A private entry stays on this server for you but is never shown to anyone in a space. Times are in your time zone (set on your profile).</p>
 {{if .Shared}}
 <div class="scroll">
 <table>
-  <thead><tr><th>When (UTC)</th><th>Length</th><th>Rating</th><th>In spaces</th></tr></thead>
+  <thead><tr><th>When</th><th>Length</th><th>Rating</th><th>In spaces</th></tr></thead>
   <tbody>
   {{range .Shared}}
     <tr><td>{{.When}}</td><td>{{.Duration}}</td><td>{{.Rating}}</td>
