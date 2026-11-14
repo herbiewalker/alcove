@@ -38,11 +38,11 @@ newest backup is never deleted.
 Fingerprints can match while a copy is corrupt, so prove the copy by **restoring a real backup with it**:
 
 ```
-docker run --rm -v <folder with the COPY>:/keys:ro -v <backup folder>:/backups:ro <image> \
+docker run --rm --tmpfs /tmp:mode=1777,size=512m,nosuid,nodev -v <folder with the COPY>:/keys:ro -v <backup folder>:/backups:ro <image> \
     drill -backup /backups/<name>.tar -key /keys/<copy file> -tmp /tmp/drill
 ```
 
-It restores into a throwaway place, opens the backup with that key, checks the admin-log chain, reads every upload and decrypts
+`--tmpfs /tmp` is needed because the drill refuses to open a database anywhere but memory-backed storage. If the copy is on the Unraid flash drive (root-only), add `--user 0:0` after `--rm`. It restores into a throwaway place, opens the backup with that key, checks the admin-log chain, reads every upload and decrypts
 every photo, prints counts only, and deletes what it made. `ok: key ... opens ...` means that copy can recover your data. A
 wrapped (passphrase) copy takes the passphrase on the first line of standard input. Record the date in `CRITICAL_ASSETS.md`.
 
