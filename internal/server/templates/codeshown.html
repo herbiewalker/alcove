@@ -1,0 +1,9 @@
+{{define "content"}}
+<h1>{{.Title}}</h1>
+<section class="card">
+  <p><b>It is shown only now</b> and cannot be looked up again. {{.CodeNote}}</p>
+  <p class="temp"><code>{{.Code}}</code></p>
+  <p class="muted">They open <code>{{.JoinURL}}</code> on this network and enter it. Capitals, spaces and dashes do not matter. A link or message that carries the code is only as private as the way you send it.</p>
+  <p><a class="btn" href="{{.Back}}">Done</a></p>
+</section>
+{{end}}

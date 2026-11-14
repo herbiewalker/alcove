@@ -122,3 +122,18 @@ Admin console → **People**.
   for `ALCOVE_USER_RECOVERY_DAYS` (10); you can restore any of them for the longer window (Recently deleted).
 - Older instance backups still contain a purged person's data until they age out of retention (R15, R19). Prune old backups when
   somebody has asked to be removed.
+
+## 11. Spaces and invites
+
+- **Start a space:** Spaces → Start a space. You become the owner. Nobody else sees it, or can tell it exists.
+- **Invite someone** (owner): on the space page, "Make an invite". The one-time code is shown once. Give it to one person, in person or
+  through your own channel. They open the server's **/join** page and enter it. If they have no account they create one there; if they
+  do, they just join. It works once, expires (1, 7 or 30 days) and can be cancelled from the same page.
+- **Space code** (owner): lets people who already have an account *ask* to join. You see each request and decide. "Make a new code" stops
+  the old one; "Turn the code off" stops them all. A code is shown once and cannot be looked up again.
+- **Invite someone to the server** (admin): People → "Invite someone to the server". It makes one account and nothing else.
+- Everyone sees exactly what joining shares before it happens, and ticks a box. The wording is versioned: if it ever changes in substance,
+  everyone is asked again before anything of theirs is shown.
+- **Leave** at any time; the **owner** can remove a member, hand the space to another member, or delete it (restorable for the same windows
+  as everything else). The only owner cannot leave without handing over or deleting.
+- The **administrator** sees every space (Admin → Spaces) and can delete or restore one. Every look is in the admin log.

@@ -60,7 +60,7 @@
 
 ## M3 — Spaces, upload, revisions, recovery *(real data starts here)*
 
-- [ ] Spaces, memberships, invites (F27), join requests, leave and removal (F4 to F6)
+- [x] **Piece D, built 2026-11-14: spaces, memberships, invites and join requests (D-31).** `internal/spaces` with ONE visibility gate (`Role`) that every space page uses and every later shared view will; an outsider gets the same 404 as for a space that does not exist. Any signed-in person can start a space. Three ways in, all through a join screen that states exactly what is shared and needs a ticked box (its version is recorded): a one-time space invite (new or existing account), a revocable space code that only lets a person ask, and an admin server invite. Codes are 80-bit and stored only as hashes; redeeming spends the invite and creates the account in one transaction; attempts are rate limited. Leave, remove, hand over and delete (soft, with the same windows) work; the admin sees and manages every space with each look logged; a purged account leaves its spaces and hands on ownership. Isolation, constraint 11 and each guard are proven by tests and by mutation
 - [x] **Piece B, built 2026-11-14: upload, revisions, stored passwords and the row cache (D-29).** `internal/ingest` and the My data page.
       The upload is one streamed request (token first, file last, token checked before a byte of the file is read), written to the blob
       store, judged (duplicate, wrong password, not a backup, damaged, hostile header, oversize) and only then recorded in one
@@ -86,7 +86,7 @@
 - Order of the remaining pieces (decided with the owner): **B** upload, revisions, backup passwords and the rebuildable row cache;
   **C** user lifecycle, soft delete and purge; **D** spaces, invites and join requests. Revisions are kept forever and the admin can
   purge them on purpose (logged)
-- **Exit:** isolation tests across spaces pass; a deleted entry restores inside the window and is gone after it; an
+- **Exit (met 2026-11-14 in tests, in a phone-sized browser and in the container smoke, except the last item):** isolation tests across spaces pass; a deleted entry restores inside the window and is gone after it; an
   instance backup restores to a scratch location and reads back; a real backup uploads from a phone browser.
 
 ## M4 — Collaborative spaces, overlay, compare

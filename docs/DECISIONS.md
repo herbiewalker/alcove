@@ -522,6 +522,43 @@ is a recurring check, not a one-off.
   cache until they upload again, which is the honest result. The admin can see that deleted things exist and restore them, and every
   such look is in the log.
 
+## D-31 — Spaces, memberships, invites and join requests (implements F4 to F6, F27, F28 in part; M3 piece D)
+- **Status:** Accepted
+- **Context:** a space is the one place data is shared (D-21), so the rule "nothing is visible outside it" has to be one small piece
+  of code that every later view goes through, and the ways in (an invite, a code, the admin) are the new attack surface.
+- **Decision:**
+  1. **Who:** any signed-in person can create a space and becomes its **owner**. A person can belong to many. The administrator
+     can see and manage every space, and every look is logged.
+  2. **One visibility gate.** `internal/spaces` answers "is this person an **active** member of this space, and as what?" and
+     nothing else may answer it. Every space page and, from M4, every shared view asks it, and a non-member gets a plain **404**, so
+     the existence of a space is never confirmed to an outsider. Members who are only `requested`, `left` or `removed`, members of a
+     space that is deleted, and members whose account is disabled or deleted all fail it.
+  3. **Three ways in, all consented.** (a) A **space invite**: a one-time code the owner makes (7 days, revocable, stored only as a
+     hash) that lets a new person create an account or an existing person join. (b) A **space code**: a revocable shared code
+     (stored hashed, shown once, regenerated to rotate) that lets a signed-in person *ask* to join; the owner approves or denies.
+     (c) An **admin server invite**: a one-time code that creates an account with no space. Every join screen says exactly what will
+     be shared and needs a ticked box; the version of that text is recorded on the membership. From M4 a member's entries are shown
+     only if they have agreed to the **current** version, so changing the text re-asks everyone.
+  4. **Redeeming is the only unauthenticated way to make an account** (constraint 11), so it is held tight: the code is 80 bits and
+     only its SHA-256 is stored; a wrong, expired, used or revoked code all look the same and create nothing; redeeming is one
+     transaction that checks and spends the code and creates the account together, so two people cannot spend one invite; attempts
+     are rate-limited per address; and a test posts to every route with every kind of bad code and counts accounts.
+  5. **Leaving, removal, handoff.** A member can leave at any time; the owner can remove a member; either ends that person's
+     visibility at once (their entries will leave the space with them from M4). The last owner cannot leave: they transfer ownership
+     to another active member, or delete the space. A removed or departed person must be invited or ask again.
+  6. **Per-membership settings** (include notes, include photos, show partner names, pause) exist from now with the D-21 defaults and
+     can be changed on the space page; nothing reads them until M4.
+  7. **Deleting a space is soft** (owner restores for the user window, admin for the admin window) and purges with everything else.
+     Purging an **account** removes its memberships and invites; spaces it solely owned pass to the longest-standing active member, or
+     are removed if nobody is left.
+  8. **No browsing.** There is no list of spaces except your own memberships (and the admin's). Space names are not unique, so a name
+     cannot be probed.
+- **Alternatives:** a public list of spaces to request to join (shows other groups' names, against constraint 5); one reusable invite
+  link (cannot be revoked per person); the admin as the only space creator (every new space needs the admin).
+- **Consequences:** a leaked space code lets a stranger *ask* but not enter, since the owner approves; a leaked invite lets one person
+  in until it is spent, expires or is revoked, which the owner sees. Invite links on a LAN are only as private as the channel they
+  travel on (D-14).
+
 ## Open questions
 > Decisions deferred on purpose. Each is a future ADR. Do not let these rot silently.
 

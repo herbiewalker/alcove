@@ -1,0 +1,117 @@
+{{define "content"}}
+{{with .Space}}
+<h1>{{.Name}}</h1>
+<p class="muted">You are {{if .IsOwner}}the owner{{else}}a member{{end}} of this space.</p>
+
+<h2>Members</h2>
+<div class="scroll">
+<table>
+  <thead><tr><th>Person</th><th>Role</th><th>Since (UTC)</th></tr></thead>
+  <tbody>
+  {{range .Members}}
+    <tr>
+      <td><b>{{.Name}}</b><br><span class="muted">@{{.Username}}</span>
+        {{if .CanHandOver}}<form method="post" action="/spaces/{{$.Space.ID}}/transfer"><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="user" value="{{.UserID}}"><button class="btn secondary" type="submit">Make owner</button></form>{{end}}
+        {{if .CanRemove}}<form method="post" action="/spaces/{{$.Space.ID}}/remove"><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="user" value="{{.UserID}}"><button class="btn secondary" type="submit">Remove</button></form>{{end}}
+      </td><td>{{.Role}}</td><td>{{.Since}}</td>
+    </tr>
+  {{end}}
+  </tbody>
+</table>
+</div>
+
+{{if .IsOwner}}
+{{if .Requests}}
+<h2>Asking to join</h2>
+<div class="scroll">
+<table>
+  <tbody>
+  {{range .Requests}}
+    <tr>
+      <td><b>{{.Name}}</b><br><span class="muted">@{{.Username}} asked {{.Since}} UTC</span>
+        <form method="post" action="/spaces/{{$.Space.ID}}/approve"><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="user" value="{{.UserID}}"><button class="btn" type="submit">Let them in</button></form>
+        <form method="post" action="/spaces/{{$.Space.ID}}/deny"><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="user" value="{{.UserID}}"><button class="btn secondary" type="submit">Turn down</button></form>
+      </td>
+    </tr>
+  {{end}}
+  </tbody>
+</table>
+</div>
+{{end}}
+
+<form class="card" method="post" action="/spaces/{{.ID}}/invite" autocomplete="off">
+  <h2>Invite someone</h2>
+  <input type="hidden" name="csrf" value="{{$.CSRF}}">
+  <p class="muted">Makes a one-time code for one person, new to this server or not. Give it to them in person or through your own channel.</p>
+  <div class="field">
+    <label for="label">A note for yourself (optional)</label>
+    <input id="label" name="label" type="text" maxlength="40" autocomplete="off">
+  </div>
+  <div class="field">
+    <label for="days">Good for</label>
+    <select id="days" name="days"><option value="1">1 day</option><option value="7" selected>7 days</option><option value="30">30 days</option></select>
+  </div>
+  <div class="actions"><button class="btn" type="submit">Make an invite</button></div>
+</form>
+{{if .Invites}}
+<div class="scroll">
+<table>
+  <thead><tr><th>Invite</th><th>Until (UTC)</th><th>State</th><th></th></tr></thead>
+  <tbody>
+  {{range .Invites}}
+    <tr><td>{{if .Label}}{{.Label}}{{else}}<span class="muted">no note</span>{{end}}</td><td>{{.Expires}}</td><td>{{.State}}</td>
+    <td>{{if .Live}}<form method="post" action="/spaces/{{$.Space.ID}}/revoke"><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="invite" value="{{.ID}}"><button class="btn secondary" type="submit">Cancel</button></form>{{end}}</td></tr>
+  {{end}}
+  </tbody>
+</table>
+</div>
+{{end}}
+
+<section class="card">
+  <h2>Space code</h2>
+  <p class="muted">People who already have an account can ask to join with this code, and you decide each time. {{if .HasCode}}A code has been active since {{.CodeSince}} UTC. It is stored only as a hash, so it cannot be shown again; make a new one to see one.{{else}}There is no code right now.{{end}}</p>
+  <form method="post" action="/spaces/{{.ID}}/code"><input type="hidden" name="csrf" value="{{$.CSRF}}">
+    <div class="actions"><button class="btn secondary" type="submit" name="do" value="rotate">{{if .HasCode}}Make a new code{{else}}Make a code{{end}}</button>
+    {{if .HasCode}}<button class="btn secondary" type="submit" name="do" value="disable">Turn the code off</button>{{end}}</div>
+  </form>
+</section>
+
+<form class="card" method="post" action="/spaces/{{.ID}}/rename">
+  <h2>Name</h2>
+  <input type="hidden" name="csrf" value="{{$.CSRF}}">
+  <div class="field"><label for="rn">Space name</label><input id="rn" name="name" type="text" maxlength="60" value="{{.Name}}" required></div>
+  <div class="actions"><button class="btn secondary" type="submit">Rename</button></div>
+</form>
+{{end}}
+
+<form class="card" method="post" action="/spaces/{{.ID}}/settings">
+  <h2>What you share here</h2>
+  <input type="hidden" name="csrf" value="{{$.CSRF}}">
+  <p class="muted">Your choices for this space. The shared views arrive in a later update; these will apply from then.</p>
+  <label class="check"><input type="checkbox" name="notes" value="1" {{if .Mine.IncludeNotes}}checked{{end}}><span>Include my notes</span></label>
+  <label class="check"><input type="checkbox" name="photos" value="1" {{if .Mine.IncludePhotos}}checked{{end}}><span>Include my photos</span></label>
+  <label class="check"><input type="checkbox" name="partners" value="1" {{if .Mine.ShowPartnerNames}}checked{{end}}><span>Show the names of people who are not members</span></label>
+  <label class="check"><input type="checkbox" name="paused" value="1" {{if .Mine.Paused}}checked{{end}}><span>Pause: show nothing of mine for now</span></label>
+  <div class="actions"><button class="btn secondary" type="submit">Save</button></div>
+</form>
+
+<section class="card">
+  <h2>What joining meant</h2>
+  {{range $.Consent}}<p class="muted small">{{.}}</p>{{end}}
+</section>
+
+{{if .IsOwner}}
+<section class="card">
+  <h2>Delete this space</h2>
+  <p class="muted">Everyone loses access at once. You can restore it for a while from Spaces. Asks for your password again.</p>
+  <form method="post" action="/spaces/{{.ID}}/delete"><input type="hidden" name="csrf" value="{{$.CSRF}}"><div class="actions"><button class="btn secondary" type="submit">Delete the space</button></div></form>
+</section>
+{{else}}
+<section class="card">
+  <h2>Leave</h2>
+  <p class="muted">You stop seeing this space and it stops seeing you, at once. What you have already shown cannot be unseen.</p>
+  <form method="post" action="/spaces/{{.ID}}/leave"><input type="hidden" name="csrf" value="{{$.CSRF}}"><div class="actions"><button class="btn secondary" type="submit">Leave the space</button></div></form>
+</section>
+{{end}}
+{{end}}
+{{end}}

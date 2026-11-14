@@ -327,7 +327,7 @@ func (s *Server) postAccount(q *rq) {
 // open redirect. The first is the default for an administrator, the second for everyone else.
 var stepUpPaths = map[string]bool{
 	"/admin": true, "/admin/settings": true, "/admin/backup": true, "/admin/users": true, "/admin/deleted": true,
-	"/uploads": true, "/uploads/deleted": true, "/account": true,
+	"/uploads": true, "/uploads/deleted": true, "/account": true, "/spaces": true, "/admin/spaces": true,
 }
 
 func (q *rq) stepUpTarget(s string) string {

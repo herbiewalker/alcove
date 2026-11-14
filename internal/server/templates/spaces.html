@@ -1,0 +1,56 @@
+{{define "content"}}
+<h1>Spaces</h1>
+<p class="muted">A space is a private place shared by the people you choose, such as a couple or a family. Nobody outside it can see it, or even tell that it exists.</p>
+
+{{if .Spaces}}
+<div class="scroll">
+<table>
+  <thead><tr><th>Space</th><th>Your part</th><th>Members</th><th></th></tr></thead>
+  <tbody>
+  {{range .Spaces}}
+    <tr>
+      <td><b>{{.Name}}</b></td>
+      <td>{{if eq .State "requested"}}<span class="muted">waiting for the owner to decide</span>{{else}}{{.Role}}{{end}}</td>
+      <td>{{if eq .State "requested"}}&ndash;{{else}}{{.Members}}{{end}}</td>
+      <td>{{if ne .State "requested"}}<a class="btn secondary" href="/spaces/{{.ID}}">Open</a>{{end}}</td>
+    </tr>
+  {{end}}
+  </tbody>
+</table>
+</div>
+{{else}}
+<p class="muted">You are not in any space yet.</p>
+{{end}}
+
+<form class="card" method="post" action="/spaces">
+  <h2>Start a space</h2>
+  <input type="hidden" name="csrf" value="{{.CSRF}}">
+  <div class="field">
+    <label for="name">Name</label>
+    <input id="name" name="name" type="text" maxlength="60" required>
+    <p class="hint">Only members see it. You become its owner and decide who joins.</p>
+  </div>
+  <div class="actions"><button class="btn" type="submit">Create the space</button></div>
+</form>
+
+<section class="card">
+  <h2>Join with a code</h2>
+  <p class="muted">Someone gave you an invite or a space code? Enter it here. You will see exactly what joining shares before anything happens.</p>
+  <p><a class="btn secondary" href="/join">Enter a code</a></p>
+</section>
+
+{{if .DeletedSpaces}}
+<h2>Recently deleted spaces</h2>
+<div class="scroll">
+<table>
+  <thead><tr><th>Space</th><th>You can restore it until (UTC)</th><th></th></tr></thead>
+  <tbody>
+  {{range .DeletedSpaces}}
+    <tr><td>{{.Name}}</td><td>{{.Until}}</td>
+    <td><form method="post" action="/spaces/{{.ID}}/restore"><input type="hidden" name="csrf" value="{{$.CSRF}}"><button class="btn secondary" type="submit">Restore</button></form></td></tr>
+  {{end}}
+  </tbody>
+</table>
+</div>
+{{end}}
+{{end}}

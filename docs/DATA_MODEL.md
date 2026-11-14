@@ -125,3 +125,12 @@ and `disabled`. `revision.deleted_at` (from v3) is now used: the soft delete of 
 file whose advisory lock keeps a second process out. A purge deletes, in order: the revision and upload rows (one transaction), then the
 stored files, then for an account all of its rows, its folder under `blobs/` and its data key; a sweep removes files with no row (older
 than a day) and owners with no account, so a crash between the steps is finished by the next purge.
+
+## Implemented in M3 piece D (store schema v5)
+
+`space` (id, name, creator, time, `join_approval`, the hash of the space code and when it was made, `deleted_at`), `membership` (space, user,
+role `owner` or `member`, state `requested`, `active`, `left` or `removed`, the consent version agreed and when, and the D-21 sharing choices:
+notes, photos, partner names, pause) and `invite` (id, the hash of the code, kind `space` or `server`, space, creator, expiry, state `open`,
+`used` or `revoked`, who used it and when, a short note for the creator). Codes themselves are never stored. A space has exactly one active owner.
+`spaces.Role` is the only code that decides visibility: it passes only an **active** member of a **live** space whose account is **active and
+not deleted**. From M4 a member's entries are shown only if `consent_version` is the current one and `paused` is off.

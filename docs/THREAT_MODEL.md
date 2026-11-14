@@ -126,6 +126,11 @@ from the admin, D-3 must be revisited (per-owner keys, browser-side decryption),
   a change at the next sign-in, and is refused while the server runs (a lock on the data folder), so it cannot corrupt a live store. A
   temporary password given to a new person is known to the administrator until the person changes it, which the forced change keeps
   short; it is shown once, never stored in the clear and never logged.
+- **R22 — Invites and codes are bearer secrets (D-31).** Whoever holds a live invite can use it once, and whoever holds a space code can ask
+  to join (the owner still approves). Both travel by a channel Alcove does not control, so a code sent over a family chat is as private as
+  that chat. Mitigations: 80 bits, one use, 1 to 30 days, revocable, stored only as a hash, shown once, rate-limited, and every outcome
+  looks the same to a guesser. A leaked invite is visible to its owner (state "used") and cancelled with one tap; a leaked space code is
+  replaced by making a new one. The administrator can see every space, and each look is in the admin log (R1).
 - **R15 — A purge is complete only after the backups that predate it age out (D-26).** Destroying a user's wrapped data key makes their
   photos unreadable on the live instance. Older sealed generations and instance backups still contain that key, so they can still
   open the blobs they also contain. Mitigated by retention on instance backups and by saying so plainly in the runbook.

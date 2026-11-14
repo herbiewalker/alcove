@@ -1,0 +1,41 @@
+{{define "content"}}
+<h1>{{if .JoinIsServer}}Create your account{{else}}Before you join{{end}}</h1>
+{{if .JoinName}}<p>You are about to {{if .JoinIsCode}}ask to join{{else}}join{{end}} the space <b>{{.JoinName}}</b>.</p>{{end}}
+{{if .JoinIsServer}}<p class="muted">Alcove is a private space for consenting adults. This invite creates one account on this server and nothing else.</p>{{end}}
+
+{{if not .JoinIsServer}}
+<section class="card">
+  <h2>What joining shares</h2>
+  {{range .Consent}}<p>{{.}}</p>{{end}}
+</section>
+{{end}}
+
+<form class="card" method="post" action="/join/accept" autocomplete="off">
+  <input type="hidden" name="csrf" value="{{.CSRF}}">
+  <input type="hidden" name="code" value="{{.Code}}">
+  {{if not .SignedIn}}
+  <div class="field">
+    <label for="username">Choose a username</label>
+    <input id="username" name="username" type="text" autocapitalize="none" autocomplete="username" spellcheck="false" required>
+    <p class="hint">3 to 32 characters: letters, digits, dot, dash, underscore.</p>
+  </div>
+  <div class="field">
+    <label for="display">Name shown to others</label>
+    <input id="display" name="display" type="text" autocomplete="nickname">
+  </div>
+  <div class="field">
+    <label for="password">Choose a password</label>
+    <input id="password" name="password" type="password" autocomplete="new-password" required>
+    <p class="hint">At least 10 characters. A few ordinary words make a strong, memorable passphrase.</p>
+  </div>
+  <div class="field">
+    <label for="confirm">Repeat the password</label>
+    <input id="confirm" name="confirm" type="password" autocomplete="new-password" required>
+  </div>
+  {{end}}
+  {{if not .JoinIsServer}}
+  <label class="check"><input type="checkbox" name="consent" value="1" required><span>I am an adult and I agree to the above{{if .JoinIsCode}}. Asking sends a request the owner will decide.{{end}}</span></label>
+  {{end}}
+  <div class="actions"><button class="btn" type="submit">{{if .JoinIsServer}}Create the account{{else if .JoinIsCode}}Ask to join{{else}}Join{{end}}</button> <a class="btn secondary" href="/join">Back</a></div>
+</form>
+{{end}}

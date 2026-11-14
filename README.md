@@ -11,7 +11,7 @@
 ![LAN only](https://img.shields.io/badge/network-LAN_only-2ea44f)
 ![Nothing leaks outside a space](https://img.shields.io/badge/spaces-isolated-2ea44f)
 
-**Status: early build (M2b).** The server runs, starts unattended with its key kept apart from the data, and has first-run setup, sign-in, an admin console with a tamper-evident log, and the network and HTTPS settings. It stores no Tryst data yet: uploads, spaces and sharing come next. The
+**Status: early build (M3).** The server runs, starts unattended with its key kept apart from the data, and has accounts, an admin console with a tamper-evident log, uploads of Tryst backups kept as revisions, encrypted instance backups with a tested restore, soft delete with a real purge, and private spaces joined by invite. Sharing views, editing and export come next. The
 design documents live in `docs/`.
 
 </div>
@@ -86,7 +86,7 @@ On Linux or in CI, `make check` runs the same gates.
 
 ## Known limitations
 
-- **Early build.** Accounts, sign-in, the admin log and the network settings work. Uploading backups, spaces, sharing, editing and export are still plans (see the roadmap).
+- **Early build.** Accounts, uploads, backups, soft delete, spaces and invites work. Sharing views, the calendar overlay, comparing, editing and export are still plans (see the roadmap).
 - **Server-side trust.** The host operator can read the data; there are no per-user keys that hide it from
   the admin.
 - **Plain HTTP on the LAN.** Content crosses your home network unencrypted by default (a secured wifi is assumed). HTTPS is available through a reverse proxy or Tailscale, enabled by the admin (R14, D-23).

@@ -1,0 +1,23 @@
+{{define "content"}}
+<h1>Spaces</h1>
+<p class="muted">Every space on this server. You can see that they exist and who is in them, and delete or restore one. Looking at this page is written to the admin log.{{if not .SteppedUp}} Changes ask for your password again: <a href="/stepup?next=/admin/spaces">confirm it is you</a>.{{end}}</p>
+{{if .Spaces}}
+<div class="scroll">
+<table>
+  <thead><tr><th>Space</th><th>Owner</th><th>Members</th><th>Asking</th><th>Created (UTC)</th><th></th></tr></thead>
+  <tbody>
+  {{range .Spaces}}
+    <tr>
+      <td><b>{{.Name}}</b>{{if .Deleted}}<br><span class="muted">deleted; removed for good after {{.Until}} UTC</span>{{end}}</td>
+      <td>{{if .Owner}}@{{.Owner}}{{else}}&ndash;{{end}}</td><td>{{.Members}}</td><td>{{.Askin}}</td><td>{{.Created}}</td>
+      <td><form method="post" action="/admin/spaces/action"><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="id" value="{{.ID}}">
+        {{if .Deleted}}<button class="btn secondary" type="submit" name="do" value="restore">Restore</button>{{else}}<button class="btn secondary" type="submit" name="do" value="delete">Delete</button>{{end}}</form></td>
+    </tr>
+  {{end}}
+  </tbody>
+</table>
+</div>
+{{else}}
+<p class="muted">No spaces yet.</p>
+{{end}}
+{{end}}

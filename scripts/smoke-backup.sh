@@ -150,6 +150,48 @@ case "$gone" in "303 "*"/login") ;; *) die "a disabled person kept their session
 curl -fsS -c "$JAR" -b "$JAR" "$URL/admin/log" | grep -q "user.disable" || die "the disable is not in the admin log"
 ok "disabling a person ends their session at once and is in the admin log"
 
+# 4e. Spaces: a signed-out person joins on an invite, an outsider sees nothing, a space code asks, the owner decides.
+J3="$WORK/jar3"; J4="$WORK/jar4"
+loc=$(curl -s -o /dev/null -w '%{redirect_url}' -c "$JAR" -b "$JAR" --data-urlencode "csrf=$(token /spaces)" -d name="Smoke space" "$URL/spaces")
+spid="${loc##*/}"
+case "$spid" in sp*) ;; *) die "creating a space did not go to its page: $loc" ;; esac
+body=$(curl -s -c "$JAR" -b "$JAR" --data-urlencode "csrf=$(token "/spaces/$spid")" -d days=7 -d label=smoke "$URL/spaces/$spid/invite")
+icode=$(echo "$body" | sed -n 's/.*<code>\([a-z2-9-]\{19\}\)<\/code>.*/\1/p' | head -1)
+[ -n "$icode" ] || die "no invite code was shown"
+[ "$(curl -s -o /dev/null -w '%{http_code}' -c "$J3" -b "$J3" --data-urlencode "csrf=$(JAR="$J3" token /join)" -d "code=aaaa-aaaa-aaaa-aaaa" "$URL/join/code")" = "400" ] || die "a wrong invite code was not refused"
+curl -s -c "$J3" -b "$J3" --data-urlencode "csrf=$(JAR="$J3" token /join)" --data-urlencode "code=$icode" "$URL/join/code" | grep -q "What joining shares" || die "the join screen did not show what is shared"
+accept=$(curl -s -o /dev/null -w '%{http_code} %{redirect_url}' -c "$J3" -b "$J3" --data-urlencode "csrf=$(JAR="$J3" token /join)" --data-urlencode "code=$icode" -d username=quin --data-urlencode "password=quin chose this one" --data-urlencode "confirm=quin chose this one" -d consent=1 "$URL/join/accept")
+case "$accept" in "303 "*"/spaces/$spid") ;; *) die "redeeming the invite failed: $accept" ;; esac
+[ "$(curl -s -o /dev/null -w '%{http_code}' -b "$J3" "$URL/spaces/$spid")" = "200" ] || die "the new member cannot open the space"
+reuse=$(curl -s -o /dev/null -w '%{http_code}' -c "$J4" -b "$J4" --data-urlencode "csrf=$(JAR="$J4" token /join)" --data-urlencode "code=$icode" -d username=again --data-urlencode "password=again chose this" --data-urlencode "confirm=again chose this" -d consent=1 "$URL/join/accept")
+[ "$reuse" = "400" ] || die "a spent invite was accepted again: $reuse"
+curl -fsS -c "$JAR" -b "$JAR" "$URL/spaces/$spid" | grep -q "@quin" || die "the owner does not see the new member"
+ok "a signed-out person joined a space with a one-time invite; a spent invite was refused"
+
+# An outsider (made with a server invite) cannot see the space or tell it exists; a space code only lets them ask.
+[ "$(stepup /admin/users "$PW")" = "303" ] || die "step-up (3) failed"
+t=$(token /admin/users)
+scode=$(curl -s -c "$JAR" -b "$JAR" --data-urlencode "csrf=$t" -d days=7 "$URL/admin/invites/create" | sed -n 's/.*<code>\([a-z2-9-]\{19\}\)<\/code>.*/\1/p' | head -1)
+[ -n "$scode" ] || die "no server invite code was shown"
+J5="$WORK/jar5"
+curl -s -o /dev/null -c "$J5" -b "$J5" --data-urlencode "csrf=$(JAR="$J5" token /join)" --data-urlencode "code=$scode" "$URL/join/code"
+[ "$(curl -s -o /dev/null -w '%{http_code}' -c "$J5" -b "$J5" --data-urlencode "csrf=$(JAR="$J5" token /join)" --data-urlencode "code=$scode" -d username=ona --data-urlencode "password=ona chose this one" --data-urlencode "confirm=ona chose this one" "$URL/join/accept")" = "303" ] || die "the server invite did not create an account"
+[ "$(curl -s -o /dev/null -w '%{http_code}' -b "$J5" "$URL/spaces/$spid")" = "404" ] || die "an outsider can open the space"
+curl -fsS -b "$J5" "$URL/spaces" | grep -q "Smoke space" && die "an outsider's list shows the space"
+spcode=$(curl -s -c "$JAR" -b "$JAR" --data-urlencode "csrf=$(token "/spaces/$spid")" -d do=rotate "$URL/spaces/$spid/code" | sed -n 's/.*<code>\([a-z2-9-]\{19\}\)<\/code>.*/\1/p' | head -1)
+[ -n "$spcode" ] || die "no space code was shown"
+curl -s -o /dev/null -c "$J5" -b "$J5" --data-urlencode "csrf=$(JAR="$J5" token /join)" --data-urlencode "code=$spcode" "$URL/join/code"
+ask=$(curl -s -o /dev/null -w '%{http_code}' -c "$J5" -b "$J5" --data-urlencode "csrf=$(JAR="$J5" token /join)" --data-urlencode "code=$spcode" -d consent=1 "$URL/join/accept")
+[ "$ask" = "303" ] || die "asking to join with a space code failed: $ask"
+[ "$(curl -s -o /dev/null -w '%{http_code}' -b "$J5" "$URL/spaces/$spid")" = "404" ] || die "asking to join let someone in"
+onaid=$(curl -fsS -c "$JAR" -b "$JAR" "$URL/spaces/$spid" | sed -n 's/.*action="\/spaces\/[a-z0-9]*\/approve".*name="user" value="\([a-z0-9]*\)".*/\1/p' | head -1)
+[ -n "$onaid" ] || die "the owner does not see the request"
+[ "$(post "/spaces/$spid" "/spaces/$spid/approve" -d "user=$onaid")" = "303" ] || die "approving failed"
+[ "$(curl -s -o /dev/null -w '%{http_code}' -b "$J5" "$URL/spaces/$spid")" = "200" ] || die "an approved person cannot open the space"
+[ "$(JAR="$J3" post "/spaces/$spid" "/spaces/$spid/leave")" = "303" ] || die "a member could not leave"
+[ "$(curl -s -o /dev/null -w '%{http_code}' -b "$J3" "$URL/spaces/$spid")" = "404" ] || die "a member who left can still open the space"
+ok "an outsider sees nothing; a space code only asks; the owner approves; leaving closes the door at once"
+
 # 4c. Break-glass: refused while the server runs.
 out=$(docker run --rm "${FLAGS[@]}" "${MOUNTS[@]}" "$IMG" reset-password -user owner -generate 2>&1) && die "reset-password ran while the server was running"
 echo "$out" | grep -q "Stop it first" || die "the refusal did not say to stop the server: $out"

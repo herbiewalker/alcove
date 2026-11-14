@@ -17,6 +17,7 @@ import (
 	"github.com/herbiewalker/alcove/internal/blobstore"
 	"github.com/herbiewalker/alcove/internal/ingest"
 	"github.com/herbiewalker/alcove/internal/keyfile"
+	"github.com/herbiewalker/alcove/internal/spaces"
 	"github.com/herbiewalker/alcove/internal/store"
 	"github.com/herbiewalker/alcove/internal/trystbk/synth"
 )
@@ -303,7 +304,7 @@ func TestPurgeRemovesAnUploadForRealAfterTheAdminWindow(t *testing.T) {
 	_ = r.st.View(ctx, func(tx *sql.Tx) error {
 		return tx.QueryRow(`SELECT action, fields, actor FROM admin_log ORDER BY seq DESC LIMIT 1`).Scan(&action, &fields, &actor)
 	})
-	if action != "retention.purge" || fields != "uploads:1,accounts:0,orphans:0" || actor != adminlog.System {
+	if action != "retention.purge" || fields != "uploads:1,accounts:0,spaces:0,orphans:0" || actor != adminlog.System {
 		t.Errorf("log entry: %s %s %s", action, fields, actor)
 	}
 	if res, _ := r.svc.Purge(ctx); res.Any() {
@@ -458,5 +459,126 @@ func TestSweepFinishesWhatACrashLeft(t *testing.T) {
 	// And the accounts' real upload still reads.
 	if r.cachedEntries("ualice") != 3 {
 		t.Error("the sweep damaged live data")
+	}
+}
+
+// ---- spaces (D-31) ----
+
+func (r *rig) newSpace(owner, name string) spaces.Space {
+	r.t.Helper()
+	var s spaces.Space
+	if err := r.st.Update(context.Background(), true, func(tx *sql.Tx) (err error) { s, err = spaces.Create(tx, r.clock, name, owner); return }); err != nil {
+		r.t.Fatal(err)
+	}
+	return s
+}
+
+func (r *rig) joinSpace(space, user string) {
+	r.t.Helper()
+	if err := r.st.Update(context.Background(), true, func(tx *sql.Tx) error { return spaces.JoinViaInvite(tx, r.clock, space, user, true) }); err != nil {
+		r.t.Fatal(err)
+	}
+}
+
+func (r *rig) gate(space, user string) (string, bool) {
+	var role string
+	var ok bool
+	_ = r.st.View(context.Background(), func(tx *sql.Tx) error { role, ok = spaces.Role(tx, space, user); return nil })
+	return role, ok
+}
+
+func (r *rig) deleteAccount(id string) {
+	r.t.Helper()
+	if err := r.st.Update(context.Background(), true, func(tx *sql.Tx) error {
+		if err := auth.SetStatus(tx, id, auth.StatusDisabled); err != nil {
+			return err
+		}
+		return auth.MarkDeleted(tx, id, r.clock)
+	}); err != nil {
+		r.t.Fatal(err)
+	}
+}
+
+func TestPurgeRemovesDeletedSpacesAfterTheWindow(t *testing.T) {
+	r := newRig(t)
+	ctx := context.Background()
+	gone := r.newSpace("ualice", "Gone")
+	kept := r.newSpace("ualice", "Kept")
+	r.joinSpace(gone.ID, "ubob")
+	_ = r.st.Update(ctx, true, func(tx *sql.Tx) error {
+		if _, _, err := spaces.CreateInvite(tx, r.clock, spaces.KindSpace, gone.ID, "ualice", "", 0); err != nil {
+			return err
+		}
+		return spaces.Delete(tx, r.clock, gone.ID)
+	})
+	r.clock = t0.Add(44 * day)
+	if res, _ := r.svc.Purge(ctx); res.Spaces != 0 {
+		t.Fatalf("a purge inside the window removed a space: %+v", res)
+	}
+	r.clock = t0.Add(46 * day)
+	res, err := r.svc.Purge(ctx)
+	if err != nil || res.Spaces != 1 || res.Orphans != 0 {
+		t.Fatalf("purge: %+v %v", res, err)
+	}
+	for _, q := range []string{"SELECT COUNT(*) FROM space WHERE id = '" + gone.ID + "'", "SELECT COUNT(*) FROM membership WHERE space_id = '" + gone.ID + "'",
+		"SELECT COUNT(*) FROM invite WHERE space_id = '" + gone.ID + "'"} {
+		if n := r.count(q); n != 0 {
+			t.Errorf("%s = %d after the purge", q, n)
+		}
+	}
+	if _, ok := r.gate(kept.ID, "ualice"); !ok {
+		t.Error("the purge removed a live space")
+	}
+}
+
+func TestPurgingAnAccountRemovesItFromSpacesAndHandsOnOwnership(t *testing.T) {
+	r := newRig(t)
+	r.addUser("ucarol")
+	r.addUser("udave")
+	ctx := context.Background()
+
+	// Alice owns a space with Bob (joined first) and Carol; she also belongs to Dave's space.
+	ours := r.newSpace("ualice", "Ours")
+	r.joinSpace(ours.ID, "ubob")
+	r.clock = r.clock.Add(time.Hour)
+	r.joinSpace(ours.ID, "ucarol")
+	daves := r.newSpace("udave", "Daves")
+	r.joinSpace(daves.ID, "ualice")
+	// Alice's own invite to her space, and a space only she is in.
+	_ = r.st.Update(ctx, true, func(tx *sql.Tx) error {
+		_, _, err := spaces.CreateInvite(tx, r.clock, spaces.KindSpace, ours.ID, "ualice", "stale", 0)
+		return err
+	})
+	lonely := r.newSpace("ualice", "Lonely")
+
+	r.deleteAccount("ualice")
+	r.clock = t0.Add(46 * day)
+	res, err := r.svc.Purge(ctx)
+	if err != nil || res.Accounts != 1 {
+		t.Fatalf("purge: %+v %v", res, err)
+	}
+	// Ownership passed to the longest-standing active member (Bob), and Carol is still in.
+	if role, ok := r.gate(ours.ID, "ubob"); !ok || role != spaces.RoleOwner {
+		t.Errorf("Bob after the hand-on: %q %v", role, ok)
+	}
+	if role, ok := r.gate(ours.ID, "ucarol"); !ok || role != spaces.RoleMember {
+		t.Errorf("Carol after the hand-on: %q %v", role, ok)
+	}
+	if n := r.count(`SELECT COUNT(*) FROM membership WHERE space_id = ? AND role = 'owner' AND state = 'active'`, ours.ID); n != 1 {
+		t.Errorf("%d owners", n)
+	}
+	// Nothing of Alice's is left: memberships, her invites, the space only she was in.
+	if n := r.count(`SELECT COUNT(*) FROM membership WHERE user_id = 'ualice'`); n != 0 {
+		t.Errorf("her memberships remain: %d", n)
+	}
+	if n := r.count(`SELECT COUNT(*) FROM invite WHERE created_by = 'ualice'`); n != 0 {
+		t.Errorf("her invites remain: %d", n)
+	}
+	if n := r.count(`SELECT COUNT(*) FROM space WHERE id = ?`, lonely.ID); n != 0 {
+		t.Error("a space nobody is left in remains")
+	}
+	// Dave's space is untouched and has simply lost a member.
+	if role, ok := r.gate(daves.ID, "udave"); !ok || role != spaces.RoleOwner {
+		t.Error("another person's space was disturbed")
 	}
 }

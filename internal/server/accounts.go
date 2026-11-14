@@ -99,6 +99,11 @@ func (s *Server) usersPage(q *rq) (*page, error) {
 		return nil, err
 	}
 	p := &page{Title: "People", Active: "admin", Users: live, DeletedUsers: gone, SteppedUp: q.id.sess.SteppedUp(s.now())}
+	inv, err := s.serverInvites(q)
+	if err != nil {
+		return nil, err
+	}
+	p.ServerInvites = inv
 	p.UserDays, p.AdminDays = s.days()
 	return p, nil
 }

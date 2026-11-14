@@ -209,15 +209,15 @@ func (s *Service) ListDeleted(ctx context.Context, owner string, admin bool) ([]
 
 // Result counts what a purge removed.
 type Result struct {
-	Uploads, Accounts, Orphans int
+	Uploads, Accounts, Spaces, Orphans int
 }
 
 // Any reports whether anything was removed.
-func (r Result) Any() bool { return r.Uploads+r.Accounts+r.Orphans > 0 }
+func (r Result) Any() bool { return r.Uploads+r.Accounts+r.Spaces+r.Orphans > 0 }
 
 // Fields renders the counts for the admin log (identifier characters only).
 func (r Result) Fields() string {
-	return fmt.Sprintf("uploads:%d,accounts:%d,orphans:%d", r.Uploads, r.Accounts, r.Orphans)
+	return fmt.Sprintf("uploads:%d,accounts:%d,spaces:%d,orphans:%d", r.Uploads, r.Accounts, r.Spaces, r.Orphans)
 }
 
 // Purge really deletes everything past the admin window, then sweeps crash leftovers. It is safe
@@ -293,7 +293,14 @@ func (s *Service) Purge(ctx context.Context) (Result, error) {
 		res.Accounts++
 	}
 
-	// 3. Sweep what a crash could have left: files with no row, owners with no account.
+	// 3. Deleted spaces past the window: the space, its memberships and its invites.
+	ns, err := s.purgeSpaces(ctx, cutoff)
+	if err != nil {
+		return res, err
+	}
+	res.Spaces = ns
+
+	// 4. Sweep what a crash could have left: files with no row, owners with no account.
 	n, err := s.sweep(ctx, now)
 	if err != nil {
 		return res, err
@@ -314,6 +321,9 @@ func (s *Service) Purge(ctx context.Context) (Result, error) {
 // process dies in between.
 func (s *Service) purgeOwner(ctx context.Context, owner string) error {
 	err := s.St.Update(ctx, true, func(tx *sql.Tx) error {
+		if err := leaveSpaces(tx, owner); err != nil {
+			return err
+		}
 		for _, q := range []string{
 			`DELETE FROM cache_row WHERE owner_id = ?`, `DELETE FROM cache_head WHERE owner_id = ?`,
 			`DELETE FROM search WHERE owner_id = ?`, `DELETE FROM backup_password WHERE owner_id = ?`,
@@ -430,4 +440,89 @@ func dirOlderThan(dir string, now time.Time, age time.Duration) (bool, error) {
 		return nil
 	})
 	return old, err
+}
+
+// purgeSpaces removes spaces deleted before cutoff, with their memberships and invites.
+func (s *Service) purgeSpaces(ctx context.Context, cutoff int64) (int, error) {
+	n := 0
+	err := s.St.Update(ctx, true, func(tx *sql.Tx) error {
+		rows, err := tx.Query(`SELECT id FROM space WHERE deleted_at IS NOT NULL AND deleted_at <= ?`, cutoff)
+		if err != nil {
+			return err
+		}
+		var ids []string
+		for rows.Next() {
+			var id string
+			if err := rows.Scan(&id); err != nil {
+				_ = rows.Close()
+				return err
+			}
+			ids = append(ids, id)
+		}
+		if err := rows.Close(); err != nil {
+			return err
+		}
+		for _, id := range ids {
+			if err := removeSpace(tx, id); err != nil {
+				return err
+			}
+			n++
+		}
+		return nil
+	})
+	return n, err
+}
+
+func removeSpace(tx *sql.Tx, id string) error {
+	for _, q := range []string{`DELETE FROM invite WHERE space_id = ?`, `DELETE FROM membership WHERE space_id = ?`, `DELETE FROM space WHERE id = ?`} {
+		if _, err := tx.Exec(q, id); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// leaveSpaces removes a purged account from every space (D-31). A space it solely owned passes to
+// the longest-standing active member, or is removed when nobody is left.
+func leaveSpaces(tx *sql.Tx, owner string) error {
+	rows, err := tx.Query(`SELECT space_id FROM membership WHERE user_id = ? AND role = 'owner' AND state = 'active'`, owner)
+	if err != nil {
+		return err
+	}
+	var owned []string
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			_ = rows.Close()
+			return err
+		}
+		owned = append(owned, id)
+	}
+	if err := rows.Close(); err != nil {
+		return err
+	}
+	for _, id := range owned {
+		var heir string
+		err := tx.QueryRow(`SELECT m.user_id FROM membership m JOIN user u ON u.id = m.user_id
+			WHERE m.space_id = ? AND m.user_id <> ? AND m.state = 'active' AND u.status = 'active' AND u.deleted_at IS NULL
+			ORDER BY m.joined_at, m.created_at LIMIT 1`, id, owner).Scan(&heir)
+		switch {
+		case errors.Is(err, sql.ErrNoRows):
+			if err := removeSpace(tx, id); err != nil {
+				return err
+			}
+		case err != nil:
+			return err
+		default:
+			if _, err := tx.Exec(`UPDATE membership SET role = 'owner' WHERE space_id = ? AND user_id = ?`, id, heir); err != nil {
+				return err
+			}
+		}
+	}
+	for _, q := range []string{`DELETE FROM membership WHERE user_id = ?`, `DELETE FROM invite WHERE created_by = ?`} {
+		if _, err := tx.Exec(q, owner); err != nil {
+			return err
+		}
+	}
+	return nil
 }

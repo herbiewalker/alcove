@@ -25,6 +25,28 @@
   <div class="actions"><button class="btn" type="submit">Add the person</button></div>
 </form>
 
+<form class="card" method="post" action="/admin/invites/create" autocomplete="off">
+  <h2>Invite someone to the server</h2>
+  <input type="hidden" name="csrf" value="{{.CSRF}}">
+  <p class="muted">Makes a one-time code that lets one person create their own account, choosing their own password. Nothing is sent: you hand it over yourself.</p>
+  <div class="field"><label for="ilabel">A note for yourself (optional)</label><input id="ilabel" name="label" type="text" maxlength="40" autocomplete="off"></div>
+  <div class="field"><label for="idays">Good for</label><select id="idays" name="days"><option value="1">1 day</option><option value="7" selected>7 days</option><option value="30">30 days</option></select></div>
+  <div class="actions"><button class="btn secondary" type="submit">Make an invite</button></div>
+</form>
+{{if .ServerInvites}}
+<div class="scroll">
+<table>
+  <thead><tr><th>Invite</th><th>Until (UTC)</th><th>State</th><th></th></tr></thead>
+  <tbody>
+  {{range .ServerInvites}}
+    <tr><td>{{if .Label}}{{.Label}}{{else}}<span class="muted">no note</span>{{end}}</td><td>{{.Expires}}</td><td>{{.State}}</td>
+    <td>{{if .Live}}<form method="post" action="/admin/invites/revoke"><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="id" value="{{.ID}}"><button class="btn secondary" type="submit">Cancel</button></form>{{end}}</td></tr>
+  {{end}}
+  </tbody>
+</table>
+</div>
+{{end}}
+
 <div class="scroll">
 <table>
   <thead><tr><th>Person</th><th>Role</th><th>State</th><th>Uploads</th><th>Last sign-in (UTC)</th><th></th></tr></thead>

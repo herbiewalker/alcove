@@ -96,7 +96,7 @@ type Server struct {
 	sessions *auth.Sessions
 	csrfKey  []byte
 
-	loginLim, setupLim, unlockLim, stepLim, refusedLog *auth.Limiter
+	loginLim, setupLim, unlockLim, stepLim, refusedLog, joinLim *auth.Limiter
 
 	net      atomic.Pointer[netsec.Manager]
 	hasUsers atomic.Bool
@@ -130,6 +130,7 @@ func New(be Backend, opt Options) (*Server, error) {
 		sessions: auth.NewSessions(opt.Now), tpl: map[string]*template.Template{},
 		loginLim: auth.LoginLimiter(), setupLim: &auth.Limiter{Capacity: 10, RefillEvery: 30 * time.Second},
 		unlockLim:  &auth.Limiter{Capacity: 5, RefillEvery: time.Minute},
+		joinLim:    &auth.Limiter{Capacity: 10, RefillEvery: 30 * time.Second},
 		stepLim:    &auth.Limiter{Capacity: 8, RefillEvery: 30 * time.Second},
 		refusedLog: &auth.Limiter{Capacity: 1, RefillEvery: 10 * time.Minute},
 	}
@@ -155,7 +156,7 @@ func (s *Server) netOptions() netsec.Options {
 }
 
 func (s *Server) parseTemplates() error {
-	pages := []string{"message", "setup", "login", "unlock", "home", "account", "stepup", "admin", "adminlog", "settings", "backup", "uploads", "users", "usercreated", "forcepw", "mydeleted", "admindeleted"}
+	pages := []string{"message", "setup", "login", "unlock", "home", "account", "stepup", "admin", "adminlog", "settings", "backup", "uploads", "users", "usercreated", "forcepw", "mydeleted", "admindeleted", "spaces", "space", "join", "joinconsent", "codeshown", "adminspaces"}
 	for _, p := range pages {
 		t, err := template.ParseFS(assets, "templates/base.html", "templates/"+p+".html")
 		if err != nil {
@@ -470,6 +471,13 @@ type page struct {
 	NewUsername, TempPassword string
 	Created, Forced           bool
 	UserDays, AdminDays       int
+	// spaces and joining (D-31)
+	Spaces, DeletedSpaces              []spaceRow
+	Space                              *spaceView
+	Consent                            []string
+	Code, JoinURL, CodeNote, JoinName  string
+	JoinIsServer, JoinIsCode, SignedIn bool
+	ServerInvites                      []inviteRow
 }
 
 type logRow struct {
@@ -479,7 +487,7 @@ type logRow struct {
 }
 
 var knownPaths = map[string]bool{"/": true, "/login": true, "/setup": true, "/unlock": true, "/account": true,
-	"/admin": true, "/admin/log": true, "/admin/settings": true, "/admin/backup": true, "/uploads": true, "/admin/users": true, "/admin/deleted": true, "/uploads/deleted": true, "/account/password": true}
+	"/admin": true, "/admin/log": true, "/admin/settings": true, "/admin/backup": true, "/uploads": true, "/admin/users": true, "/admin/deleted": true, "/uploads/deleted": true, "/account/password": true, "/spaces": true, "/join": true, "/admin/spaces": true}
 
 // render writes a page with a status code. It builds the whole page first so a template error
 // never leaves half a page on the wire.
@@ -658,6 +666,14 @@ func (s *Server) routes_() {
 	s.handle("POST /uploads/download", user, s.postDownload)
 	s.handle("GET /account/password", user, s.getPassword)
 	s.handle("POST /account/password", user, s.postPassword)
+	s.handle("GET /spaces", user, s.getSpaces)
+	s.handle("POST /spaces", user, s.postSpaceCreate)
+	s.handle("GET /spaces/{id}", user, s.getSpace)
+	s.handle("POST /spaces/{id}/restore", user, s.postSpaceRestore)
+	s.handle("POST /spaces/{id}/{action}", user, s.postSpaceAction)
+	s.handle("GET /join", anyone, s.getJoin)
+	s.handle("POST /join/code", anyone, s.postJoinCode)
+	s.handle("POST /join/accept", anyone, s.postJoinAccept)
 	s.handle("GET /account", user, s.getAccount)
 	s.handle("POST /account", user, s.postAccount)
 	s.handle("GET /stepup", user, s.getStepUp)
@@ -673,6 +689,10 @@ func (s *Server) routes_() {
 	s.handle("GET /admin/deleted", admin, s.getAdminDeleted)
 	s.handle("POST /admin/deleted/restore", admin, s.postAdminRestoreUpload)
 	s.handle("POST /admin/deleted/purge", admin, s.postAdminPurge)
+	s.handle("GET /admin/spaces", admin, s.getAdminSpaces)
+	s.handle("POST /admin/spaces/action", admin, s.postAdminSpaceAction)
+	s.handle("POST /admin/invites/create", admin, s.postServerInvite)
+	s.handle("POST /admin/invites/revoke", admin, s.postServerInviteRevoke)
 	s.handle("GET /admin/backup", admin, s.getBackup)
 	s.handle("POST /admin/backup/run", admin, s.postBackupRun)
 	s.handle("POST /admin/backup/verify", admin, s.postBackupVerify)

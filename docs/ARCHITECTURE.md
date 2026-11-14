@@ -44,6 +44,7 @@
 | `internal/backup`, `internal/backupcli` | instance backup (one tar of ciphertext, hashed index, sidecar checksum), verify, restore, retention, and the restore drill; the command-line tools (M3 piece A, D-28) |
 | `internal/ingest` | M3 piece B: store an upload verbatim, judge it (duplicate, password, format, size), record it as a revision with its derived row cache, search index and sealed password in one transaction; rebuild the derived data (D-29) |
 | `internal/retention`, `internal/admincli` | M3 piece C: soft delete and restore (user and admin windows), the real purge and its crash-leftover sweep, and the break-glass `reset-password` (D-30) |
+| `internal/spaces` | M3 piece D: spaces, memberships, invites, the space code, join requests, and `Role`, the one visibility gate (D-31) |
 | `internal/auth` | accounts, Argon2id password hashing, in-memory sessions with a step-up window, sign-in rate limiting (M2b). TOTP arrives later |
 | `internal/netsec` | D-23 transport security: allowed networks, proxy mode and client-address resolution, require-TLS, and the self-reverting network change (M2b) |
 | `internal/server` | M2b web layer: the middleware chain (security headers, network gate, locked and first-run gates), CSRF, templates and static files, sign-in, first run, the admin console, log viewer and network settings |

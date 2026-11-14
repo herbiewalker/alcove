@@ -1,0 +1,16 @@
+{{define "content"}}
+<section class="card center">
+  <img class="mark-large" src="/static/mark-192.png" width="96" height="96" alt="">
+  <h1>Join with a code</h1>
+  <p class="muted">Alcove is a private space for consenting adults, and it is invite only. Enter the code you were given.</p>
+</section>
+<form class="card" method="post" action="/join/code" autocomplete="off">
+  <input type="hidden" name="csrf" value="{{.CSRF}}">
+  <div class="field">
+    <label for="code">Code</label>
+    <input id="code" name="code" type="text" autocapitalize="none" autocomplete="off" spellcheck="false" value="{{.Code}}" required autofocus>
+    <p class="hint">It looks like <code>abcd-efgh-jkmn-pqrs</code>. Capitals, spaces and dashes do not matter.</p>
+  </div>
+  <div class="actions"><button class="btn" type="submit">Continue</button></div>
+</form>
+{{end}}
