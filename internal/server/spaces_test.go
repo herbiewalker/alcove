@@ -130,7 +130,7 @@ func TestInviteAnExistingPerson(t *testing.T) {
 		t.Fatalf("the join screen: %d %.300s", w.Code, w.Body.String())
 	}
 	body := w.Body.String()
-	for _, want := range []string{"cannot be unseen", "pause sharing", "administrator can see everything", "later update"} {
+	for _, want := range []string{"cannot be unseen", "pause sharing", "administrator can see everything", "asked to agree again"} {
 		if !strings.Contains(body, want) {
 			t.Errorf("the join screen does not say %q", want)
 		}

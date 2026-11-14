@@ -126,6 +126,12 @@ from the admin, D-3 must be revisited (per-owner keys, browser-side decryption),
   a change at the next sign-in, and is refused while the server runs (a lock on the data folder), so it cannot corrupt a live store. A
   temporary password given to a new person is known to the administrator until the person changes it, which the forced change keeps
   short; it is shown once, never stored in the clear and never logged.
+- **R23 — One read gate for shared entries (D-32).** Every view of another person's entries is `share.Entries`; a new view that reads
+  `cache_row` for someone else by another route would leak. Mitigations: the gate asks `spaces.Role` first, reads live membership on every
+  request (nothing is copied, so leave, removal, pause, disable and delete are instant), requires the current consent wording of both the
+  viewer and the owner, honours the private flag and include-notes, and has tests that remove each condition in turn. Review rule: no code
+  outside `internal/share` selects another owner's rows. What a viewer has already seen cannot be unseen, and the administrator sees every
+  entry through their own logged views (R1).
 - **R22 — Invites and codes are bearer secrets (D-31).** Whoever holds a live invite can use it once, and whoever holds a space code can ask
   to join (the owner still approves). Both travel by a channel Alcove does not control, so a code sent over a family chat is as private as
   that chat. Mitigations: 80 bits, one use, 1 to 30 days, revocable, stored only as a hash, shown once, rate-limited, and every outcome

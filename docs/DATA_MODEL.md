@@ -126,6 +126,11 @@ file whose advisory lock keeps a second process out. A purge deletes, in order: 
 stored files, then for an account all of its rows, its folder under `blobs/` and its data key; a sweep removes files with no row (older
 than a day) and owners with no account, so a crash between the steps is finished by the next purge.
 
+## Implemented in M4 piece A (store schema v6)
+
+`entry_flag` (owner, entry id, private, time), keyed by owner and entry id so it survives new uploads. Shared views read the owner's head-revision
+`cache_row` through `share.Entries` and nothing else; `membership.consent_version` must equal the current wording for an owner's entries to appear.
+
 ## Implemented in M3 piece D (store schema v5)
 
 `space` (id, name, creator, time, `join_approval`, the hash of the space code and when it was made, `deleted_at`), `membership` (space, user,

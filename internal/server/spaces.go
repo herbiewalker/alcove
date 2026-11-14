@@ -21,7 +21,7 @@ var consentText = []string{
 	"Everyone who is a member of this space can see your entries: dates, times, durations, ratings, moods and the other details you log, including solo entries and entries with people who are not members. Those people's names stay hidden unless you choose to show them.",
 	"Your notes and photos are included unless you turn them off for this space. You can mark any single entry private, pause sharing, or leave at any time. Leaving removes what you contributed from the space, but anything other members have already seen cannot be unseen.",
 	"The space owner decides who joins. The server administrator can see everything on this server, and every time they look is written to a log you can ask to see.",
-	"The shared views arrive in a later update. Until then, joining shares nothing yet; this agreement is recorded now and you will be asked again if the wording changes.",
+	"Each member's entries appear in the space's shared views as soon as they have uploaded a backup. If this wording ever changes, you are asked to agree again, and until you do nobody sees your entries and you see nobody else's.",
 }
 
 type memberRow struct {
@@ -49,6 +49,7 @@ type spaceView struct {
 	HasCode        bool
 	CodeSince      string
 	Mine           spaces.Settings
+	NeedAgree      bool
 }
 
 func (q *rq) joinBase() string {
@@ -169,6 +170,7 @@ func (s *Server) spacePage(q *rq, sp spaces.Space, role string) (*page, error) {
 				v.Members = append(v.Members, row)
 				if m.UserID == q.id.user.ID {
 					v.Mine = spaces.Settings{IncludeNotes: m.IncludeNotes, IncludePhotos: m.IncludePhotos, ShowPartnerNames: m.ShowPartnerNames, Paused: m.Paused}
+					v.NeedAgree = m.ConsentVersion < spaces.ConsentVersion
 				}
 			}
 		}
@@ -209,6 +211,7 @@ func (s *Server) getSpace(q *rq) {
 }
 
 var errNoSpace = errors.New("no such space")
+var errBadForm = errors.New("bad form")
 
 func (q *rq) spaceError(status int, sp spaces.Space, role, msg string) {
 	p, err := q.s.spacePage(q, sp, role)
@@ -227,7 +230,7 @@ func (s *Server) postSpaceAction(q *rq) {
 	uid, f := q.id.user.ID, q.r.PostForm
 	ownerOnly := map[string]bool{"rename": true, "invite": true, "revoke": true, "code": true, "approve": true, "deny": true,
 		"remove": true, "transfer": true, "delete": true}
-	known := ownerOnly[action] || action == "settings" || action == "leave"
+	known := ownerOnly[action] || action == "settings" || action == "leave" || action == "agree"
 	if !known {
 		q.notFound()
 		return
@@ -277,6 +280,12 @@ func (s *Server) postSpaceAction(q *rq) {
 		case "leave":
 			e = spaces.Leave(tx, now, id, uid)
 			kind = "left"
+		case "agree":
+			if f.Get("agree") != "1" {
+				refused = "Tick the box to agree."
+				return errBadForm
+			}
+			e = spaces.Agree(tx, now, id, uid)
 		case "invite":
 			days := map[string]int{"1": 1, "7": 7, "30": 30}[f.Get("days")]
 			if days == 0 {
@@ -313,6 +322,9 @@ func (s *Server) postSpaceAction(q *rq) {
 		return
 	case errors.Is(err, errRefused):
 		q.spaceError(http.StatusForbidden, sp, role, refused)
+		return
+	case errors.Is(err, errBadForm):
+		q.spaceError(http.StatusBadRequest, sp, role, refused)
 		return
 	case errors.Is(err, spaces.ErrLastOwner):
 		q.spaceError(http.StatusBadRequest, sp, role, "The owner cannot leave or be removed. Hand the space to another member first, or delete it.")

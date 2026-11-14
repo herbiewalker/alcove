@@ -91,6 +91,7 @@
 
 ## M4 — Collaborative spaces, overlay, compare
 
+- [x] **Piece A (D-32):** the shared-entries gate, the per-entry private flag, include-notes, consent versions with a re-agree screen, a shared list and "My entries". Pieces B (profiles), C (calendar) and D (compare) follow
 - [ ] Metrics registry per D-18 (reviewed whenever Tryst Insights changes); space visibility, pause, per-entry private,
       include settings and owner approval of joins (F5, F11; D-21); the `all_members` mode is a later per-space setting
 - [ ] Profile prefill from the Tryst profile with per-field sharing, and member cards (F26, F28; D-14)

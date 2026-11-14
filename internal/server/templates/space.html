@@ -2,6 +2,18 @@
 {{with .Space}}
 <h1>{{.Name}}</h1>
 <p class="muted">You are {{if .IsOwner}}the owner{{else}}a member{{end}} of this space.</p>
+{{if .NeedAgree}}
+<form class="card" method="post" action="/spaces/{{.ID}}/agree">
+  <h2>Please read this again</h2>
+  <input type="hidden" name="csrf" value="{{$.CSRF}}">
+  <p class="muted">The wording of what this space shares has changed. Until you agree, nobody sees your entries and you see nobody else's.</p>
+  {{range $.Consent}}<p class="muted small">{{.}}</p>{{end}}
+  <label class="check"><input type="checkbox" name="agree" value="1" required><span>I have read this and agree</span></label>
+  <div class="actions"><button class="btn" type="submit">Agree</button></div>
+</form>
+{{else}}
+<p><a class="btn" href="/spaces/{{.ID}}/entries">See the shared entries</a></p>
+{{end}}
 
 <h2>Members</h2>
 <div class="scroll">
@@ -87,7 +99,7 @@
 <form class="card" method="post" action="/spaces/{{.ID}}/settings">
   <h2>What you share here</h2>
   <input type="hidden" name="csrf" value="{{$.CSRF}}">
-  <p class="muted">Your choices for this space. The shared views arrive in a later update; these will apply from then.</p>
+  <p class="muted">Your choices for this space. They apply at once. To keep a single entry out, make it private under <a href="/entries">My entries</a>.</p>
   <label class="check"><input type="checkbox" name="notes" value="1" {{if .Mine.IncludeNotes}}checked{{end}}><span>Include my notes</span></label>
   <label class="check"><input type="checkbox" name="photos" value="1" {{if .Mine.IncludePhotos}}checked{{end}}><span>Include my photos</span></label>
   <label class="check"><input type="checkbox" name="partners" value="1" {{if .Mine.ShowPartnerNames}}checked{{end}}><span>Show the names of people who are not members</span></label>

@@ -19,7 +19,7 @@ import (
 
 // ConsentVersion identifies the wording of the join screen. From M4 a member's entries are shown
 // only when they agreed to the CURRENT version, so changing what a space shares means bumping it.
-const ConsentVersion = 1
+const ConsentVersion = 2
 
 // Roles and states.
 const (
@@ -456,6 +456,14 @@ func join(tx *sql.Tx, now time.Time, spaceID, userID, state string, consent bool
 	_, err = tx.Exec(`UPDATE membership SET role = 'member', state = ?, created_at = ?, joined_at = ?, ended_at = NULL,
 		consent_version = ?, consent_at = ? WHERE space_id = ? AND user_id = ?`, state, ts(now), joined, ConsentVersion, ts(now), spaceID, userID)
 	return err
+}
+
+// Agree records that an active member has read the current join text. It is for members whose
+// earlier agreement was to older wording (D-32); until they agree, nobody sees their entries and
+// they see nobody else's.
+func Agree(tx *sql.Tx, now time.Time, spaceID, userID string) error {
+	return mustChange(tx.Exec(`UPDATE membership SET consent_version = ?, consent_at = ?
+		WHERE space_id = ? AND user_id = ? AND state = 'active'`, ConsentVersion, ts(now), spaceID, userID))
 }
 
 // Approve lets an owner admit a person who asked to join. The person's consent was given when they

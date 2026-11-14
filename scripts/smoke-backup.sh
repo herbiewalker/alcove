@@ -184,12 +184,28 @@ curl -s -o /dev/null -c "$J5" -b "$J5" --data-urlencode "csrf=$(JAR="$J5" token 
 ask=$(curl -s -o /dev/null -w '%{http_code}' -c "$J5" -b "$J5" --data-urlencode "csrf=$(JAR="$J5" token /join)" --data-urlencode "code=$spcode" -d consent=1 "$URL/join/accept")
 [ "$ask" = "303" ] || die "asking to join with a space code failed: $ask"
 [ "$(curl -s -o /dev/null -w '%{http_code}' -b "$J5" "$URL/spaces/$spid")" = "404" ] || die "asking to join let someone in"
+[ "$(curl -s -o /dev/null -w '%{http_code}' -b "$J5" "$URL/spaces/$spid/entries")" = "404" ] || die "asking to join showed the shared entries"
 onaid=$(curl -fsS -c "$JAR" -b "$JAR" "$URL/spaces/$spid" | sed -n 's/.*action="\/spaces\/[a-z0-9]*\/approve".*name="user" value="\([a-z0-9]*\)".*/\1/p' | head -1)
 [ -n "$onaid" ] || die "the owner does not see the request"
 [ "$(post "/spaces/$spid" "/spaces/$spid/approve" -d "user=$onaid")" = "303" ] || die "approving failed"
 [ "$(curl -s -o /dev/null -w '%{http_code}' -b "$J5" "$URL/spaces/$spid")" = "200" ] || die "an approved person cannot open the space"
+# 4f. Shared entries: a member sees the owner's entries, a private entry is hidden, leaving closes it.
+rows() { curl -fsS -b "$1" "$URL/spaces/$spid/entries" | grep -c '<tr><td>' || true; }
+n=$(rows "$J3")
+[ "$n" -gt 0 ] || die "a member sees none of the owner's entries in the space"
+curl -fsS -b "$J3" "$URL/spaces/$spid/entries" | grep -q "Synthetic entry" || die "the shared list does not show the owner's notes"
+eid=$(curl -fsS -c "$JAR" -b "$JAR" "$URL/entries" | sed -n 's/.*name="id" value="\([^"]*\)".*/\1/p' | head -1)
+[ -n "$eid" ] || die "no entry id on My entries"
+[ "$(post /entries /entries/private -d "id=$eid" -d private=1)" = "303" ] || die "could not mark an entry private"
+m=$(rows "$J3")
+[ "$m" -eq $((n - 1)) ] || die "a private entry is still shown to the member ($n then $m)"
+[ "$(post /entries /entries/private -d "id=nope" -d private=1)" = "404" ] || die "an unknown entry id was accepted"
+[ "$(post /entries /entries/private -d "id=$eid" -d private=0)" = "303" ] || die "could not share the entry again"
+ok "members see each other's entries; a private entry is hidden and can be shared again"
+
 [ "$(JAR="$J3" post "/spaces/$spid" "/spaces/$spid/leave")" = "303" ] || die "a member could not leave"
 [ "$(curl -s -o /dev/null -w '%{http_code}' -b "$J3" "$URL/spaces/$spid")" = "404" ] || die "a member who left can still open the space"
+[ "$(curl -s -o /dev/null -w '%{http_code}' -b "$J3" "$URL/spaces/$spid/entries")" = "404" ] || die "a member who left can still read the shared entries"
 ok "an outsider sees nothing; a space code only asks; the owner approves; leaving closes the door at once"
 
 # 4c. Break-glass: refused while the server runs.

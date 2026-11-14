@@ -156,7 +156,7 @@ func (s *Server) netOptions() netsec.Options {
 }
 
 func (s *Server) parseTemplates() error {
-	pages := []string{"message", "setup", "login", "unlock", "home", "account", "stepup", "admin", "adminlog", "settings", "backup", "uploads", "users", "usercreated", "forcepw", "mydeleted", "admindeleted", "spaces", "space", "join", "joinconsent", "codeshown", "adminspaces"}
+	pages := []string{"message", "setup", "login", "unlock", "home", "account", "stepup", "admin", "adminlog", "settings", "backup", "uploads", "users", "usercreated", "forcepw", "mydeleted", "admindeleted", "spaces", "space", "join", "joinconsent", "codeshown", "adminspaces", "spaceentries", "myentries"}
 	for _, p := range pages {
 		t, err := template.ParseFS(assets, "templates/base.html", "templates/"+p+".html")
 		if err != nil {
@@ -478,6 +478,10 @@ type page struct {
 	Code, JoinURL, CodeNote, JoinName  string
 	JoinIsServer, JoinIsCode, SignedIn bool
 	ServerInvites                      []inviteRow
+	// shared entries (D-32)
+	Shared             []entryRow
+	EntryTotal, PageNo int
+	SpaceID, SpaceName string
 }
 
 type logRow struct {
@@ -668,7 +672,10 @@ func (s *Server) routes_() {
 	s.handle("POST /account/password", user, s.postPassword)
 	s.handle("GET /spaces", user, s.getSpaces)
 	s.handle("POST /spaces", user, s.postSpaceCreate)
+	s.handle("GET /entries", user, s.getMyEntries)
+	s.handle("POST /entries/private", user, s.postEntryPrivate)
 	s.handle("GET /spaces/{id}", user, s.getSpace)
+	s.handle("GET /spaces/{id}/entries", user, s.getSpaceEntries)
 	s.handle("POST /spaces/{id}/restore", user, s.postSpaceRestore)
 	s.handle("POST /spaces/{id}/{action}", user, s.postSpaceAction)
 	s.handle("GET /join", anyone, s.getJoin)

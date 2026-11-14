@@ -578,3 +578,31 @@ is a recurring check, not a one-off.
 - **O-14 — Resumable uploads.** A phone browser can sleep or drop wifi during a large upload. First version: progress bar
   and a keep-the-screen-on hint. Chunked, resumable upload is a later step if it proves a problem.
 - **O-15 — Optional TLS on the LAN.** *Resolved in D-23: secured wifi by default, with admin-enabled proxy mode, allowed networks, a banner and require-TLS mode. A built-in local CA is not planned.*
+
+## D-32 — What members may see of each other: one read gate, the private flag, consent versions (implements F11; M4 piece A)
+- **Status:** Accepted
+- **Context:** D-21 says every member sees every other member's entries inside a space. Until now nothing read another
+  member's data; M4 adds the first shared views (a list, then the calendar and compare views), so the rule has to live in
+  exactly one place, like `spaces.Role` does for membership.
+- **Decision:**
+  1. **One read gate, `share.Entries`.** Every view of another person's entries goes through it. It checks the viewer with
+     `spaces.Role` first, then shows only the entries of members who are **active**, whose account is active and not deleted,
+     who have agreed to the **current** `ConsentVersion`, and who are **not paused**. The viewer's own entries obey the same
+     rules, so a space always shows a member exactly what everyone else sees of them.
+  2. **Per-entry private flag** (`entry_flag`, schema v6), keyed by owner and entry id so it survives new revisions. A private
+     entry never appears in any space. New entries are shared by default (joining was the consent). The owner sets the flag
+     from "My entries".
+  3. **Include notes** removes the note text at the gate. Photos and partner names are not part of any view yet; their settings
+     keep their meaning and are honoured when those views arrive.
+  4. **Consent versions are enforced.** A member who agreed to an older wording is treated like a paused member until they
+     agree again on a re-agree screen. The wording changes now (the old text said nothing is shared yet), so `ConsentVersion`
+     becomes 2.
+  5. **Leaving, removal, disabling, deleting and pausing take effect on the next request**, because the gate reads the live
+     membership every time. Nothing is copied into a space.
+  6. **The data comes from the owner's head revision cache** (`cache_row`), so an owner who deletes their latest upload also
+     removes it from every space (the cache is rebuilt from the new head or cleared).
+  7. A purged account's flags are purged with it.
+- **Alternatives:** per-view checks (easy to forget one); copying shared rows into a space table (a second copy to purge and
+  to keep in step); ignoring consent versions until the wording first changes (a rule that would never have been tested).
+- **Consequences:** M4 pieces C and D read only through `share`. A test removes the gate's conditions one at a time to prove
+  each is load-bearing.

@@ -323,6 +323,12 @@ func TestPurgeRemovesADeletedAccountAndItsKey(t *testing.T) {
 	ctx := context.Background()
 	r.upload("ualice", 11, 5, true)
 	r.upload("ubob", 12, 6, true)
+	if err := r.st.Update(ctx, false, func(tx *sql.Tx) error {
+		_, err := tx.Exec(`INSERT INTO entry_flag(owner_id, entry_id, private, updated_at) VALUES ('ualice','e1',1,0), ('ubob','e2',1,0)`)
+		return err
+	}); err != nil {
+		t.Fatal(err)
+	}
 	// Alice is disabled, then deleted.
 	_ = r.st.Update(ctx, true, func(tx *sql.Tx) error {
 		if err := auth.SetStatus(tx, "ualice", auth.StatusDisabled); err != nil {
@@ -348,6 +354,7 @@ func TestPurgeRemovesADeletedAccountAndItsKey(t *testing.T) {
 		"SELECT COUNT(*) FROM revision WHERE owner_id = 'ualice'", "SELECT COUNT(*) FROM cache_row WHERE owner_id = 'ualice'",
 		"SELECT COUNT(*) FROM cache_head WHERE owner_id = 'ualice'", "SELECT COUNT(*) FROM search WHERE owner_id = 'ualice'",
 		"SELECT COUNT(*) FROM backup_password WHERE owner_id = 'ualice'", "SELECT COUNT(*) FROM data_key WHERE owner_id = 'ualice'",
+		"SELECT COUNT(*) FROM entry_flag WHERE owner_id = 'ualice'",
 	} {
 		if n := r.count(q); n != 0 {
 			t.Errorf("%s = %d after the purge", q, n)

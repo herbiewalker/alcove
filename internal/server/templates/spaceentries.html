@@ -1,0 +1,23 @@
+{{define "content"}}
+<h1>{{.SpaceName}}: entries</h1>
+<p class="muted">What the members of this space show each other, newest first. {{.EntryTotal}} in all. Times are UTC. Entries that are private, paused or from someone who has not agreed to the current wording are not here.</p>
+<p><a class="btn secondary" href="/spaces/{{.SpaceID}}">Back to the space</a> <a class="btn secondary" href="/entries">My entries</a></p>
+{{if .Shared}}
+<div class="scroll">
+<table>
+  <thead><tr><th>When (UTC)</th><th>Who</th><th>Length</th><th>Rating</th><th>Note</th></tr></thead>
+  <tbody>
+  {{range .Shared}}
+    <tr><td>{{.When}}</td><td>{{.Who}}{{if .Mine}} <span class="muted">(you)</span>{{end}}</td><td>{{.Duration}}</td><td>{{.Rating}}</td><td>{{.Note}}</td></tr>
+  {{end}}
+  </tbody>
+</table>
+</div>
+<div class="pager">
+  {{if .Newer}}<a class="btn secondary" href="/spaces/{{.SpaceID}}/entries?page={{.Newer}}">Newer</a>{{else}}<span></span>{{end}}
+  {{if .Older}}<a class="btn secondary" href="/spaces/{{.SpaceID}}/entries?page={{.Older}}">Older</a>{{end}}
+</div>
+{{else}}
+<p class="muted">Nothing is shared here yet. Entries appear once members upload a backup and are not paused.</p>
+{{end}}
+{{end}}
