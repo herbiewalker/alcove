@@ -51,34 +51,10 @@ type Query struct {
 // match (ignoring Limit and Offset). consent is the wording version members must have agreed to;
 // production passes spaces.ConsentVersion.
 func Entries(tx *sql.Tx, spaceID, viewerID string, consent int, q Query) ([]Entry, int, error) {
-	if _, ok := spaces.Role(tx, spaceID, viewerID); !ok {
-		return nil, 0, ErrNotMember
-	}
-	var mine int
-	if err := tx.QueryRow(`SELECT consent_version FROM membership WHERE space_id = ? AND user_id = ?`, spaceID, viewerID).Scan(&mine); err != nil {
+	if err := check(tx, spaceID, viewerID, consent); err != nil {
 		return nil, 0, err
 	}
-	if mine < consent {
-		return nil, 0, ErrNeedConsent
-	}
-	where := ` FROM cache_row c
-		JOIN membership m ON m.user_id = c.owner_id AND m.space_id = ?
-		JOIN space s ON s.id = m.space_id
-		JOIN user u ON u.id = m.user_id
-		WHERE c.tbl = 'encounters'
-		  AND m.state = 'active' AND m.paused = 0 AND m.consent_version >= ?
-		  AND s.deleted_at IS NULL AND u.status = 'active' AND u.deleted_at IS NULL
-		  AND NOT EXISTS (SELECT 1 FROM entry_flag f WHERE f.owner_id = c.owner_id AND f.entry_id = c.rid AND f.private = 1)
-		  AND json_type(c.data, '$.startAt') IN ('integer','real')`
-	args := []any{spaceID, consent}
-	if !q.From.IsZero() {
-		where += ` AND json_extract(c.data, '$.startAt') >= ?`
-		args = append(args, q.From.UnixMilli())
-	}
-	if !q.To.IsZero() {
-		where += ` AND json_extract(c.data, '$.startAt') < ?`
-		args = append(args, q.To.UnixMilli())
-	}
+	where, args := scope(spaceID, consent, q)
 	var total int
 	if err := tx.QueryRow(`SELECT COUNT(*)`+where, args...).Scan(&total); err != nil {
 		return nil, 0, err
@@ -116,6 +92,79 @@ func Entries(tx *sql.Tx, spaceID, viewerID string, consent int, q Query) ([]Entr
 		out = append(out, e)
 	}
 	return out, total, rows.Err()
+}
+
+// check is the viewer half of the gate: an active member of a live space, on the current wording.
+func check(tx *sql.Tx, spaceID, viewerID string, consent int) error {
+	if _, ok := spaces.Role(tx, spaceID, viewerID); !ok {
+		return ErrNotMember
+	}
+	var mine int
+	if err := tx.QueryRow(`SELECT consent_version FROM membership WHERE space_id = ? AND user_id = ?`, spaceID, viewerID).Scan(&mine); err != nil {
+		return err
+	}
+	if mine < consent {
+		return ErrNeedConsent
+	}
+	return nil
+}
+
+// scope is the owner half of the gate, as SQL: which cached encounters may be shown in the space.
+// Entries and Days both build on it so there is exactly one definition.
+func scope(spaceID string, consent int, q Query) (string, []any) {
+	where := ` FROM cache_row c
+		JOIN membership m ON m.user_id = c.owner_id AND m.space_id = ?
+		JOIN space s ON s.id = m.space_id
+		JOIN user u ON u.id = m.user_id
+		WHERE c.tbl = 'encounters'
+		  AND m.state = 'active' AND m.paused = 0 AND m.consent_version >= ?
+		  AND s.deleted_at IS NULL AND u.status = 'active' AND u.deleted_at IS NULL
+		  AND NOT EXISTS (SELECT 1 FROM entry_flag f WHERE f.owner_id = c.owner_id AND f.entry_id = c.rid AND f.private = 1)
+		  AND json_type(c.data, '$.startAt') IN ('integer','real')`
+	args := []any{spaceID, consent}
+	if !q.From.IsZero() {
+		where += ` AND json_extract(c.data, '$.startAt') >= ?`
+		args = append(args, q.From.UnixMilli())
+	}
+	if !q.To.IsZero() {
+		where += ` AND json_extract(c.data, '$.startAt') < ?`
+		args = append(args, q.To.UnixMilli())
+	}
+	return where, args
+}
+
+// Day is one calendar day (UTC) and how many entries each member has on it.
+type Day struct {
+	Date   string // 2006-01-02
+	ByUser map[string]int
+}
+
+// Days returns the days in [from, to) that have at least one shown entry, with a count per member.
+// It goes through the same gate as Entries: nothing appears that Entries would not show.
+func Days(tx *sql.Tx, spaceID, viewerID string, consent int, from, to time.Time) ([]Day, error) {
+	if err := check(tx, spaceID, viewerID, consent); err != nil {
+		return nil, err
+	}
+	where, args := scope(spaceID, consent, Query{From: from, To: to})
+	rows, err := tx.Query(`SELECT date(json_extract(c.data, '$.startAt') / 1000, 'unixepoch') AS d, c.owner_id, COUNT(*)`+where+
+		` GROUP BY d, c.owner_id ORDER BY d, c.owner_id`, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []Day
+	for rows.Next() {
+		var d, owner string
+		var n int
+		if err := rows.Scan(&d, &owner, &n); err != nil {
+			return nil, err
+		}
+		if len(out) == 0 || out[len(out)-1].Date != d {
+			out = append(out, Day{Date: d, ByUser: map[string]int{}})
+		}
+		out[len(out)-1].ByUser[owner] = n
+	}
+	return out, rows.Err()
 }
 
 // Mine is one of the viewer's own entries, as the owner sees them on "My entries".

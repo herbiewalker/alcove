@@ -17,7 +17,7 @@ stays small and never shows data) and a companion to **[Tryst](https://github.co
 [`tryst/docs/EXPORT_FORMAT.md`](../tryst/docs/EXPORT_FORMAT.md) before touching any crypto or any
 backup reading or writing here.
 
-**Status: early build (M4 in progress; M3 done except the first live deploy).** The server, storage, accounts, uploads, backups, retention and spaces exist; the shared-entries gate and profiles with member cards (M4 A, B) are built; the calendar overlay and compare views follow. The
+**Status: early build (M4 in progress; M3 done except the first live deploy).** The server, storage, accounts, uploads, backups, retention and spaces exist; the shared-entries gate, profiles with member cards and the shared calendar (M4 A to C) are built; compare views follow. The
 next step is whatever `docs/ROADMAP.md` lists first. A change of design needs an ADR in
 `docs/DECISIONS.md` before the code.
 

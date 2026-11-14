@@ -239,3 +239,23 @@ td form { margin: 4px 0; }
 .facts { display: grid; grid-template-columns: max-content 1fr; gap: 4px 14px; margin: 6px 0 0; }
 .facts dt { color: var(--muted); }
 .facts dd { margin: 0; overflow-wrap: anywhere; }
+
+/* Shared calendar (D-34) */
+.cal-nav { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin: 8px 0; }
+.cal-nav h2 { margin: 0; font-size: 1.1rem; }
+.cal-legend { display: flex; flex-wrap: wrap; gap: 8px 14px; margin: 8px 0; padding: 0; list-style: none; }
+.cal { width: 100%; border-collapse: separate; border-spacing: 3px; table-layout: fixed; }
+.cal th { font-weight: 600; font-size: .75rem; color: var(--muted); padding: 2px 0; }
+.cal td { padding: 0; }
+.cal a.day { display: flex; flex-direction: column; min-height: 54px; padding: 3px 2px; border: 1px solid var(--border, rgba(128,128,128,.35)); border-radius: 6px; text-decoration: none; color: inherit; overflow: hidden; }
+.cal a.day .num { font-size: .8rem; }
+.cal td.out a.day { opacity: .45; }
+.cal td.today a.day .num { font-weight: 700; text-decoration: underline; }
+.cal td.both a.day { background: rgba(214, 140, 160, .22); border-color: rgba(214, 140, 160, .9); }
+.cal td.sel a.day { outline: 2px solid currentColor; outline-offset: 1px; }
+.cal a.day:focus-visible { outline: 2px solid currentColor; outline-offset: 1px; }
+.marks { display: flex; flex-wrap: wrap; gap: 2px; margin-top: auto; }
+.mk { background: #ddd; display: inline-flex; align-items: center; justify-content: center; min-width: 16px; height: 16px; padding: 0 2px; border-radius: 8px; font-size: .65rem; font-weight: 700; color: #1b1220; }
+.m0 { background: #f0a8bd; } .m1 { background: #9ec9f0; } .m2 { background: #a8e0b0; }
+.m3 { background: #f0d08a; } .m4 { background: #c9b0f0; } .m5 { background: #f0b090; }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }

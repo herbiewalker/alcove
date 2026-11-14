@@ -1,0 +1,53 @@
+{{define "content"}}
+{{with .Cal}}
+<h1>{{$.SpaceName}}: calendar</h1>
+<p class="muted">Every member's shown entries on one calendar. Each person has a letter and a colour; a pink day means two or more members were active. Days are UTC. Tap a day to list its entries.</p>
+<p><a class="btn secondary" href="/spaces/{{$.SpaceID}}">Back to the space</a> <a class="btn secondary" href="/spaces/{{$.SpaceID}}/entries">Shared entries</a></p>
+
+<ul class="cal-legend" aria-label="Who is who">
+  {{range .Legend}}<li><span class="mk {{.Class}}" aria-hidden="true">{{.Initial}}</span> {{.Name}}</li>{{end}}
+</ul>
+
+<div class="cal-nav">
+  <a class="btn secondary" href="/spaces/{{$.SpaceID}}/calendar?month={{.Prev}}" rel="prev">Earlier</a>
+  <h2>{{.Title}}</h2>
+  <a class="btn secondary" href="/spaces/{{$.SpaceID}}/calendar?month={{.Next}}" rel="next">Later</a>
+</div>
+
+<table class="cal">
+  <caption class="sr">{{.Title}}</caption>
+  <thead><tr><th scope="col">Mon</th><th scope="col">Tue</th><th scope="col">Wed</th><th scope="col">Thu</th><th scope="col">Fri</th><th scope="col">Sat</th><th scope="col">Sun</th></tr></thead>
+  <tbody>
+  {{range .Weeks}}
+    <tr>
+    {{range .}}
+      <td class="{{if not .InMonth}}out {{end}}{{if .Today}}today {{end}}{{if .Both}}both {{end}}{{if .Selected}}sel{{end}}">
+        <a class="day" href="{{.Link}}" aria-label="{{.Label}}{{range .Marks}}, {{.Name}} {{.Count}}{{end}}{{if .Both}}, several members active{{end}}"{{if .Selected}} aria-current="date"{{end}}>
+          <span class="num">{{.Num}}</span>
+          {{if .Marks}}<span class="marks">{{range .Marks}}<span class="mk {{.Class}}" aria-hidden="true">{{.Initial}}</span>{{end}}{{if .More}}<span class="mk" aria-hidden="true">+{{.More}}</span>{{end}}</span>{{end}}
+        </a>
+      </td>
+    {{end}}
+    </tr>
+  {{end}}
+  </tbody>
+</table>
+{{if not .AnyInMonth}}<p class="muted">Nothing is shown for this month.</p>{{end}}
+
+{{if .Day}}
+<h2>{{.Day}}</h2>
+{{if .DayRows}}
+<div class="scroll">
+<table>
+  <thead><tr><th>Time (UTC)</th><th>Who</th><th>Length</th><th>Rating</th><th>Note</th></tr></thead>
+  <tbody>
+  {{range .DayRows}}
+    <tr><td>{{.When}}</td><td>{{.Who}}{{if .Mine}} <span class="muted">(you)</span>{{end}}</td><td>{{.Duration}}</td><td>{{.Rating}}</td><td>{{.Note}}</td></tr>
+  {{end}}
+  </tbody>
+</table>
+</div>
+{{else}}<p class="muted">No shown entries on this day.</p>{{end}}
+{{end}}
+{{end}}
+{{end}}

@@ -213,6 +213,13 @@ echo "$card" | grep -q "1990-04-23" && die "the exact birth date is on the membe
 [ "$(post /profile /profile --data-urlencode "name=Smoke Owner" -d v_birth=2015-01-01)" = "400" ] || die "a child's birth date was accepted"
 ok "profile: shared fields reach the card, private ones and the birth date itself do not, a child is refused"
 
+# 4h. The shared calendar: a member sees the grid and the owner's day, an outsider does not.
+cal=$(curl -fsS -b "$J3" "$URL/spaces/$spid/calendar")
+echo "$cal" | grep -q 'class="cal"' || die "the calendar has no grid"
+[ "$(curl -s -o /dev/null -w '%{http_code}' -b "$J3" "$URL/spaces/$spid/calendar?month=zzz&day=garbage")" = "200" ] || die "odd calendar input was not handled"
+[ "$(curl -s -o /dev/null -w '%{http_code}' "$URL/spaces/$spid/calendar")" != "200" ] || die "a signed-out visitor can open the calendar"
+ok "the calendar opens for a member and not for a signed-out visitor"
+
 [ "$(JAR="$J3" post "/spaces/$spid" "/spaces/$spid/leave")" = "303" ] || die "a member could not leave"
 [ "$(curl -s -o /dev/null -w '%{http_code}' -b "$J3" "$URL/spaces/$spid")" = "404" ] || die "a member who left can still open the space"
 [ "$(curl -s -o /dev/null -w '%{http_code}' -b "$J3" "$URL/spaces/$spid/entries")" = "404" ] || die "a member who left can still read the shared entries"

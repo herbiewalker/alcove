@@ -195,7 +195,7 @@ func TestOlderWordingHidesBothWaysUntilAgreed(t *testing.T) {
 		t.Fatalf("kim got %d %s", w.Code, w.Header().Get("Location"))
 	}
 	page := s.kim.do("GET", "/spaces/"+s.space, nil).Body.String()
-	if !strings.Contains(page, "Please read this again") || strings.Contains(page, "See the shared entries") {
+	if !strings.Contains(page, "Please read this again") || strings.Contains(page, ">Calendar</a>") {
 		t.Error("the space page should ask to agree and not offer the entries")
 	}
 	// Agreeing needs the tick.

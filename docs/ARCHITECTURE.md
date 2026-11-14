@@ -46,7 +46,7 @@
 | `internal/retention`, `internal/admincli` | M3 piece C: soft delete and restore (user and admin windows), the real purge and its crash-leftover sweep, and the break-glass `reset-password` (D-30) |
 | `internal/spaces` | M3 piece D: spaces, memberships, invites, the space code, join requests, and `Role`, the one visibility gate (D-31) |
 | `internal/profile` | M4 piece B: a member's profile fields and their share flags, validation (adult birth date, lengths), age display, and the offers read from the backup's profile row (D-33) |
-| `internal/share` | M4 piece A: `Entries`, the one read gate for other members' entries (membership, pause, consent wording, private flag, include-notes), the owner's own list and the private flag (D-32) |
+| `internal/share` | M4 pieces A and C (`Days` for the calendar): `Entries`, the one read gate for other members' entries (membership, pause, consent wording, private flag, include-notes), the owner's own list and the private flag (D-32) |
 | `internal/auth` | accounts, Argon2id password hashing, in-memory sessions with a step-up window, sign-in rate limiting (M2b). TOTP arrives later |
 | `internal/netsec` | D-23 transport security: allowed networks, proxy mode and client-address resolution, require-TLS, and the self-reverting network change (M2b) |
 | `internal/server` | M2b web layer: the middleware chain (security headers, network gate, locked and first-run gates), CSRF, templates and static files, sign-in, first run, the admin console, log viewer and network settings |

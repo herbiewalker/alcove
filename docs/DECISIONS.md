@@ -631,3 +631,22 @@ is a recurring check, not a one-off.
   display name for cards (two names for one person).
 - **Consequences:** the admin sees profile data like everything else, through admin views that are logged; no admin profile page is
   added in this piece. Changing a profile does not change Tryst or the stored backup.
+
+## D-34 — The shared calendar: a month grid of markers through the same gate (implements F12; M4 piece C)
+- **Status:** Accepted
+- **Context:** D-18 lists a calendar overlay with a day marker per member and a "both active" highlight as the first compare view. D-32 says every
+  view of other people's entries goes through `internal/share`.
+- **Decision:**
+  1. **One month per page,** Monday first, with the neighbouring days of the adjacent months shown so a week is never cut. `?month=YYYY-MM` and
+     `?day=YYYY-MM-DD`; anything else, or a year outside 1970 to 2100, falls back to the current month. No script: months and days are plain links.
+  2. **A marker per member per day:** the member's initial on a colour. Six colours cycle, and the letter is always there, so colour is never the only
+     signal. A day with two or more members active is highlighted and says so in its accessible name.
+  3. **Choosing a day lists that day's entries** (time, who, length, rating, and the note only if its owner includes notes), by `share.Entries`.
+  4. **Same gate, one definition.** `share.Days` and `share.Entries` build on the same `scope`, and a test hides entries every way the gate can and
+     checks that the calendar and the list stay in step. Paused, left, removed, disabled, deleted, older-wording and private entries never appear.
+  5. **Days are UTC for now.** A per-member time zone (D-20) arrives with the compare metrics, where day boundaries matter most; until then the page says
+     "UTC", as the list does.
+  6. **The legend names only members whose cards are shown,** so a paused member is not listed as a colour.
+- **Alternatives:** a script-driven calendar (needs a second script and a looser CSP); per-pair "both active" only (a space can have more than two members, so
+  it is "two or more").
+- **Consequences:** an entry near midnight local time can sit on a neighbouring UTC day until time zones arrive.
