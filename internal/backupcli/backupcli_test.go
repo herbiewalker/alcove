@@ -14,6 +14,7 @@ import (
 	"github.com/herbiewalker/alcove/internal/backup"
 	"github.com/herbiewalker/alcove/internal/keyfile"
 	"github.com/herbiewalker/alcove/internal/store"
+	"github.com/herbiewalker/alcove/internal/trystbk"
 )
 
 type env struct {
@@ -145,5 +146,35 @@ func TestDrillWithAWrappedKeyCopy(t *testing.T) {
 	}
 	if code := Drill(args, strings.NewReader("correct horse battery\n"), &out, &errb); code != 0 {
 		t.Fatalf("right passphrase: %d %s", code, errb.String())
+	}
+}
+
+func TestMakeTestBackupReadsBackThroughTheRealReader(t *testing.T) {
+	p := filepath.Join(t.TempDir(), "t.tryst")
+	var out, errb bytes.Buffer
+	if code := MakeTest([]string{"-out", p, "-entries", "5", "-photos", "2", "-password", "a test password"}, &out, &errb); code != 0 {
+		t.Fatalf("%d %s", code, errb.String())
+	}
+	f, err := os.Open(p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f.Close()
+	bk, err := trystbk.Read(f, "a test password")
+	if err != nil {
+		t.Fatalf("the synthetic backup does not read: %v", err)
+	}
+	defer bk.Close()
+	if bk.Table("encounters") == nil || len(bk.Table("encounters").Rows) != 5 || len(bk.Media()) != 2 {
+		t.Fatal("wrong contents")
+	}
+	if code := MakeTest([]string{"-out", p}, &out, &errb); code != 1 {
+		t.Fatalf("overwriting must be refused, got %d", code)
+	}
+	if code := MakeTest([]string{"-out", filepath.Join(t.TempDir(), "x"), "-entries", "0"}, &out, &errb); code != 2 {
+		t.Fatalf("bad flag: %d", code)
+	}
+	if code := MakeTest(nil, &out, &errb); code != 2 {
+		t.Fatalf("missing -out: %d", code)
 	}
 }

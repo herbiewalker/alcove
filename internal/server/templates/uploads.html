@@ -1,0 +1,43 @@
+{{define "content"}}
+<h1>My data</h1>
+<p class="muted">In Tryst on your phone, export a backup, then upload the file here from the same browser. The file is kept exactly as Tryst wrote it, and the server opens it with your backup password to read it. Nothing leaves your network.</p>
+
+<form id="upform" class="card" method="post" action="/uploads" enctype="multipart/form-data" autocomplete="off">
+  <input type="hidden" name="csrf" value="{{.CSRF}}">
+  <div class="field">
+    <label for="password">Backup password</label>
+    <input id="password" name="password" type="password" autocomplete="off" {{if not .HasPassword}}required{{end}}>
+    <p class="hint">{{if .HasPassword}}Leave it empty to use the one this server remembers for you.{{else}}The password you chose when you exported the backup in Tryst.{{end}}</p>
+  </div>
+  <label class="check"><input type="checkbox" name="remember" value="1" checked><span>Remember this password on the server, sealed, so it can rebuild your data and prepare exports later</span></label>
+  <div class="field">
+    <label for="file">Backup file</label>
+    <input id="file" name="file" type="file" required>
+    <p class="hint">Up to {{.MaxMB}} MiB. A file you already uploaded is refused, and a wrong password saves nothing.</p>
+  </div>
+  <progress id="bar" max="100" value="0" hidden>0%</progress>
+  <p id="status" class="muted" role="status" aria-live="polite"></p>
+  <div class="actions"><button id="go" class="btn" type="submit">Upload</button></div>
+</form>
+
+<h2>Uploaded backups</h2>
+{{if .Uploads}}
+<div class="scroll">
+<table>
+  <thead><tr><th>Uploaded (UTC)</th><th>File</th><th>Entries</th><th>Photos</th><th>Size</th><th></th></tr></thead>
+  <tbody>
+  {{range .Uploads}}
+    <tr>
+      <td>{{.When}}</td><td>{{.Filename}}</td><td>{{.Entries}}</td><td>{{.Media}}</td><td>{{.Size}}</td>
+      <td>{{if .Current}}<b>current</b>{{end}}{{if .ReadOnly}} <span class="muted">read-only ({{.Schema}} is newer than this server knows)</span>{{end}}</td>
+    </tr>
+  {{end}}
+  </tbody>
+</table>
+</div>
+<p class="muted small">The newest upload is your current data. Older ones are kept as history.</p>
+{{else}}
+<p class="muted">Nothing uploaded yet.</p>
+{{end}}
+<script src="/static/upload.js" defer></script>
+{{end}}

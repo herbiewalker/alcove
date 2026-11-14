@@ -29,6 +29,7 @@
   data cannot reach disk.
 - `ALCOVE_SEAL_EVERY_SECONDS` (default 10) is how often a changed database is sealed.
 - Instance backups (D-28): `ALCOVE_BACKUP_DIR` (default `/backups`, mounted from `ALCOVE_BACKUP_PATH` in compose; must not be inside the data directory) and `ALCOVE_BACKUP_KEEP` (default 7). With no folder the Backups page says so. Command-line tools for use with no server: `alcove backup-verify -file F`, `alcove restore -backup F -to DIR`, `alcove drill -backup F -key K`. See `RUNBOOK.md`.
+- Uploads (D-29): `ALCOVE_MAX_UPLOAD_MB` (default and ceiling 512, the Tryst reader bound). Up to two backups are decrypted at once, each held in memory while it is read, so keep `ALCOVE_MEM_LIMIT` above twice this plus 1 GiB. `alcove test-backup -out F` writes a synthetic backup (fake data) for trying Alcove without a real one.
 - **First run:** with no accounts the server logs a one-time setup code (`setup_code`, Warn level). Open the server in a
   browser, enter the code and create the administrator. In Unraid read it in the container's log. The code is not stored and a
   new one is made at each start until the first account exists.

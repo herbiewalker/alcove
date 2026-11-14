@@ -106,3 +106,13 @@ Free-text columns of `admin_log` accept only identifier characters, so no conten
 backup is not part of the store: it is a tar of the data directory's files (`manifest.json`, `alcove.sealed`, `blobs/<owner>/<kind>/<id>`)
 plus `BACKUP.json` (every file's size and SHA-256) and a `<name>.sha256` checksum file next to it. The ordering rule that keeps a live
 backup consistent: **a blob is written before the row that refers to it** (enforced by the upload code in piece B).
+
+## Implemented in M3 piece B (store schema v3)
+
+`upload` (id, owner, display file name, SHA-256, size, Tryst schema and its support status, row, entry and photo counts, time; unique per
+owner and SHA-256), `revision` (id, owner, parent, kind `upload` or `edit`, the upload it is based on, who made it, time, `deleted_at` for
+piece C), `backup_password` (owner, the password sealed with AES-256-GCM under the owner's data key, the owner id as associated data),
+`cache_head` (owner, the revision it was built from, schema, table order) and `cache_row` (owner, table, row id or `#position`, position,
+the row as raw JSON with its columns in file order). Everything except `upload`, `revision` and `backup_password` is derived and rebuilt
+by `ingest.Rebuild`. The `search` table gains rows of kind `encounter`, `partner` and `profile` built from the note and name columns. The
+head revision of an owner is the newest one with no `deleted_at`.

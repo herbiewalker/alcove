@@ -26,6 +26,8 @@ type Config struct {
 	// BackupDir is where instance backups are written (D-28). It must not be inside DataDir. Empty
 	// disables the feature.
 	BackupDir string
+	// MaxUploadMB caps one uploaded backup in MiB (1 to 512, the Tryst reader bound).
+	MaxUploadMB int
 	// BackupKeep is how many of the newest backups a run keeps (never fewer than one).
 	BackupKeep int
 	// Net holds the transport-security values set in the environment (D-23). An unset variable is a
@@ -36,13 +38,14 @@ type Config struct {
 // Load builds a Config from getenv (os.Getenv in production, a map in tests).
 func Load(getenv func(string) string) (Config, error) {
 	c := Config{
-		Addr:       get(getenv, "ALCOVE_ADDR", ":8080"),
-		DataDir:    get(getenv, "ALCOVE_DATA_DIR", "/data"),
-		KeyFile:    get(getenv, "ALCOVE_KEY_FILE", "/run/keys/alcove.key"),
-		TmpDir:     get(getenv, "ALCOVE_TMP_DIR", "/tmp/alcove"),
-		SealEvery:  10 * time.Second,
-		BackupDir:  get(getenv, "ALCOVE_BACKUP_DIR", "/backups"),
-		BackupKeep: 7,
+		Addr:        get(getenv, "ALCOVE_ADDR", ":8080"),
+		DataDir:     get(getenv, "ALCOVE_DATA_DIR", "/data"),
+		KeyFile:     get(getenv, "ALCOVE_KEY_FILE", "/run/keys/alcove.key"),
+		TmpDir:      get(getenv, "ALCOVE_TMP_DIR", "/tmp/alcove"),
+		SealEvery:   10 * time.Second,
+		BackupDir:   get(getenv, "ALCOVE_BACKUP_DIR", "/backups"),
+		BackupKeep:  7,
+		MaxUploadMB: 512,
 	}
 	var err error
 	if c.AllowNonTmpfsTmp, err = boolEnv(getenv, "ALCOVE_ALLOW_NONTMPFS_TMPDIR", false); err != nil {
@@ -54,6 +57,13 @@ func Load(getenv func(string) string) (Config, error) {
 			return Config{}, fmt.Errorf("ALCOVE_SEAL_EVERY_SECONDS must be 1..3600, got %q", v)
 		}
 		c.SealEvery = time.Duration(n) * time.Second
+	}
+	if v := strings.TrimSpace(getenv("ALCOVE_MAX_UPLOAD_MB")); v != "" {
+		n, perr := strconv.Atoi(v)
+		if perr != nil || n < 1 || n > 512 {
+			return Config{}, fmt.Errorf("ALCOVE_MAX_UPLOAD_MB must be 1..512, got %q", v)
+		}
+		c.MaxUploadMB = n
 	}
 	if v := strings.TrimSpace(getenv("ALCOVE_BACKUP_KEEP")); v != "" {
 		n, perr := strconv.Atoi(v)

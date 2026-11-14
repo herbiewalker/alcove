@@ -115,6 +115,11 @@ from the admin, D-3 must be revisited (per-owner keys, browser-side decryption),
   lives on the Unraid flash drive, not the array). A backup is useless without the key, which is also why the key's second copy
   is proved with `drill` before the first real upload. Backups older than a purge still contain the purged user's wrapped data key
   (R15) until retention removes them.
+- **R20 — Backup passwords are stored, and a hostile upload is read in memory (D-29).** A remembered Tryst backup password is sealed under
+  the owner's data key, which the master key unwraps, so the host operator and the admin can open it, as they can open everything else
+  (R1). A member who wants less can untick "remember": rebuild, edit and export then ask again. A hostile upload is bounded by the reader
+  (header iteration cap, ZIP and size limits, 512 MiB), at most two are decrypted at once, and a refused one is deleted and recorded
+  nowhere, so the cost of a bad upload is time and a few hundred MiB of memory for a moment, not stored data.
 - **R15 — A purge is complete only after the backups that predate it age out (D-26).** Destroying a user's wrapped data key makes their
   photos unreadable on the live instance. Older sealed generations and instance backups still contain that key, so they can still
   open the blobs they also contain. Mitigated by retention on instance backups and by saying so plainly in the runbook.

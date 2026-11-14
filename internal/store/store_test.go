@@ -363,3 +363,45 @@ func TestMigrationsAreIdempotent(t *testing.T) {
 		_ = s.Close()
 	}
 }
+
+// DATA_MODEL migration rule 3: a store written by the previous schema opens, migrates forward, and
+// keeps its data.
+func TestMigratesAV2StoreToLatest(t *testing.T) {
+	d, k := newDirs(t), newKey(t)
+	full := migrations
+	migrations = full[:2] // behave like the build that wrote schema v2
+	s := open(t, d, k)
+	if v, _ := s.SchemaVersionInDB(); v != 2 {
+		t.Fatalf("setup: schema v%d", v)
+	}
+	if err := s.Update(context.Background(), true, func(tx *sql.Tx) error {
+		_, err := tx.Exec(`INSERT INTO user(id, username, display_name, role, status, pw_hash, created_at) VALUES ('u1','alice','Alice','admin','active','h',1)`)
+		return err
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.Close(); err != nil {
+		t.Fatal(err)
+	}
+	migrations = full // the new build
+	s = open(t, d, k)
+	defer s.Close()
+	if v, _ := s.SchemaVersionInDB(); v != len(full) {
+		t.Fatalf("schema v%d after upgrade, want v%d", v, len(full))
+	}
+	err := s.View(context.Background(), func(tx *sql.Tx) error {
+		var n int
+		if err := tx.QueryRow(`SELECT COUNT(*) FROM user WHERE username = 'alice'`).Scan(&n); err != nil || n != 1 {
+			t.Errorf("the account did not survive the upgrade: %d %v", n, err)
+		}
+		for _, tbl := range []string{"upload", "revision", "backup_password", "cache_head", "cache_row"} {
+			if err := tx.QueryRow(`SELECT COUNT(*) FROM ` + tbl).Scan(&n); err != nil {
+				t.Errorf("table %s missing after the upgrade: %v", tbl, err)
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+}

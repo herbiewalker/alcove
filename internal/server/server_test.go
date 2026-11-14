@@ -76,6 +76,7 @@ type env struct {
 	fire  func() // fires the pending network-revert timer
 
 	backupDir string
+	maxUpload int64
 }
 
 func newStore(t *testing.T) *store.Store {
@@ -114,7 +115,7 @@ func (e *env) build(nenv netsec.Env) *Server {
 		_ = timer
 	}
 	s, err := New(e.be, Options{Version: "test", Env: nenv, Params: fastParams,
-		BackupDir: e.backupDir, BackupKeep: 2, TmpDir: filepath.Join(e.backupDir, "srvtmp"), AllowNonTmpfs: true,
+		BackupDir: e.backupDir, BackupKeep: 2, TmpDir: filepath.Join(e.backupDir, "srvtmp"), AllowNonTmpfs: true, MaxUploadBytes: e.maxUpload,
 		Logger: slog.New(slog.NewJSONHandler(e.logs, nil)),
 		Now:    func() time.Time { return e.clock },
 		AfterFunc: func(d time.Duration, f func()) *time.Timer {

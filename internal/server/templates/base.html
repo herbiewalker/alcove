@@ -17,6 +17,7 @@
   {{if .User}}
   <nav aria-label="Main">
     <a href="/"{{if eq .Active "home"}} aria-current="page"{{end}}>Home</a>
+    <a href="/uploads"{{if eq .Active "uploads"}} aria-current="page"{{end}}>My data</a>
     {{if .IsAdmin}}<a href="/admin"{{if eq .Active "admin"}} aria-current="page"{{end}}>Admin</a>{{end}}
     <a href="/account"{{if eq .Active "account"}} aria-current="page"{{end}}>Account</a>
     <form method="post" action="/logout"><input type="hidden" name="csrf" value="{{.CSRF}}"><button type="submit">Sign out</button></form>

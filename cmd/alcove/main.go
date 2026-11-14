@@ -5,6 +5,7 @@
 //	alcove keycheck -file P  open a key file and print its fingerprint (prove a second copy)
 //	alcove backup-verify -file F   check every checksum in a backup (no key needed)
 //	alcove restore -backup F -to D extract a verified backup into an empty directory (no key needed)
+//	alcove test-backup -out F      write a synthetic Tryst backup (fake data) for trying and testing Alcove
 //	alcove drill -backup F -key K  restore into a throwaway place and read it back with that key
 //	alcove -healthcheck      probe /healthz on localhost, for the container HEALTHCHECK
 package main
@@ -50,6 +51,8 @@ func main() {
 			os.Exit(backupcli.Restore(os.Args[2:], os.Stdout, os.Stderr))
 		case "drill":
 			os.Exit(backupcli.Drill(os.Args[2:], os.Stdin, os.Stdout, os.Stderr))
+		case "test-backup":
+			os.Exit(backupcli.MakeTest(os.Args[2:], os.Stdout, os.Stderr))
 		case "keycheck":
 			os.Exit(keycli.Keycheck(os.Args[2:], os.Stdin, os.Stdout, os.Stderr))
 		}
@@ -82,7 +85,8 @@ func run(cfg config.Config) int {
 	}
 
 	web, err := server.New(backend{a}, server.Options{Version: version, Env: cfg.Net, Logger: logger,
-		BackupDir: cfg.BackupDir, BackupKeep: cfg.BackupKeep, TmpDir: cfg.TmpDir, AllowNonTmpfs: cfg.AllowNonTmpfsTmp})
+		BackupDir: cfg.BackupDir, BackupKeep: cfg.BackupKeep, TmpDir: cfg.TmpDir, AllowNonTmpfs: cfg.AllowNonTmpfsTmp,
+		MaxUploadBytes: int64(cfg.MaxUploadMB) << 20})
 	if err != nil {
 		logger.Error("refusing to start", "reason", err.Error())
 		fmt.Fprintln(os.Stderr, "alcove: refusing to start:", err)

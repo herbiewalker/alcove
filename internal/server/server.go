@@ -31,6 +31,7 @@ import (
 
 	"github.com/herbiewalker/alcove/internal/adminlog"
 	"github.com/herbiewalker/alcove/internal/auth"
+	"github.com/herbiewalker/alcove/internal/ingest"
 	"github.com/herbiewalker/alcove/internal/netsec"
 	"github.com/herbiewalker/alcove/internal/store"
 )
@@ -55,10 +56,12 @@ type Options struct {
 	AfterFunc func(time.Duration, func()) *time.Timer
 	// BackupDir and BackupKeep configure the instance backup (D-28); TmpDir is the tmpfs the restore
 	// drill opens its database in; AllowNonTmpfs is for tests and dev boxes only.
-	BackupDir     string
-	BackupKeep    int
-	TmpDir        string
-	AllowNonTmpfs bool
+	BackupDir  string
+	BackupKeep int
+	TmpDir     string
+	// MaxUploadBytes caps one uploaded backup (never above the Tryst reader bound, 512 MiB).
+	MaxUploadBytes int64
+	AllowNonTmpfs  bool
 }
 
 // level is who may call a route.
@@ -100,6 +103,10 @@ type Server struct {
 	setupCode string
 
 	jobs jobs
+
+	ingMu    sync.Mutex
+	ing      *ingest.Service
+	ingStore *store.Store
 }
 
 // New builds the server. It fails only on an invalid transport environment, so a typo in
@@ -143,7 +150,7 @@ func (s *Server) netOptions() netsec.Options {
 }
 
 func (s *Server) parseTemplates() error {
-	pages := []string{"message", "setup", "login", "unlock", "home", "account", "stepup", "admin", "adminlog", "settings", "backup"}
+	pages := []string{"message", "setup", "login", "unlock", "home", "account", "stepup", "admin", "adminlog", "settings", "backup", "uploads"}
 	for _, p := range pages {
 		t, err := template.ParseFS(assets, "templates/base.html", "templates/"+p+".html")
 		if err != nil {
@@ -244,7 +251,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 	}()
 	h := w.Header()
-	h.Set("Content-Security-Policy", "default-src 'none'; img-src 'self'; style-src 'self'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'")
+	h.Set("Content-Security-Policy", "default-src 'none'; img-src 'self'; style-src 'self'; script-src 'self'; connect-src 'self'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'")
 	h.Set("X-Content-Type-Options", "nosniff")
 	h.Set("X-Frame-Options", "DENY")
 	h.Set("Referrer-Policy", "no-referrer")
@@ -303,7 +310,16 @@ func (s *Server) refreshHasUsers(st *store.Store) {
 
 // handle registers a route. The wrapper identifies the user, enforces the level, and checks the
 // CSRF token and fetch metadata on every POST before the handler runs.
-func (s *Server) handle(pattern string, lv level, h func(*rq)) {
+func (s *Server) handle(pattern string, lv level, h func(*rq)) { s.register(pattern, lv, false, h) }
+
+// handleStream is handle for a route that reads its own request body as a stream (an upload): the
+// wrapper still identifies the user and refuses cross-site requests, but it does not parse the
+// form or cap the body, and the handler MUST check the CSRF token itself before reading any file.
+func (s *Server) handleStream(pattern string, lv level, h func(*rq)) {
+	s.register(pattern, lv, true, h)
+}
+
+func (s *Server) register(pattern string, lv level, stream bool, h func(*rq)) {
 	s.routes = append(s.routes, route{pattern, lv})
 	s.mux.HandleFunc(pattern, func(w http.ResponseWriter, r *http.Request) {
 		q, _ := r.Context().Value(rqKey{}).(*rq)
@@ -326,6 +342,10 @@ func (s *Server) handle(pattern string, lv level, h func(*rq)) {
 		if r.Method == http.MethodPost {
 			if r.Header.Get("Sec-Fetch-Site") == "cross-site" {
 				q.message(http.StatusForbidden, "Request refused", "This form was sent from another site, so it was not accepted.", "/")
+				return
+			}
+			if stream {
+				h(q)
 				return
 			}
 			r.Body = http.MaxBytesReader(w, r.Body, 64<<10)
@@ -422,7 +442,15 @@ type page struct {
 	EnvNets, EnvProxy, EnvTLS bool
 	ProxyMode, RequireTLS     bool
 	// backup page
-	Backups                        []backupRow
+	Backups     []backupRow
+	Uploads     []uploadRow
+	HasPassword bool
+	MaxMB       int
+	Home        struct {
+		HasData        bool
+		Entries, Media int
+		When, Name     string
+	}
 	BackupOK, JobRunning           bool
 	Refresh                        bool
 	JobText, LastBackup, LastDrill string
@@ -435,7 +463,7 @@ type logRow struct {
 }
 
 var knownPaths = map[string]bool{"/": true, "/login": true, "/setup": true, "/unlock": true, "/account": true,
-	"/admin": true, "/admin/log": true, "/admin/settings": true, "/admin/backup": true}
+	"/admin": true, "/admin/log": true, "/admin/settings": true, "/admin/backup": true, "/uploads": true}
 
 // render writes a page with a status code. It builds the whole page first so a template error
 // never leaves half a page on the wire.
@@ -494,6 +522,7 @@ var flashes = map[string]string{
 	"proxy":     "Proxy settings saved.",
 	"tls":       "HTTPS setting saved.",
 	"signedout": "Signed out.",
+	"uploaded":  "Backup uploaded and checked. It is now your current data.",
 }
 
 func (q *rq) setFlash(key string) {
@@ -580,6 +609,7 @@ func (s *Server) routes_() {
 		}
 	}
 	serveStatic("app.css", "text/css; charset=utf-8")
+	serveStatic("upload.js", "text/javascript; charset=utf-8")
 	for _, n := range []string{"mark-32.png", "mark-96.png", "mark-192.png"} {
 		serveStatic(n, "image/png")
 	}
@@ -598,6 +628,8 @@ func (s *Server) routes_() {
 	s.handle("POST /logout", anyone, s.postLogout)
 	s.handle("POST /theme", anyone, s.postTheme)
 	s.handle("GET /{$}", user, s.getHome)
+	s.handle("GET /uploads", user, s.getUploads)
+	s.handleStream("POST /uploads", user, s.postUploads)
 	s.handle("GET /account", user, s.getAccount)
 	s.handle("POST /account", user, s.postAccount)
 	s.handle("GET /stepup", admin, s.getStepUp)
@@ -609,6 +641,7 @@ func (s *Server) routes_() {
 	s.handle("POST /admin/backup/run", admin, s.postBackupRun)
 	s.handle("POST /admin/backup/verify", admin, s.postBackupVerify)
 	s.handle("POST /admin/backup/drill", admin, s.postBackupDrill)
+	s.handle("POST /admin/backup/rebuild", admin, s.postRebuild)
 	s.handle("GET /admin/settings", admin, s.getSettings)
 	s.handle("POST /admin/settings/networks", admin, s.postNetworks)
 	s.handle("POST /admin/settings/networks/confirm", admin, s.postNetworksConfirm)

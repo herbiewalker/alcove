@@ -73,3 +73,21 @@ HTTPS** in the console. Never publish Alcove's own port to the internet.
 
 There is no reset yet. Until a break-glass command exists, a lost admin password means starting from an empty store (restore an
 older backup that predates nothing you need, or start fresh). Keep a second copy of the admin password until then.
+
+## 8. Uploading a backup from a phone
+
+1. In Tryst on the phone, export a backup and note the password you chose.
+2. On the same wifi, open Alcove in the phone browser, sign in, go to **My data**, choose the file, enter the password and press
+   Upload. A bar shows progress, then "Checking the backup".
+3. A wrong password, a file that is not a Tryst backup, a damaged file and a file already uploaded are all refused with a plain
+   message, and nothing is saved. A good upload becomes your current data; older uploads are kept as history.
+4. The limit is `ALCOVE_MAX_UPLOAD_MB` (default 512). A slow wifi is fine: that one request is allowed to run for up to 25 minutes.
+
+To try Alcove with no real data, make a fake backup: `docker run --rm -v <folder>:/f <image> test-backup -out /f/test.tryst`. It prints
+the password to use.
+
+## 9. The search index or cache looks wrong
+
+They are copies made from each person's current upload and can be thrown away. Admin console → **Backups** → **Rebuild now** (asks
+for your password again). It needs each person's remembered backup password; anyone who chose not to remember it is skipped and
+listed in the result. No upload is touched.

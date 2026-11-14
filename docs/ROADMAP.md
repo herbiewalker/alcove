@@ -61,9 +61,15 @@
 ## M3 — Spaces, upload, revisions, recovery *(real data starts here)*
 
 - [ ] Spaces, memberships, invites (F27), join requests, leave and removal (F4 to F6)
-- [ ] Rebuild path: the row cache and search index can be rebuilt from revisions (moved here from M2a)
-- [ ] Upload and verify; immutable revisions; duplicate refusal (F7, F8). **Upload works from a phone browser over the LAN
-      (F30)**, with a progress bar
+- [x] **Piece B, built 2026-11-14: upload, revisions, stored passwords and the row cache (D-29).** `internal/ingest` and the My data page.
+      The upload is one streamed request (token first, file last, token checked before a byte of the file is read), written to the blob
+      store, judged (duplicate, wrong password, not a backup, damaged, hostile header, oversize) and only then recorded in one
+      transaction with its revision, the derived row cache, the search index and the sealed password. A refusal records nothing. The
+      cache and search rebuild from the head revision (admin button, logged). A progress bar needs the project's one same-origin script
+      (CSP gains `script-src 'self'` and `connect-src 'self'` and nothing else). Checked in a phone-sized browser, both the refusal and
+      the success path. `alcove test-backup` writes synthetic backups so none of this needs real data
+- [ ] **Still open from piece B:** a real backup uploaded from a real phone over the real LAN (F30), which needs the first live deploy
+- [x] Rebuild path: the row cache and search index can be rebuilt from revisions (moved here from M2a)
 - [ ] User lifecycle: add, disable, delete with grace, reset, data download (F2, F3), with **basic admin pages**
 - [ ] Soft delete with the 10 and 45 day windows and a real purge (F16, N13)
 - [x] **Piece A, built 2026-11-14: instance backup and a restore drill (F23, D-28).** `internal/backup` (one tar of ciphertext with a

@@ -9,10 +9,12 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"os"
 	"strings"
 
 	"github.com/herbiewalker/alcove/internal/backup"
 	"github.com/herbiewalker/alcove/internal/keyfile"
+	"github.com/herbiewalker/alcove/internal/trystbk/synth"
 )
 
 // loadOpts is how drill parses a wrapped key. Tests allow weak parameters.
@@ -104,5 +106,51 @@ func Drill(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 	}
 	fmt.Fprintf(stdout, "ok: key %s opens %s\n  admin log: %d entries, chain verifies\n  accounts: %d\n  uploads read back: %d (%d bytes)\n  photos decrypted: %d\n  took %s\nThe restore worked end to end. This is the proof a key copy needs.\n",
 		keyfile.Fingerprint(k), rep.Backup.Name, rep.LogEntries, rep.Users, rep.UploadBlobs, rep.UploadBytes, rep.MediaBlobs, rep.Elapsed.Round(1e6))
+	return 0
+}
+
+// MakeTest runs `alcove test-backup -out F`: write a synthetic Tryst backup (fake people, fake
+// entries, no real data) so Alcove can be tried, tested and smoke-tested without anyone's real
+// backup. The password is printed so a test can use it.
+func MakeTest(args []string, stdout, stderr io.Writer) int {
+	fs := flag.NewFlagSet("test-backup", flag.ContinueOnError)
+	fs.SetOutput(stderr)
+	out := fs.String("out", "", "where to write the synthetic backup (never overwrites)")
+	password := fs.String("password", "synthetic-test-password", "the backup password to use")
+	entries := fs.Int("entries", 12, "how many synthetic entries")
+	photos := fs.Int("photos", 0, "how many tiny synthetic photos")
+	seed := fs.Uint64("seed", 1, "random seed (the same seed gives the same file)")
+	if err := fs.Parse(args); err != nil {
+		return 2
+	}
+	if *out == "" {
+		fmt.Fprintln(stderr, "test-backup: -out is required")
+		return 2
+	}
+	if *entries < 1 || *entries > 100000 || *photos < 0 || *photos > 200 {
+		fmt.Fprintln(stderr, "test-backup: -entries is 1 to 100000 and -photos is 0 to 200")
+		return 2
+	}
+	res, err := synth.Build(synth.Options{Seed: *seed, Encounters: *entries, Photos: *photos, Password: *password})
+	if err != nil {
+		fmt.Fprintln(stderr, "test-backup:", err)
+		return 1
+	}
+	f, err := os.OpenFile(*out, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o600)
+	if err != nil {
+		fmt.Fprintln(stderr, "test-backup:", err)
+		return 1
+	}
+	if _, err := f.Write(res.File); err != nil {
+		_ = f.Close()
+		_ = os.Remove(*out)
+		fmt.Fprintln(stderr, "test-backup:", err)
+		return 1
+	}
+	if err := f.Close(); err != nil {
+		fmt.Fprintln(stderr, "test-backup:", err)
+		return 1
+	}
+	fmt.Fprintf(stdout, "wrote %s: %d synthetic entries, %d photos, password %q\nThis is fake data for testing. Do not use a real password here.\n", *out, *entries, *photos, *password)
 	return 0
 }

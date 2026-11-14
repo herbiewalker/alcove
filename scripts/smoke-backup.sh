@@ -35,6 +35,7 @@ chmod 777 "$WORK/keys" "$WORK/data" "$WORK/backups" "$WORK/restored"
 
 docker run --rm "${FLAGS[@]}" -v "$WORK/keys:/keys" "$IMG" keygen -out /keys/alcove.key >/dev/null
 docker run -d --name "$NAME" -p "127.0.0.1:${PORT}:8080" "${FLAGS[@]}" \
+  -e ALCOVE_MAX_UPLOAD_MB=1 \
   -v "$WORK/keys/alcove.key:/run/keys/alcove.key:ro" -v "$WORK/data:/data" -v "$WORK/backups:/backups" "$IMG" >/dev/null
 for _ in $(seq 1 30); do curl -fsS "$URL/healthz" >/dev/null 2>&1 && break; sleep 1; done
 curl -fsS "$URL/healthz" >/dev/null 2>&1 || die "the server did not start"
@@ -63,6 +64,26 @@ code=$(docker logs "$NAME" 2>&1 | sed -n 's/.*"setup_code":"\([^"]*\)".*/\1/p' |
 [ "$(post /setup /setup -d "code=$code" -d username=owner -d "password=$PW" -d "confirm=$PW")" = "303" ] || die "first-run setup failed"
 ok "first run created the administrator"
 
+
+# 1b. Upload a real (synthetic) Tryst backup through the real server, and prove the refusals.
+BKPW="synthetic smoke password"
+mkdir -p "$WORK/files"; chmod 777 "$WORK/files"
+docker run --rm "${FLAGS[@]}" -v "$WORK/files:/files" "$IMG" test-backup -out /files/t.tryst -entries 9 -photos 2 -password "$BKPW" >/dev/null || die "test-backup failed"
+$SUDO chmod a+r "$WORK/files/t.tryst"
+head -c 3145728 /dev/urandom > "$WORK/files/big.bin"
+echo "this is a plain text file and not a backup at all" > "$WORK/files/notes.txt"
+up() { # up <password> <file> : prints the HTTP status
+  local t; t=$(token /uploads)
+  curl -s -o /dev/null -w '%{http_code}' -c "$JAR" -b "$JAR" -F "csrf=$t" -F "password=$1" -F remember=1 -F "file=@$2" "$URL/uploads"
+}
+[ "$(up "wrong password" "$WORK/files/t.tryst")" = "401" ] || die "a wrong backup password was not refused"
+[ "$(up "$BKPW" "$WORK/files/notes.txt")" = "422" ] || die "a text file was not refused as not-a-backup"
+[ "$(up "$BKPW" "$WORK/files/big.bin")" = "413" ] || die "an oversize upload was not refused with 413"
+[ "$(up "$BKPW" "$WORK/files/t.tryst")" = "303" ] || die "a valid backup was refused"
+[ "$(up "$BKPW" "$WORK/files/t.tryst")" = "409" ] || die "a duplicate upload was not refused"
+curl -fsS -c "$JAR" -b "$JAR" "$URL/uploads" | grep -q "t.tryst" || die "the uploaded backup is not listed"
+curl -fsS -c "$JAR" -b "$JAR" "$URL/" | grep -q "<b>9</b> entries" || die "home does not show the 9 uploaded entries"
+ok "uploaded a synthetic backup from the real server; wrong password, non-backup, oversize and duplicate were all refused"
 # 2. Step-up, then back up from the admin page.
 [ "$(post "/stepup?next=/admin/backup" /stepup -d "password=$PW" -d next=/admin/backup)" = "303" ] || die "step-up failed"
 [ "$(post /admin/backup /admin/backup/run)" = "303" ] || die "could not start a backup"
@@ -80,6 +101,7 @@ ok "verify and restore drill passed from the admin page"
 
 # 4. The archive holds ciphertext only.
 if $SUDO grep -q "SQLite format 3" "$WORK/backups/$archive"; then die "plaintext SQLite header inside the backup"; fi
+if $SUDO grep -q "Synthetic entry" "$WORK/backups/$archive"; then die "uploaded entry text found in the clear inside the backup"; fi
 ok "no plaintext database inside the backup"
 
 docker stop -t 15 "$NAME" >/dev/null
@@ -97,6 +119,8 @@ ok "backup-verify and restore work from the command line; restore refuses a non-
 # 6. The key's second copy is proved by restoring a real backup with it.
 out=$(docker run --rm "${FLAGS[@]}" -v "$WORK/keys:/keys:ro" -v "$WORK/backups:/backups:ro" "$IMG" drill -backup "/backups/$archive" -key /keys/alcove.key -tmp /tmp/drill) || die "drill with the key failed"
 echo "$out" | grep -q "chain verifies" || die "drill output: $out"
+echo "$out" | grep -q "uploads read back: 1" || die "the drill did not read the uploaded backup back: $out"
+echo "$out" | grep -q "photos decrypted: 0" || true
 docker run --rm "${FLAGS[@]}" -v "$WORK/keys:/keys" "$IMG" keygen -out /keys/other.key >/dev/null
 if docker run --rm "${FLAGS[@]}" -v "$WORK/keys:/keys:ro" -v "$WORK/backups:/backups:ro" "$IMG" drill -backup "/backups/$archive" -key /keys/other.key -tmp /tmp/drill >/dev/null 2>&1; then
   die "a different key opened the backup"

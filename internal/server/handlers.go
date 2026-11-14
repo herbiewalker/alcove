@@ -254,7 +254,16 @@ func (s *Server) postTheme(q *rq) {
 // ---- home and account ----
 
 func (s *Server) getHome(q *rq) {
-	q.render(http.StatusOK, "home", &page{Title: "Home", Active: "home"})
+	p := &page{Title: "Home", Active: "home"}
+	if list, err := s.ingestFor(q.st).List(q.r.Context(), q.id.user.ID); err == nil {
+		for _, u := range list {
+			if u.Head {
+				p.Home.HasData, p.Home.Entries, p.Home.Media, p.Home.When = true, u.Encounters, u.Media, u.UploadedAt.UTC().Format(timeFmt)
+				break
+			}
+		}
+	}
+	q.render(http.StatusOK, "home", p)
 }
 
 func (s *Server) getAccount(q *rq) {

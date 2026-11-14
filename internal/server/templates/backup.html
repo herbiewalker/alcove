@@ -9,6 +9,12 @@
 
 {{if .JobRunning}}<p class="notice warn" role="status">{{.JobText}}</p>{{end}}
 
+<form class="card" method="post" action="/admin/backup/rebuild">
+  <h2>Rebuild the search index and cache</h2>
+  <input type="hidden" name="csrf" value="{{.CSRF}}">
+  <p class="muted">The cache and the search index are copies made from each person's current upload. If they ever look wrong, this throws them away and rebuilds them. No data is lost: the uploads are not touched. Asks for your password again.</p>
+  <div class="actions"><button class="btn secondary" type="submit" {{if .JobRunning}}disabled{{end}}>Rebuild now</button></div>
+</form>
 {{if not .BackupOK}}
 <section class="card">
   <h2>No backup folder</h2>

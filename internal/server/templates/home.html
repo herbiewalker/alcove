@@ -1,8 +1,14 @@
 {{define "content"}}
 <h1>Hello, {{.User.DisplayName}}</h1>
 <section class="card">
-  <h2>Your space</h2>
-  <p class="muted">Nothing is stored here yet. Uploading Tryst backups, spaces and sharing arrive in the next milestones. Until then this server only holds accounts.</p>
+  <h2>Your data</h2>
+  {{if .Home.HasData}}
+  <p>Your current backup has <b>{{.Home.Entries}}</b> entries and <b>{{.Home.Media}}</b> photos, uploaded {{.Home.When}} UTC.</p>
+  <p><a class="btn secondary" href="/uploads">Upload a newer backup</a></p>
+  {{else}}
+  <p class="muted">Nothing is stored here yet. Export a backup in Tryst on your phone and upload it. Spaces, sharing and editing arrive in the next milestones.</p>
+  <p><a class="btn" href="/uploads">Upload your first backup</a></p>
+  {{end}}
 </section>
 {{if .IsAdmin}}
 <section class="card">

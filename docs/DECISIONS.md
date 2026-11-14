@@ -439,6 +439,48 @@ is a recurring check, not a one-off.
 - **Consequences:** backup size is the data size (photos dominate). Off-machine copies are safe to keep anywhere because they are
   ciphertext, but only the key file opens them, so the key file's second copy is a mandatory first step (CRITICAL_ASSETS).
 
+## D-29 — Upload, revisions, stored backup passwords and the row cache (implements F7 to F10, F30; M3 piece B)
+- **Status:** Accepted
+- **Context:** this is where real Tryst data first enters. It has to work from a phone browser over wifi, keep every upload
+  untouched, tell a wrong password from a damaged file, never leave half a record, and leave a read model that can be thrown away
+  and rebuilt.
+- **Decision:**
+  1. **One streamed request.** The upload is a `multipart/form-data` POST read as a stream: the CSRF token and the options come
+     first, the file last, and the token is checked before a byte of the file is accepted. The file goes straight into the blob
+     store (verbatim, immutable, SHA-256 on the way) and is never held whole in memory before it is judged. The read deadline for
+     this one route is raised so a slow wifi does not cut it off; every other route keeps the short one. The cap is the Tryst
+     reader's own bound (512 MiB), and an oversize upload gets a fast, clear refusal.
+  2. **Judge before recording.** In order: write the blob; refuse a duplicate (same owner and SHA-256) and delete the new copy;
+     trial-decrypt with the password and read every table with the bounded reader; only then record. A wrong password, a file that
+     is not a Tryst backup, a damaged one and a hostile one are different, plainly worded refusals, and each deletes the blob and
+     records nothing (N7, N9). **The blob is always written before the row that refers to it** (the D-28 rule), and the rows
+     (upload, revision, cache, search, password) commit in one transaction.
+  3. **Revisions.** `upload` holds what was uploaded; `revision` is the history (kind `upload` or `edit`, a parent, who created
+     it, a `deleted_at` for the soft delete of piece C). The head is the newest active revision. All revisions are kept; the admin
+     can purge on purpose, logged. An older file uploaded later becomes the head: the head is the latest *upload*, not the latest
+     *phone state*, and the page shows the dates so a person can tell.
+  4. **Row cache and search index** are derived: every row of the head revision as its raw JSON (`cache_row`, keyed by owner, table
+     and the row's `id`, or its position for link tables), the table order (`cache_head`), and one FTS row per text-bearing row.
+     `Rebuild` re-reads the head revision's blob and refills both, so a damaged cache is never a data loss. A new upload replaces
+     the owner's cache in the same transaction as the revision.
+  5. **The backup password is stored, sealed** under the owner's data key (AES-256-GCM, the owner id as associated data), because
+     rebuild, edit and export all need to open the owner's own file. A person can untick "remember this password"; then those
+     features ask again. The password is never logged and never shown back.
+  6. **A newer Tryst schema** (above `LatestKnownSchema`) is stored and cached read-only and flagged, so editing and export stay off
+     (F10). A schema below 1 is refused.
+  7. **Photos are not extracted yet.** Their bytes stay inside the stored upload; extraction under the owner's data key comes with
+     photo viewing (M4). The count and names are recorded.
+  8. **A progress bar needs one small same-origin script** (N11 allows exactly one), so the CSP gains `script-src 'self'` and
+     nothing else. Without JavaScript the same form still uploads, just with no bar. The script never sees the password after
+     submit and holds no state.
+  9. **File names are display text only.** They are trimmed and bounded and never used to build a path or a header.
+- **Alternatives:** buffering the upload in memory first (a 500 MiB request times the number of phones); storing before checking and
+  marking "unverified" (leaves records that cannot be read); asking for the password every time (rebuild and export then need a
+  person); parsing the whole backup into typed tables (lossy, D-25).
+- **Consequences:** the cache is a second copy of the data in the sealed database (RAM on tmpfs), about the size of `data.json`.
+  Unverified or failed uploads leave nothing but a log line with counts. Re-uploading a changed phone backup creates a new revision
+  each time, which is the point.
+
 ## Open questions
 > Decisions deferred on purpose. Each is a future ADR. Do not let these rot silently.
 

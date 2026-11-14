@@ -153,7 +153,7 @@ func (q *rq) backupError(msg string) {
 }
 
 // finish writes the audit entry for a finished job (the actor is the admin who started it).
-func (s *Server) finish(actor, action, target, fields string, meta map[string]string) {
+func (s *Server) finish(actor, action, targetType, target, fields string, meta map[string]string) {
 	st := s.be.Store()
 	if st == nil {
 		return
@@ -164,7 +164,7 @@ func (s *Server) finish(actor, action, target, fields string, meta map[string]st
 				return err
 			}
 		}
-		_, err := adminlog.Append(tx, s.now(), actor, action, "backup", target, fields)
+		_, err := adminlog.Append(tx, s.now(), actor, action, targetType, target, fields)
 		return err
 	})
 	if err != nil {
@@ -191,7 +191,7 @@ func (s *Server) postBackupRun(q *rq) {
 		}
 		if err != nil {
 			s.log.Error("backup failed", "err", err.Error())
-			s.finish(actor, "backup.run", "none", "failed", nil)
+			s.finish(actor, "backup.run", "backup", "none", "failed", nil)
 			return "The backup failed: " + err.Error(), err
 		}
 		gone, perr := backup.Prune(dir, keep)
@@ -202,7 +202,7 @@ func (s *Server) postBackupRun(q *rq) {
 		if len(gone) > 0 {
 			fields = "archive,pruned"
 		}
-		s.finish(actor, "backup.run", info.Name, fields, map[string]string{"backup.last_ok": strconv.FormatInt(now.Unix(), 10)})
+		s.finish(actor, "backup.run", "backup", info.Name, fields, map[string]string{"backup.last_ok": strconv.FormatInt(now.Unix(), 10)})
 		return fmt.Sprintf("Backup %s written and verified: %d files, %s. %d older backup(s) removed.", info.Name, info.Files, humanBytes(info.Size), len(gone)), nil
 	}, s.now)
 	s.afterStart(q, started)
@@ -225,10 +225,10 @@ func (s *Server) postBackupVerify(q *rq) {
 	started := s.jobs.start("verification", info.Name, func() (string, error) {
 		got, err := backup.Verify(info.Path)
 		if err != nil {
-			s.finish(actor, "backup.verify", info.Name, "failed", nil)
+			s.finish(actor, "backup.verify", "backup", info.Name, "failed", nil)
 			return "Verification FAILED for " + info.Name + ": " + err.Error(), err
 		}
-		s.finish(actor, "backup.verify", info.Name, "ok", nil)
+		s.finish(actor, "backup.verify", "backup", info.Name, "ok", nil)
 		return fmt.Sprintf("%s verifies: %d files, every checksum matches.", info.Name, got.Files), nil
 	}, s.now)
 	s.afterStart(q, started)
@@ -252,10 +252,10 @@ func (s *Server) postBackupDrill(q *rq) {
 		stamp := strconv.FormatInt(s.now().Unix(), 10)
 		if err != nil {
 			s.log.Error("restore drill failed", "err", err.Error())
-			s.finish(actor, "backup.drill", info.Name, "failed", map[string]string{"backup.last_drill": stamp + ":failed"})
+			s.finish(actor, "backup.drill", "backup", info.Name, "failed", map[string]string{"backup.last_drill": stamp + ":failed"})
 			return "The restore drill FAILED for " + info.Name + ": " + err.Error(), err
 		}
-		s.finish(actor, "backup.drill", info.Name, "ok", map[string]string{"backup.last_drill": stamp + ":ok"})
+		s.finish(actor, "backup.drill", "backup", info.Name, "ok", map[string]string{"backup.last_drill": stamp + ":ok"})
 		return fmt.Sprintf("Restore drill passed for %s: it opened with this server's key, the admin log chain verifies (%d entries), %d account(s), %d upload(s) and %d photo(s) read back.",
 			info.Name, rep.LogEntries, rep.Users, rep.UploadBlobs, rep.MediaBlobs), nil
 	}, s.now)
@@ -277,3 +277,27 @@ func (s *Server) pick(q *rq) (backup.Info, bool) {
 }
 
 var backgroundCtx = context.Background()
+
+// postRebuild throws away every owner's derived row cache and search index and refills them from
+// each head revision's stored upload (D-29). It is a maintenance action, so it asks for step-up
+// and is logged; the result shows on the same page as a backup job.
+func (s *Server) postRebuild(q *rq) {
+	if q.needStepUp("/admin/backup") {
+		return
+	}
+	svc, actor := s.ingestFor(q.st), q.id.user.ID
+	started := s.jobs.start("rebuild", "", func() (string, error) {
+		done, failed := svc.RebuildAll(backgroundCtx)
+		fields := "cache,search"
+		if len(failed) > 0 {
+			fields = "cache,search,failed"
+			s.log.Warn("cache rebuild left some owners alone", "failed", len(failed))
+		}
+		s.finish(actor, "cache.rebuild", "cache", "all", fields, nil)
+		if len(failed) > 0 {
+			return fmt.Sprintf("Rebuilt %d account(s). %d could not be rebuilt (no remembered backup password, or the stored upload failed its checksum).", done, len(failed)), fmt.Errorf("%d failed", len(failed))
+		}
+		return fmt.Sprintf("Rebuilt the search index and cache for %d account(s) from their stored uploads.", done), nil
+	}, s.now)
+	s.afterStart(q, started)
+}
