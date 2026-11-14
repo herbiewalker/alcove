@@ -8,6 +8,8 @@ import (
 	"strconv"
 	"strings"
 	"unicode"
+
+	"github.com/herbiewalker/alcove/internal/photo"
 )
 
 // DetailField is one labelled value on an entry's page.
@@ -30,10 +32,21 @@ type Detail struct {
 	PartnersHidden int
 	NoteHidden     bool // the owner keeps notes out of the space
 	Private        bool // the owner's own view: this entry is private
+	Photos         []Photo
+	PhotosHidden   int // photos the owner keeps out of this space
 }
 
 type options struct {
 	notes, partnerNames bool
+	photos, photoPlace  bool
+}
+
+// Photo is one picture of an entry as the viewer may see it (D-39).
+type Photo struct {
+	ID       string
+	Caption  string
+	Place    string // "lat, lon", only when the owner allows it
+	Viewable bool   // a picture the browser can show; otherwise only the owner can download it
 }
 
 // OwnDetail returns one of the person's own entries in full. It reads only that person's rows.
@@ -49,7 +62,7 @@ func OwnDetail(tx *sql.Tx, owner, entryID string) (Detail, error) {
 	}
 	var name string
 	_ = tx.QueryRow(`SELECT CASE WHEN display_name = '' THEN username ELSE display_name END FROM user WHERE id = ?`, owner).Scan(&name)
-	d, err := build(tx, owner, entryID, data, options{notes: true, partnerNames: true})
+	d, err := build(tx, owner, entryID, data, options{notes: true, partnerNames: true, photos: true, photoPlace: true})
 	if err != nil {
 		return Detail{}, err
 	}
@@ -73,15 +86,15 @@ func EntryDetail(tx *sql.Tx, spaceID, viewerID string, consent int, ownerID, ent
 	where += ` AND c.owner_id = ? AND c.rid = ?`
 	args = append(args, ownerID, entryID)
 	var data, display, username string
-	var notes, partners int
-	err := tx.QueryRow(`SELECT c.data, u.display_name, u.username, m.include_notes, m.show_partner_names`+where, args...).Scan(&data, &display, &username, &notes, &partners)
+	var notes, partners, photos, place int
+	err := tx.QueryRow(`SELECT c.data, u.display_name, u.username, m.include_notes, m.show_partner_names, m.include_photos, m.show_photo_location`+where, args...).Scan(&data, &display, &username, &notes, &partners, &photos, &place)
 	if errors.Is(err, sql.ErrNoRows) {
 		return Detail{}, ErrNoEntry
 	}
 	if err != nil {
 		return Detail{}, err
 	}
-	d, err := build(tx, ownerID, entryID, data, options{notes: notes == 1, partnerNames: partners == 1})
+	d, err := build(tx, ownerID, entryID, data, options{notes: notes == 1, partnerNames: partners == 1, photos: photos == 1, photoPlace: place == 1})
 	if err != nil {
 		return Detail{}, err
 	}
@@ -223,6 +236,10 @@ func build(tx *sql.Tx, owner, entryID, data string, opt options) (Detail, error)
 	}
 	rows.Close()
 
+	if err := addPhotos(tx, &d, owner, entryID, opt); err != nil {
+		return Detail{}, err
+	}
+
 	if opt.notes {
 		d.Note = e.Note
 	} else {
@@ -279,4 +296,75 @@ func prettyList(s string) string {
 		out = append(out, pretty(t))
 	}
 	return strings.Join(out, ", ")
+}
+
+// addPhotos lists the entry's photos. A viewer who is not the owner gets them only if the owner
+// includes photos; a caption follows the note choice (it is text the owner typed); the place is
+// shown only if the owner turned it on.
+func addPhotos(tx *sql.Tx, d *Detail, owner, entryID string, opt options) error {
+	rows, err := tx.Query(`SELECT b.media_id, b.kind, COALESCE(json_extract(m.data, '$.caption'), ''), json_extract(m.data, '$.latitude'), json_extract(m.data, '$.longitude')
+		FROM media_blob b LEFT JOIN cache_row m ON m.owner_id = b.owner_id AND m.tbl = 'media' AND m.rid = b.media_id
+		WHERE b.owner_id = ? AND b.entry_id = ? ORDER BY COALESCE(m.pos, 0), b.media_id`, owner, entryID)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var id, caption string
+		var kind int
+		var lat, lon sql.NullFloat64
+		if err := rows.Scan(&id, &kind, &caption, &lat, &lon); err != nil {
+			return err
+		}
+		if !opt.photos {
+			d.PhotosHidden++
+			continue
+		}
+		p := Photo{ID: id, Viewable: kind != 0}
+		if opt.notes {
+			p.Caption = strings.TrimSpace(caption)
+		}
+		if opt.photoPlace && lat.Valid && lon.Valid {
+			p.Place = strconv.FormatFloat(lat.Float64, 'f', 4, 64) + ", " + strconv.FormatFloat(lon.Float64, 'f', 4, 64)
+		}
+		d.Photos = append(d.Photos, p)
+	}
+	return rows.Err()
+}
+
+// OwnPhoto says what kind of picture one of the person's own photos is. It reads only their rows.
+func OwnPhoto(tx *sql.Tx, owner, mediaID string) (photo.Kind, error) {
+	var k int
+	err := tx.QueryRow(`SELECT kind FROM media_blob WHERE owner_id = ? AND media_id = ?`, owner, mediaID).Scan(&k)
+	if errors.Is(err, sql.ErrNoRows) {
+		return photo.Unknown, ErrNoEntry
+	}
+	return photo.Kind(k), err
+}
+
+// OpenPhoto lets a space member fetch one photo of another member, only if the photo's entry is one
+// Entries would list for them, its owner includes photos, and the picture is a format Alcove can
+// clean of metadata. Anything else, including a photo that does not exist, is ErrNoEntry.
+func OpenPhoto(tx *sql.Tx, spaceID, viewerID string, consent int, ownerID, mediaID string) (photo.Kind, error) {
+	if err := check(tx, spaceID, viewerID, consent); err != nil {
+		return photo.Unknown, err
+	}
+	where, args := scope(spaceID, consent, Query{})
+	where += ` AND m.include_photos = 1 AND c.owner_id = ? AND c.rid = (SELECT entry_id FROM media_blob WHERE owner_id = ? AND media_id = ?)`
+	args = append(args, ownerID, ownerID, mediaID)
+	var one int
+	if err := tx.QueryRow(`SELECT 1`+where, args...).Scan(&one); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return photo.Unknown, ErrNoEntry
+		}
+		return photo.Unknown, err
+	}
+	var k int
+	if err := tx.QueryRow(`SELECT kind FROM media_blob WHERE owner_id = ? AND media_id = ?`, ownerID, mediaID).Scan(&k); err != nil {
+		return photo.Unknown, ErrNoEntry
+	}
+	if photo.Kind(k) != photo.JPEG && photo.Kind(k) != photo.PNG {
+		return photo.Unknown, ErrNoEntry
+	}
+	return photo.Kind(k), nil
 }

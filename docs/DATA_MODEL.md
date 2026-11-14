@@ -126,6 +126,10 @@ file whose advisory lock keeps a second process out. A purge deletes, in order: 
 stored files, then for an account all of its rows, its folder under `blobs/` and its data key; a sweep removes files with no row (older
 than a day) and owners with no account, so a crash between the steps is finished by the next purge.
 
+## Implemented in M7 (store schema v9)
+
+`media_blob` (owner, media id, entry id, mime label, size, kind: 0 unknown, 1 JPEG, 2 PNG): the derived list of photos copied out of the current upload into the blob store (encrypted under the owner's data key), rebuilt with the cache. `membership.show_photo_location` (default 0).
+
 ## Implemented in M4 piece D (store schema v8)
 
 `user_tz` (user, IANA zone name): no row means the server's default zone (`ALCOVE_TZ`, UTC if empty). Compare metrics are computed, never stored.

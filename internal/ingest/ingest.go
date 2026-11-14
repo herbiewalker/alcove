@@ -97,6 +97,7 @@ type UploadInfo struct {
 	TrystSchema                      int
 	SchemaStatus                     trystbk.SchemaSupport
 	Rows, Encounters, Media          int
+	Photos                           PhotoResult
 	UploadedAt                       time.Time
 	Head                             bool
 	Deleted                          bool
@@ -250,6 +251,13 @@ func (s *Service) Upload(ctx context.Context, p Params, body io.Reader) (UploadI
 		return UploadInfo{}, err
 	}
 	keep = true
+	// The photos are copied out afterwards. A failure here leaves the upload safe; the counts say
+	// what happened and an admin rebuild tries again.
+	if res, perr := s.storePhotos(ctx, p.Owner, bk); perr == nil {
+		info.Photos = res
+	} else {
+		info.Photos = PhotoResult{Skipped: info.Media}
+	}
 	return info, nil
 }
 
@@ -474,7 +482,11 @@ func (s *Service) Rebuild(ctx context.Context, owner string) error {
 	}
 	defer bk.Close()
 	now := s.Now()
-	return s.St.Update(ctx, true, func(tx *sql.Tx) error { return fillCache(tx, owner, revID, bk, now) })
+	if err := s.St.Update(ctx, true, func(tx *sql.Tx) error { return fillCache(tx, owner, revID, bk, now) }); err != nil {
+		return err
+	}
+	_, err = s.storePhotos(ctx, owner, bk)
+	return err
 }
 
 // RebuildAll rebuilds every owner that has a head revision and a stored password. It returns how
@@ -563,11 +575,14 @@ func (s *Service) CacheRows(ctx context.Context, owner, table string) ([]string,
 // ClearCache removes an owner's derived rows and search index (the cache for nothing: used when
 // the owner has no current revision, or when it cannot be rebuilt right now).
 func (s *Service) ClearCache(ctx context.Context, owner string) error {
-	return s.St.Update(ctx, true, func(tx *sql.Tx) error { return clearCache(tx, owner) })
+	if err := s.St.Update(ctx, true, func(tx *sql.Tx) error { return clearCache(tx, owner) }); err != nil {
+		return err
+	}
+	return s.Blobs.DeleteMedia(owner)
 }
 
 func clearCache(tx *sql.Tx, owner string) error {
-	for _, q := range []string{`DELETE FROM cache_row WHERE owner_id = ?`, `DELETE FROM search WHERE owner_id = ?`, `DELETE FROM cache_head WHERE owner_id = ?`} {
+	for _, q := range []string{`DELETE FROM cache_row WHERE owner_id = ?`, `DELETE FROM search WHERE owner_id = ?`, `DELETE FROM cache_head WHERE owner_id = ?`, `DELETE FROM media_blob WHERE owner_id = ?`} {
 		if _, err := tx.Exec(q, owner); err != nil {
 			return err
 		}

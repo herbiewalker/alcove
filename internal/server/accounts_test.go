@@ -424,7 +424,7 @@ func TestPurgeThroughTheAdminPage(t *testing.T) {
 	if w.Code != 303 {
 		t.Fatalf("purge: %d", w.Code)
 	}
-	if e.blobCount() != 0 || e.count("SELECT COUNT(*) FROM upload") != 0 || e.count("SELECT COUNT(*) FROM revision WHERE owner_id = ?", samID) != 0 {
+	if e.anyBlobCount() != 0 || e.count("SELECT COUNT(*) FROM upload") != 0 || e.count("SELECT COUNT(*) FROM revision WHERE owner_id = ?", samID) != 0 {
 		t.Fatal("the purged upload is still there")
 	}
 	if !strings.Contains(admin.do("GET", "/admin/deleted", nil).Body.String(), "removed for good") {

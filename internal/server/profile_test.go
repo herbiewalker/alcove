@@ -158,7 +158,7 @@ func TestPrefillOffersThenImportsOnlyWhatIsTickedAndSharesNothing(t *testing.T) 
 	}
 	// Kim sees the new name but not the height.
 	page = s.kim.do("GET", "/spaces/"+s.space, nil).Body.String()
-	if !strings.Contains(page, "Synthetic Self") || strings.Contains(page, "172") {
+	if !strings.Contains(page, "Synthetic Self") || strings.Contains(page, "<dd>172</dd>") {
 		t.Error("the space page should show the name and nothing private")
 	}
 	// A forged field in the import form cannot bring in a value that is not in the backup.

@@ -232,6 +232,28 @@ curl -fsS -b "$J3" "$URL/search?q=synthetic&scope=me" | grep -q "found" && die "
 [ "$(curl -s -o /dev/null -w '%{http_code}' "$URL/search")" != "200" ] || die "a signed-out visitor opened the search page"
 ok "search opens for a member, never runs from an address and refuses a space that is not theirs"
 
+# 4l. Photos: the owner's photos are copied out encrypted and served, a member gets them through the space, a stranger does not.
+photo=""
+for id in $(curl -fsS -b "$JAR" "$URL/entries" | sed -n 's/.*href="\/entries\/\([^"]*\)".*/\1/p'); do
+  photo=$(curl -fsS -b "$JAR" "$URL/entries/$id" | sed -n 's/.*<img src="\(\/photos\/[^"]*\)".*/\1/p' | head -1)
+  [ -n "$photo" ] && break
+done
+[ -n "$photo" ] || die "none of the owner's entries shows a photo (the synthetic backup has two)"
+hdr=$(curl -s -D - -o /dev/null -b "$JAR" "$URL$photo" | tr -d '')
+echo "$hdr" | head -1 | grep -q " 200" || die "the owner's photo did not open: $hdr"
+echo "$hdr" | grep -qi "^content-type: image/jpeg" || die "the photo is not served as a picture"
+echo "$hdr" | grep -qi "^cache-control: no-store" || die "a photo may be cached"
+[ "$(curl -s -o /dev/null -w '%{http_code}' -b "$J3" "$URL$photo")" = "404" ] || die "another person fetched a photo through the own-photo route"
+[ "$(curl -s -o /dev/null -w '%{http_code}' "$URL$photo")" != "200" ] || die "a signed-out visitor fetched a photo"
+shared=""
+for link in $(curl -fsS -b "$J3" "$URL/spaces/$spid/entries" | sed -n 's/.*href="\(\/spaces\/[^"]*\/entry\/[^"]*\)".*/\1/p'); do
+  shared=$(curl -fsS -b "$J3" "$URL$link" | sed -n 's/.*<img src="\(\/spaces\/[^"]*\/photo\/[^"]*\)".*/\1/p' | head -1)
+  [ -n "$shared" ] && break
+done
+[ -n "$shared" ] || die "a member sees no photo on the owner's shared entries"
+[ "$(curl -s -o /dev/null -w '%{http_code}' -b "$J3" "$URL$shared")" = "200" ] || die "a member could not open a shared photo"
+ok "photos: stored encrypted, served to the owner, shown to a member through the space, refused to others"
+
 # 4h. The shared calendar: a member sees the grid and the owner's day, an outsider does not.
 cal=$(curl -fsS -b "$J3" "$URL/spaces/$spid/calendar")
 echo "$cal" | grep -q 'class="cal"' || die "the calendar has no grid"

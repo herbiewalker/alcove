@@ -295,3 +295,14 @@ mark { background: var(--warn-bg); color: var(--warn); padding: 0 2px; border-ra
 .hits li { padding: 10px 0; border-bottom: 1px solid var(--line); }
 .snippet { margin: 4px 0 0; overflow-wrap: anywhere; }
 mark { background: var(--warn-bg); color: var(--warn); padding: 0 2px; border-radius: 3px; }
+
+/* Photos (D-39) */
+.photos { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+figure.photo { margin: 0; position: relative; }
+figure.photo img { display: block; width: 100%; height: auto; border-radius: 10px; transition: filter .2s; }
+figure.photo.blurred img { filter: blur(22px) saturate(.8); }
+figure.photo.blurred a { display: block; overflow: hidden; border-radius: 10px; }
+figure.photo.blurred::after { content: "Tap to show"; position: absolute; left: 0; right: 0; top: 40%; text-align: center;
+  font-weight: 600; color: #fff; text-shadow: 0 1px 4px rgba(0, 0, 0, .8); pointer-events: none; }
+figure.photo figcaption { margin-top: 4px; overflow-wrap: anywhere; }
+@media (prefers-reduced-motion: reduce) { figure.photo img { transition: none; } }

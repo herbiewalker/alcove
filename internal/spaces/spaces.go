@@ -70,11 +70,13 @@ type Member struct {
 	ConsentVersion                             int
 	IncludeNotes, IncludePhotos                bool
 	ShowPartnerNames, Paused                   bool
+	ShowPhotoLocation                          bool
 }
 
 // Settings are a member's sharing choices for one space (D-21).
 type Settings struct {
 	IncludeNotes, IncludePhotos, ShowPartnerNames, Paused bool
+	ShowPhotoLocation                                     bool // D-39: off by default
 }
 
 // NewID makes an opaque id with a prefix, safe to put in the admin log.
@@ -294,7 +296,7 @@ func AllSpaces(tx *sql.Tx) ([]Overview, error) {
 // Members lists a space's memberships in the given states (all states if none are given).
 func Members(tx *sql.Tx, spaceID string, states ...string) ([]Member, error) {
 	q := `SELECT m.user_id, u.username, u.display_name, m.role, m.state, m.joined_at, m.created_at, m.consent_version,
-			m.include_notes, m.include_photos, m.show_partner_names, m.paused
+			m.include_notes, m.include_photos, m.show_partner_names, m.paused, m.show_photo_location
 		FROM membership m JOIN user u ON u.id = m.user_id WHERE m.space_id = ?`
 	args := []any{spaceID}
 	if len(states) > 0 {
@@ -314,12 +316,12 @@ func Members(tx *sql.Tx, spaceID string, states ...string) ([]Member, error) {
 		var m Member
 		var joined sql.NullInt64
 		var created int64
-		var a, b, c, d int
-		if err := rows.Scan(&m.UserID, &m.Username, &m.DisplayName, &m.Role, &m.State, &joined, &created, &m.ConsentVersion, &a, &b, &c, &d); err != nil {
+		var a, b, c, d, e int
+		if err := rows.Scan(&m.UserID, &m.Username, &m.DisplayName, &m.Role, &m.State, &joined, &created, &m.ConsentVersion, &a, &b, &c, &d, &e); err != nil {
 			return nil, err
 		}
 		m.JoinedAt, m.RequestedAt = fromTS(joined), time.Unix(created, 0).UTC()
-		m.IncludeNotes, m.IncludePhotos, m.ShowPartnerNames, m.Paused = a != 0, b != 0, c != 0, d != 0
+		m.IncludeNotes, m.IncludePhotos, m.ShowPartnerNames, m.Paused, m.ShowPhotoLocation = a != 0, b != 0, c != 0, d != 0, e != 0
 		out = append(out, m)
 	}
 	return out, rows.Err()
@@ -352,8 +354,8 @@ func SetSettings(tx *sql.Tx, spaceID, userID string, s Settings) error {
 		}
 		return 0
 	}
-	return mustChange(tx.Exec(`UPDATE membership SET include_notes = ?, include_photos = ?, show_partner_names = ?, paused = ?
-		WHERE space_id = ? AND user_id = ? AND state = 'active'`, b(s.IncludeNotes), b(s.IncludePhotos), b(s.ShowPartnerNames), b(s.Paused), spaceID, userID))
+	return mustChange(tx.Exec(`UPDATE membership SET include_notes = ?, include_photos = ?, show_partner_names = ?, paused = ?, show_photo_location = ?
+		WHERE space_id = ? AND user_id = ? AND state = 'active'`, b(s.IncludeNotes), b(s.IncludePhotos), b(s.ShowPartnerNames), b(s.Paused), b(s.ShowPhotoLocation), spaceID, userID))
 }
 
 // Leave ends a member's membership. The only owner cannot leave (ErrLastOwner).

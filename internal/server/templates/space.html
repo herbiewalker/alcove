@@ -113,6 +113,7 @@
   <p class="muted">Your choices for this space. They apply at once. To keep a single entry out, make it private under <a href="/entries">My entries</a>.</p>
   <label class="check"><input type="checkbox" name="notes" value="1" {{if .Mine.IncludeNotes}}checked{{end}}><span>Include my notes</span></label>
   <label class="check"><input type="checkbox" name="photos" value="1" {{if .Mine.IncludePhotos}}checked{{end}}><span>Include my photos</span></label>
+  <label class="check"><input type="checkbox" name="photoplace" value="1" {{if .Mine.ShowPhotoLocation}}checked{{end}}><span>Show where my photos were taken (only when a photo has a place; off unless you tick it)</span></label>
   <label class="check"><input type="checkbox" name="partners" value="1" {{if .Mine.ShowPartnerNames}}checked{{end}}><span>Show the names of people who are not members</span></label>
   <label class="check"><input type="checkbox" name="paused" value="1" {{if .Mine.Paused}}checked{{end}}><span>Pause: show nothing of mine for now</span></label>
   <div class="actions"><button class="btn secondary" type="submit">Save</button></div>

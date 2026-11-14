@@ -268,6 +268,22 @@ func (s *Store) Delete(owner, id string) error {
 	return nil
 }
 
+// DeleteMedia removes every photo of an owner and leaves their uploads alone. Photos are derived
+// from the current upload, so retention and a rebuild clear them before refilling. Idempotent.
+func (s *Store) DeleteMedia(owner string) error {
+	if !valid(owner) {
+		return ErrBadName
+	}
+	dir := filepath.Join(s.root, "blobs", owner, kindMedia)
+	_ = filepath.WalkDir(dir, func(p string, d os.DirEntry, err error) error {
+		if err == nil && !d.IsDir() {
+			_ = os.Chmod(p, 0o600)
+		}
+		return nil
+	})
+	return os.RemoveAll(dir)
+}
+
 // DeleteOwner removes every blob an owner has (a purge). It is idempotent.
 func (s *Store) DeleteOwner(owner string) error {
 	if !valid(owner) {

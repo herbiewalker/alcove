@@ -20,7 +20,7 @@ import (
 // changes in substance, so everyone is asked again before anything of theirs is shown.
 var consentText = []string{
 	"Everyone who is a member of this space can see your entries: dates, times, durations, ratings, moods and the other details you log, including solo entries and entries with people who are not members. Those people's names stay hidden unless you choose to show them.",
-	"Your notes and photos are included unless you turn them off for this space. You can mark any single entry private, pause sharing, or leave at any time. Leaving removes what you contributed from the space, but anything other members have already seen cannot be unseen.",
+	"Your notes and photos are included unless you turn them off for this space; where a photo was taken stays hidden unless you choose to show it. You can mark any single entry private, pause sharing, or leave at any time. Leaving removes what you contributed from the space, but anything other members have already seen cannot be unseen.",
 	"The space owner decides who joins. The server administrator can see everything on this server, and every time they look is written to a log you can ask to see.",
 	"Each member's entries appear in the space's shared views as soon as they have uploaded a backup. If this wording ever changes, you are asked to agree again, and until you do nobody sees your entries and you see nobody else's.",
 }
@@ -171,7 +171,7 @@ func (s *Server) spacePage(q *rq, sp spaces.Space, role string) (*page, error) {
 				row.CanHandOver = v.IsOwner && m.Role != spaces.RoleOwner
 				v.Members = append(v.Members, row)
 				if m.UserID == q.id.user.ID {
-					v.Mine = spaces.Settings{IncludeNotes: m.IncludeNotes, IncludePhotos: m.IncludePhotos, ShowPartnerNames: m.ShowPartnerNames, Paused: m.Paused}
+					v.Mine = spaces.Settings{IncludeNotes: m.IncludeNotes, IncludePhotos: m.IncludePhotos, ShowPartnerNames: m.ShowPartnerNames, Paused: m.Paused, ShowPhotoLocation: m.ShowPhotoLocation}
 					v.NeedAgree = m.ConsentVersion < spaces.ConsentVersion
 				}
 			}
@@ -285,7 +285,7 @@ func (s *Server) postSpaceAction(q *rq) {
 			e = spaces.Rename(tx, id, f.Get("name"))
 		case "settings":
 			e = spaces.SetSettings(tx, id, uid, spaces.Settings{IncludeNotes: f.Get("notes") == "1", IncludePhotos: f.Get("photos") == "1",
-				ShowPartnerNames: f.Get("partners") == "1", Paused: f.Get("paused") == "1"})
+				ShowPartnerNames: f.Get("partners") == "1", Paused: f.Get("paused") == "1", ShowPhotoLocation: f.Get("photoplace") == "1"})
 		case "leave":
 			e = spaces.Leave(tx, now, id, uid)
 			kind = "left"

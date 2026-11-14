@@ -24,6 +24,25 @@
 </section>
 {{end}}
 
+{{if or .Photos .PhotosHidden}}
+<section class="card">
+  <h2>Photos</h2>
+  {{if .Photos}}
+  <div class="photos">
+    {{range .Photos}}
+    <figure class="photo{{if .Viewable}} blurred{{end}}">
+      {{if .Viewable}}<a class="photolink" href="{{if $.SpaceID}}/spaces/{{$.SpaceID}}/photo/{{$.Detail.OwnerID | urlquery}}/{{.ID | urlquery}}{{else}}/photos/{{.ID | urlquery}}{{end}}"><img src="{{if $.SpaceID}}/spaces/{{$.SpaceID}}/photo/{{$.Detail.OwnerID | urlquery}}/{{.ID | urlquery}}{{else}}/photos/{{.ID | urlquery}}{{end}}" alt="A photo from this entry" loading="lazy"></a>
+      {{else}}<p class="muted small">A photo in a format that cannot be shown here.{{if not $.SpaceID}} <a href="/photos/{{.ID | urlquery}}">Download it</a>{{end}}</p>{{end}}
+      {{if or .Caption .Place}}<figcaption>{{if .Caption}}{{.Caption}}{{end}}{{if .Place}}<span class="muted small"> Taken at {{.Place}}</span>{{end}}</figcaption>{{end}}
+    </figure>
+    {{end}}
+  </div>
+  <p class="muted small">Photos are blurred until you tap them.</p>
+  {{end}}
+  {{if .PhotosHidden}}<p class="muted">{{.PhotosHidden}} {{if eq .PhotosHidden 1}}photo is{{else}}photos are{{end}} kept out of this space.</p>{{end}}
+</section>
+{{end}}
+
 {{if .Note}}
 <section class="card">
   <h2>Note</h2>
@@ -32,7 +51,6 @@
 {{else if .NoteHidden}}
 <p class="muted">{{.OwnerName}} keeps notes out of this space.</p>
 {{end}}
-<p class="muted small">Photos are not shown here yet.</p>
 {{end}}
 <p><a class="btn secondary" href="{{.DetailBack}}">Back to {{.DetailBackLabel}}</a>{{if .Detail.Mine}} <a class="btn secondary" href="/entries">Private or shared</a>{{end}}</p>
 {{end}}

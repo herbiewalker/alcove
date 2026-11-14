@@ -327,7 +327,7 @@ func (s *Service) purgeOwner(ctx context.Context, owner string) error {
 		for _, q := range []string{
 			`DELETE FROM cache_row WHERE owner_id = ?`, `DELETE FROM cache_head WHERE owner_id = ?`,
 			`DELETE FROM search WHERE owner_id = ?`, `DELETE FROM backup_password WHERE owner_id = ?`,
-			`DELETE FROM entry_flag WHERE owner_id = ?`, `DELETE FROM profile WHERE owner_id = ?`, `DELETE FROM user_tz WHERE user_id = ?`,
+			`DELETE FROM entry_flag WHERE owner_id = ?`, `DELETE FROM media_blob WHERE owner_id = ?`, `DELETE FROM profile WHERE owner_id = ?`, `DELETE FROM user_tz WHERE user_id = ?`,
 			`DELETE FROM revision WHERE owner_id = ?`, `DELETE FROM upload WHERE owner_id = ?`,
 			`DELETE FROM user WHERE id = ?`,
 		} {

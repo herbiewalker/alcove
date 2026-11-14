@@ -162,6 +162,14 @@
     }, 300);
   }
 
+  // Photos are blurred until tapped. A tap shows the picture; a second tap opens it full size. Without the script the
+  // link opens the picture itself.
+  document.addEventListener("click", function (e) {
+    var t = e.target;
+    var fig = t && t.closest ? t.closest("figure.photo.blurred") : null;
+    if (fig) { e.preventDefault(); fig.classList.remove("blurred"); }
+  });
+
   // A page restored from the back/forward cache must not still say "Working...".
   window.addEventListener("pageshow", function (ev) { if (ev.persisted) { hideBusy(); } });
 

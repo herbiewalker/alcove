@@ -107,10 +107,15 @@ func (e *env) count(q string, args ...any) int {
 	return n
 }
 
-func (e *env) blobCount() int {
+// blobCount counts stored uploads only (not the photos copied out of them); anyBlobCount counts every file.
+func (e *env) blobCount() int { return e.countBlobs(true) }
+
+func (e *env) anyBlobCount() int { return e.countBlobs(false) }
+
+func (e *env) countBlobs(uploadsOnly bool) int {
 	n := 0
 	_ = filepath.WalkDir(filepath.Join(e.st.DataDir(), "blobs"), func(p string, d fs.DirEntry, err error) error {
-		if err == nil && !d.IsDir() {
+		if err == nil && !d.IsDir() && (!uploadsOnly || filepath.Base(filepath.Dir(p)) == "u") {
 			n++
 		}
 		return nil
@@ -123,7 +128,7 @@ func (e *env) nothingStored() {
 	if n := e.count("SELECT COUNT(*) FROM upload"); n != 0 {
 		e.t.Errorf("uploads recorded: %d", n)
 	}
-	if n := e.blobCount(); n != 0 {
+	if n := e.anyBlobCount(); n != 0 {
 		e.t.Errorf("blobs left behind: %d", n)
 	}
 	if n := e.count("SELECT COUNT(*) FROM backup_password"); n != 0 {

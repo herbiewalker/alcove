@@ -83,6 +83,17 @@ func (r *rig) blobFiles() []string {
 	return out
 }
 
+// uploadFiles lists only the stored uploads, not the photos copied out of them.
+func (r *rig) uploadFiles() []string {
+	var out []string
+	for _, f := range r.blobFiles() {
+		if filepath.Base(filepath.Dir(f)) == "u" {
+			out = append(out, f)
+		}
+	}
+	return out
+}
+
 // nothingRecorded asserts a refused upload left no trace (N7): no rows, no blob, no password.
 func (r *rig) nothingRecorded() {
 	r.t.Helper()
@@ -113,9 +124,9 @@ func TestUploadRecordsARevisionAndTheCache(t *testing.T) {
 		t.Fatalf("info: %+v", info)
 	}
 	// The stored upload is the file, byte for byte (D-7).
-	files := r.blobFiles()
+	files := r.uploadFiles()
 	if len(files) != 1 {
-		t.Fatalf("blobs: %v", files)
+		t.Fatalf("uploads: %v", files)
 	}
 	if got, _ := os.ReadFile(files[0]); !bytes.Equal(got, res.File) {
 		t.Fatal("the upload was not stored verbatim")
@@ -432,7 +443,7 @@ func TestRebuildRestoresADamagedCache(t *testing.T) {
 		t.Fatalf("RebuildAll: %d %v", done, failed)
 	}
 	// A rebuild detects a tampered stored upload (its SHA-256 no longer matches).
-	files := r.blobFiles()
+	files := r.uploadFiles()
 	_ = os.Chmod(files[0], 0o600)
 	raw, _ := os.ReadFile(files[0])
 	raw[len(raw)/2] ^= 1

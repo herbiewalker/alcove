@@ -210,7 +210,7 @@ func (s *Server) receive(q *rq, file io.Reader, filename, password string, remem
 		}
 		return
 	}
-	s.log.Info("upload accepted", "owner", uid, "bytes", info.Size, "rows", info.Rows, "entries", info.Encounters, "media", info.Media, "schema", info.TrystSchema)
+	s.log.Info("upload accepted", "owner", uid, "bytes", info.Size, "rows", info.Rows, "entries", info.Encounters, "media", info.Media, "photos_stored", info.Photos.Stored, "photos_skipped", info.Photos.Skipped, "schema", info.TrystSchema)
 	q.setFlash("uploaded")
 	if q.r.Header.Get("X-Requested-With") == "alcove" {
 		q.w.Header().Set("Content-Type", "application/json")
