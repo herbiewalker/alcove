@@ -92,7 +92,7 @@ guard_no_outbound() {
     | grep -v '_test\.go$' \
     | grep -v '^internal/notify/' \
     | grep -v '^cmd/alcove/main\.go$' \
-    | xargs grep -nE 'http\.(Get|Post|Head|PostForm|DefaultClient|NewRequest)|http\.Client\{|net\.Dial|tls\.Dial' 2>/dev/null)
+    | xargs grep -nE 'http\.(Get|Post|Head|PostForm|NewRequest|NewRequestWithContext)\(|http\.DefaultClient|http\.Client\{|net\.Dial|tls\.Dial' 2>/dev/null)
   if [ -n "$hits" ]; then
     fail "no-outbound: network client code outside the allowlist"
     printf '        %s\n' "$hits"
