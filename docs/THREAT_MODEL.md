@@ -84,7 +84,7 @@
 
 - **R5 revised (S1, observed).** Wipe-first restore replaces everything exactly and loses any phone entry newer than the backup. Merge restore deletes every partner link not in the backup (it also leaves server-side deletions on the phone), so Alcove never recommends it. Both are data-loss risks, not disclosure ones. Mitigated by the "fresh phone backup first" confirmation, the diff, the guided wipe procedure and keeping every original upload.
 - **R7 revised.** With the unattended default the master key is on the host. A key file on the same disk as the data
-  protects nothing against a pulled disk; the runbook puts it on separate media (for example the Unraid flash drive).
+  protects nothing against a pulled disk; the runbook puts it in its own folder owned by the container user, with copies on separate media (the Unraid flash drive and one off the machine). The container cannot read the root-only flash drive, so the running copy shares the array with the data: an attacker with the whole array gets both, which is why the data key and disk-level protection of the host still matter.
 - **R12 — Search terms in the admin log.** Recording what the admin searched for would put content in the log
   (O-12). The default records scope, result count and term length only. The trade-off is less accountability.
 - **R13 — Everyone in a space sees everything, by design (D-21).** A new member sees all existing entries at once, so the owner approves each join (a stricter all-members mode comes later) and the join screen says what will be shared. A member who regrets it can pause or leave, but what was seen cannot be unseen. Third parties named in entries are protected only by partner names being hidden by default.
@@ -113,7 +113,7 @@ from the admin, D-3 must be revisited (per-owner keys, browser-side decryption),
   purge), so a container restart signs everyone out. Accepted: a phone user signs in again.
 - **R19 — A backup folder holds all the data, in ciphertext (D-28).** Anyone who copies it and also gets the key file reads
   everything, so the key file and the backup folder must not live together (the compose file mounts them apart, and the key
-  lives on the Unraid flash drive, not the array). A backup is useless without the key, which is also why the key's second copy
+  lives in its own folder, with a copy on the Unraid flash drive). A backup is useless without the key, which is also why the key's second copy
   is proved with `drill` before the first real upload. Backups older than a purge still contain the purged user's wrapped data key
   (R15) until retention removes them.
 - **R20 — Backup passwords are stored, and a hostile upload is read in memory (D-29).** A remembered Tryst backup password is sealed under

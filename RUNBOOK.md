@@ -6,11 +6,16 @@
 
 ## 1. First start
 
-1. Make the key once, on a folder that is **not** the data folder (on Unraid, the flash drive):
+1. Make the key once, in a folder that is **not** the data folder. The container runs as user 65532 and cannot read the root-only
+   Unraid flash drive, so on Unraid use its own folder and put a copy on the flash drive:
    ```
-   docker run --rm -v /boot/config/alcove:/keys <image> keygen -out /keys/alcove.key
+   mkdir -p /mnt/user/appdata/alcove-key /boot/config/alcove
+   chown 65532:65532 /mnt/user/appdata/alcove-key
+   docker run --rm -v /mnt/user/appdata/alcove-key:/keys <image> keygen -out /keys/alcove.key
+   cp /mnt/user/appdata/alcove-key/alcove.key /boot/config/alcove/alcove.key
    ```
-   It refuses to overwrite a key. The server never makes a key itself.
+   It refuses to overwrite a key. The server never makes a key itself. The flash copy is your first backup of it; the second must be
+   somewhere that is not this machine.
 2. **Save a second copy of the key somewhere that is not this machine** (a password manager is ideal), then prove the copy
    (section 3). Do this before the first real upload: if every copy of the key is lost, the data cannot be recovered.
 3. Set `ALCOVE_DATA_PATH`, `ALCOVE_KEY_PATH` and `ALCOVE_BACKUP_PATH` in `.env`, then `docker compose up -d`.
@@ -163,16 +168,16 @@ Admin console → **People**.
 Do these in order. Nothing here needs the internet except pulling the image once.
 
 **A. Before you start.** A release is published and its image package on GHCR is public, so the Docker tab can pull
-`ghcr.io/herbiewalker/alcove:stable` and check for updates. You have one spare folder on the flash drive for the key and a share for
+`ghcr.io/herbiewalker/alcove:stable` and check for updates. You have a folder for the key (and a copy of it on the flash drive) and a share for
 instance backups on a **different disk** from the data.
 
 **B. Set it up.**
 1. Make the folders and give them to the container's user (the image runs as 65532, not root):
    ```
-   mkdir -p /mnt/user/appdata/alcove/data /mnt/user/backups/alcove /boot/config/alcove
+   mkdir -p /mnt/user/appdata/alcove/data /mnt/user/backups/alcove
    chown -R 65532:65532 /mnt/user/appdata/alcove/data /mnt/user/backups/alcove
    ```
-2. Make the key (section 1 step 1), then **save a second copy somewhere that is not this machine**.
+2. Make the key (section 1 step 1, which also puts a copy on the flash drive), then **save another copy somewhere that is not this machine**.
 3. Install the template: copy `deploy/unraid-template.xml` to `/boot/config/plugins/dockerMan/templates-user/alcove.xml`, then in the
    Docker tab choose Add Container and pick `alcove` from the template list. Check the three paths and the port, then Apply.
 4. Read the log for the setup code: `docker logs alcove 2>&1 | grep setup_code`. Open `http://<server>:8260/` from a computer on the

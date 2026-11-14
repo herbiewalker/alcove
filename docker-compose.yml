@@ -39,8 +39,9 @@ services:
     # photos and the sealed database. Nothing readable ever lands here.
     #
     # The master key is ONE FILE, mounted read-only from a host path that is NOT inside the
-    # data volume (ADR D-4): the server refuses to start otherwise. On Unraid the flash drive
-    # (/boot/config/alcove/alcove.key) is a good home: it is separate from the array. Create it
+    # data volume (ADR D-4): the server refuses to start otherwise. On Unraid use its own
+    # folder (/mnt/user/appdata/alcove-key, owned by uid 65532: the container cannot read the root-only
+    # flash drive) and keep a copy on the flash drive. Create it
     # once with `docker run --rm <image> keygen -out /keys/alcove.key` (mounting a host folder at
     # /keys), keep a second copy elsewhere and prove it with `alcove keycheck`.
     volumes:
