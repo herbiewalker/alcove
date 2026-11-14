@@ -3,6 +3,7 @@
 <section class="card">
   <p><b>{{.User.DisplayName}}</b> <span class="muted">@{{.User.Username}} · {{.User.Role}}</span></p>
   <p class="muted small">Last sign-in: {{.LastLogin}}</p>
+  <p><a class="btn secondary" href="/profile">Your profile</a></p>
 </section>
 <form class="card" method="post" action="/account" autocomplete="off">
   <h2>Change password</h2>

@@ -1,0 +1,24 @@
+{{define "content"}}
+<h1>Your profile</h1>
+<p class="muted">What the members of your spaces can see about you, and only what you tick. Everything starts private. Your birth date is shown to others as an age only. This does not change anything in Tryst.</p>
+<p><a class="btn secondary" href="/profile/prefill">Fill from my latest backup</a></p>
+<form class="card" method="post" action="/profile" autocomplete="off">
+  <input type="hidden" name="csrf" value="{{.CSRF}}">
+  <div class="field">
+    <label for="name">Name shown to others</label>
+    <input id="name" name="name" type="text" maxlength="80" value="{{.ProfileName}}" required>
+    <p class="hint">Always shown to the members of your spaces.</p>
+  </div>
+  {{range .ProfileFields}}
+  <div class="field">
+    <label for="v_{{.Key}}">{{.Label}}</label>
+    {{if .Long}}<textarea id="v_{{.Key}}" name="v_{{.Key}}" rows="3" maxlength="300">{{.Value}}</textarea>
+    {{else if .Birth}}<input id="v_{{.Key}}" name="v_{{.Key}}" type="text" inputmode="numeric" placeholder="1990-04-23" maxlength="10" value="{{.Value}}">
+    {{else}}<input id="v_{{.Key}}" name="v_{{.Key}}" type="text" maxlength="120" value="{{.Value}}">{{end}}
+    <label class="check"><input type="checkbox" name="s_{{.Key}}" value="1" {{if .Shared}}checked{{end}}><span>Share this{{if .Birth}} (shown as an age){{end}}</span></label>
+  </div>
+  {{end}}
+  <div class="actions"><button class="btn" type="submit">Save</button></div>
+</form>
+<p><a class="btn secondary" href="/account">Back to Account</a></p>
+{{end}}

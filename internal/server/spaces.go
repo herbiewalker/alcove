@@ -9,6 +9,7 @@ import (
 
 	"github.com/herbiewalker/alcove/internal/adminlog"
 	"github.com/herbiewalker/alcove/internal/auth"
+	"github.com/herbiewalker/alcove/internal/share"
 	"github.com/herbiewalker/alcove/internal/spaces"
 )
 
@@ -50,6 +51,7 @@ type spaceView struct {
 	CodeSince      string
 	Mine           spaces.Settings
 	NeedAgree      bool
+	Cards          []share.Card
 }
 
 func (q *rq) joinBase() string {
@@ -173,6 +175,13 @@ func (s *Server) spacePage(q *rq, sp spaces.Space, role string) (*page, error) {
 					v.NeedAgree = m.ConsentVersion < spaces.ConsentVersion
 				}
 			}
+		}
+		if !v.NeedAgree {
+			cs, err := share.Cards(tx, sp.ID, q.id.user.ID, spaces.ConsentVersion, s.now())
+			if err != nil {
+				return err
+			}
+			v.Cards = cs
 		}
 		if v.IsOwner {
 			invs, err := spaces.Invites(tx, sp.ID)

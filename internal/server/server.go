@@ -156,7 +156,7 @@ func (s *Server) netOptions() netsec.Options {
 }
 
 func (s *Server) parseTemplates() error {
-	pages := []string{"message", "setup", "login", "unlock", "home", "account", "stepup", "admin", "adminlog", "settings", "backup", "uploads", "users", "usercreated", "forcepw", "mydeleted", "admindeleted", "spaces", "space", "join", "joinconsent", "codeshown", "adminspaces", "spaceentries", "myentries"}
+	pages := []string{"message", "setup", "login", "unlock", "home", "account", "stepup", "admin", "adminlog", "settings", "backup", "uploads", "users", "usercreated", "forcepw", "mydeleted", "admindeleted", "spaces", "space", "join", "joinconsent", "codeshown", "adminspaces", "spaceentries", "myentries", "profile", "prefill"}
 	for _, p := range pages {
 		t, err := template.ParseFS(assets, "templates/base.html", "templates/"+p+".html")
 		if err != nil {
@@ -482,6 +482,10 @@ type page struct {
 	Shared             []entryRow
 	EntryTotal, PageNo int
 	SpaceID, SpaceName string
+	// profiles (D-33)
+	ProfileName   string
+	ProfileFields []profileField
+	Offers        []offerRow
 }
 
 type logRow struct {
@@ -491,7 +495,7 @@ type logRow struct {
 }
 
 var knownPaths = map[string]bool{"/": true, "/login": true, "/setup": true, "/unlock": true, "/account": true,
-	"/admin": true, "/admin/log": true, "/admin/settings": true, "/admin/backup": true, "/uploads": true, "/admin/users": true, "/admin/deleted": true, "/uploads/deleted": true, "/account/password": true, "/spaces": true, "/join": true, "/admin/spaces": true}
+	"/admin": true, "/admin/log": true, "/admin/settings": true, "/admin/backup": true, "/uploads": true, "/admin/users": true, "/admin/deleted": true, "/uploads/deleted": true, "/account/password": true, "/spaces": true, "/join": true, "/admin/spaces": true, "/profile": true}
 
 // render writes a page with a status code. It builds the whole page first so a template error
 // never leaves half a page on the wire.
@@ -556,6 +560,8 @@ var flashes = map[string]string{
 	"restored":        "Restored.",
 	"deleted":         "Moved to Recently deleted. You can restore it from there.",
 	"deleted-empty":   "Moved to Recently deleted. You have no current data now; upload a backup to start again.",
+	"profile":         "Profile saved.",
+	"profile-filled":  "Imported what you ticked. Nothing is shared until you tick Share on a field.",
 	"deleted-nocache": "Moved to Recently deleted. Your current data could not be rebuilt because no backup password is remembered, so it is empty until you upload again.",
 }
 
@@ -672,6 +678,10 @@ func (s *Server) routes_() {
 	s.handle("POST /account/password", user, s.postPassword)
 	s.handle("GET /spaces", user, s.getSpaces)
 	s.handle("POST /spaces", user, s.postSpaceCreate)
+	s.handle("GET /profile", user, s.getProfile)
+	s.handle("POST /profile", user, s.postProfile)
+	s.handle("GET /profile/prefill", user, s.getPrefill)
+	s.handle("POST /profile/prefill", user, s.postPrefill)
 	s.handle("GET /entries", user, s.getMyEntries)
 	s.handle("POST /entries/private", user, s.postEntryPrivate)
 	s.handle("GET /spaces/{id}", user, s.getSpace)

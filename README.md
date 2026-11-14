@@ -11,7 +11,7 @@
 ![LAN only](https://img.shields.io/badge/network-LAN_only-2ea44f)
 ![Nothing leaks outside a space](https://img.shields.io/badge/spaces-isolated-2ea44f)
 
-**Status: early build (M3).** The server runs, starts unattended with its key kept apart from the data, and has accounts, an admin console with a tamper-evident log, uploads of Tryst backups kept as revisions, encrypted instance backups with a tested restore, soft delete with a real purge, and private spaces joined by invite, with a shared list of members' entries (private entries and pause honoured). Profiles, the calendar overlay, compare views, editing and export come next. The
+**Status: early build (M3).** The server runs, starts unattended with its key kept apart from the data, and has accounts, an admin console with a tamper-evident log, uploads of Tryst backups kept as revisions, encrypted instance backups with a tested restore, soft delete with a real purge, and private spaces joined by invite, with a shared list of members' entries (private entries and pause honoured). Profiles with per-field sharing show as member cards. The calendar overlay, compare views, editing and export come next. The
 design documents live in `docs/`.
 
 </div>

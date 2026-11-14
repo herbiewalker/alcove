@@ -221,3 +221,28 @@ func CountActiveAdmins(tx *sql.Tx) (int, error) {
 func ChangePassword(tx *sql.Tx, id, pwHash string) error {
 	return SetPasswordForced(tx, id, pwHash, false)
 }
+
+// ErrBadDisplayName means a display name is empty, too long or holds control characters.
+var ErrBadDisplayName = errors.New("auth: a name shown to others is 1 to 80 characters with no control characters")
+
+// SetDisplayName changes the name other people see for an account. A person changes only their own;
+// the caller decides who may call it.
+func SetDisplayName(tx *sql.Tx, id, name string) error {
+	name = strings.TrimSpace(name)
+	if name == "" || len(name) > 80 {
+		return ErrBadDisplayName
+	}
+	for _, r := range name {
+		if r < 0x20 || r == 0x7f {
+			return ErrBadDisplayName
+		}
+	}
+	res, err := tx.Exec(`UPDATE user SET display_name = ? WHERE id = ?`, name, id)
+	if err != nil {
+		return err
+	}
+	if n, _ := res.RowsAffected(); n == 0 {
+		return ErrNoUser
+	}
+	return nil
+}

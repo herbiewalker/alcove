@@ -16,6 +16,7 @@ import (
 	"errors"
 	"time"
 
+	"github.com/herbiewalker/alcove/internal/profile"
 	"github.com/herbiewalker/alcove/internal/spaces"
 )
 
@@ -200,4 +201,81 @@ func parse(data string) (Entry, bool) {
 		e.Note = *r.Note
 	}
 	return e, true
+}
+
+// Card is one member as the space shows them: the name always, the shared profile fields only
+// while the member passes the same conditions as their entries (D-33).
+type Card struct {
+	UserID, Name, Username, Role string
+	Fields                       []CardField
+	Hidden                       bool // paused or on older wording: nothing but the name is shown
+	Mine                         bool
+}
+
+// CardField is a label and the text to show.
+type CardField struct{ Label, Value string }
+
+// Cards returns a card for every active member of the space the viewer belongs to, in the order
+// owner first, then by name. Profile fields appear only for members who are not paused, have
+// agreed to the current wording, and have shared that field; a birth date is shown as an age.
+func Cards(tx *sql.Tx, spaceID, viewerID string, consent int, now time.Time) ([]Card, error) {
+	if _, ok := spaces.Role(tx, spaceID, viewerID); !ok {
+		return nil, ErrNotMember
+	}
+	var mine int
+	if err := tx.QueryRow(`SELECT consent_version FROM membership WHERE space_id = ? AND user_id = ?`, spaceID, viewerID).Scan(&mine); err != nil {
+		return nil, err
+	}
+	if mine < consent {
+		return nil, ErrNeedConsent
+	}
+	rows, err := tx.Query(`SELECT m.user_id, u.display_name, u.username, m.role, (m.paused = 0 AND m.consent_version >= ?)
+		FROM membership m JOIN space s ON s.id = m.space_id JOIN user u ON u.id = m.user_id
+		WHERE m.space_id = ? AND m.state = 'active' AND s.deleted_at IS NULL AND u.status = 'active' AND u.deleted_at IS NULL
+		ORDER BY (m.role = 'owner') DESC, u.display_name COLLATE NOCASE, m.user_id`, consent, spaceID)
+	if err != nil {
+		return nil, err
+	}
+	var cards []Card
+	for rows.Next() {
+		var c Card
+		var ok int
+		if err := rows.Scan(&c.UserID, &c.Name, &c.Username, &c.Role, &ok); err != nil {
+			rows.Close()
+			return nil, err
+		}
+		c.Hidden, c.Mine = ok == 0, c.UserID == viewerID
+		cards = append(cards, c)
+	}
+	rows.Close()
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	for i := range cards {
+		if cards[i].Hidden {
+			continue
+		}
+		pr, err := tx.Query(`SELECT field, value FROM profile WHERE owner_id = ? AND shared = 1`, cards[i].UserID)
+		if err != nil {
+			return nil, err
+		}
+		got := map[string]string{}
+		for pr.Next() {
+			var k, v string
+			if err := pr.Scan(&k, &v); err != nil {
+				pr.Close()
+				return nil, err
+			}
+			got[k] = v
+		}
+		pr.Close()
+		for _, f := range profile.Fields {
+			if v, ok := got[f.Key]; ok && v != "" {
+				if shown := profile.Display(f.Key, v, now); shown != "" {
+					cards[i].Fields = append(cards[i].Fields, CardField{f.Label, shown})
+				}
+			}
+		}
+	}
+	return cards, nil
 }

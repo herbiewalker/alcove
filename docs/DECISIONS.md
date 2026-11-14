@@ -606,3 +606,28 @@ is a recurring check, not a one-off.
   to keep in step); ignoring consent versions until the wording first changes (a rule that would never have been tested).
 - **Consequences:** M4 pieces C and D read only through `share`. A test removes the gate's conditions one at a time to prove
   each is load-bearing.
+
+## D-33 — Profiles: a derived, editable card with per-field sharing (implements F26, F28; M4 piece B)
+- **Status:** Accepted
+- **Context:** D-14 says a member may prefill a profile from the `profile` row of their backup, that every field except the name
+  defaults to private, and that a space shows member cards built only from what each has chosen to share.
+- **Decision:**
+  1. **A profile is rows of `profile(owner, field, value, shared)`,** one per field from a fixed list in code: about, sex, gender,
+     birth date, ethnicity, height, body type, orientation, location. A field with no row is empty. `shared` defaults to 0 (private).
+  2. **The name is the account's display name** (the "name shown to others"). A person can change their own on the profile page and
+     prefill can offer the backup's name, so there is one name everywhere.
+  3. **Prefill is a choice, never automatic.** "Fill from my latest backup" reads the `profile` row already in the owner's row cache
+     (no new decrypt), lists what it found, and imports only the fields the person ticks. The name is ticked by default; every other
+     field is not. Importing never turns sharing on.
+  4. **Birth date is shared as an age only** ("Age 34"). The date itself is stored for the owner, must be a real date, and must be an
+     adult's (18 to 120 years); a younger or future date is refused (constraint 11).
+  5. **Cards go through the same gate as entries.** `share.Cards` asks `spaces.Role`, requires the viewer's current consent, and shows a
+     member's shared fields only while that member is active, has agreed to the current wording and is not paused. A member who is
+     paused or on older wording still appears in the member list by name, with a card that says nothing is shown right now.
+  6. **No profile photo yet.** An avatar needs an image-resizing step and belongs with photo sharing (D-21 photo rules); until then a
+     card is text.
+  7. Values are plain text, at most 120 characters (300 for "about"), rendered escaped. A purged account's profile rows are purged.
+- **Alternatives:** import the whole profile automatically (leaks sensitive fields, D-14); share the exact birth date; a separate
+  display name for cards (two names for one person).
+- **Consequences:** the admin sees profile data like everything else, through admin views that are logged; no admin profile page is
+  added in this piece. Changing a profile does not change Tryst or the stored backup.

@@ -234,3 +234,8 @@ select {
 td form { margin: 4px 0; }
 .temp { text-align: center; margin: 16px 0; }
 .temp code { font-size: 1.35rem; letter-spacing: 0.05em; padding: 10px 14px; background: var(--bg); border: 1px solid var(--line); border-radius: 10px; display: inline-block; overflow-wrap: anywhere; }
+
+/* Member cards (D-33) */
+.facts { display: grid; grid-template-columns: max-content 1fr; gap: 4px 14px; margin: 6px 0 0; }
+.facts dt { color: var(--muted); }
+.facts dd { margin: 0; overflow-wrap: anywhere; }

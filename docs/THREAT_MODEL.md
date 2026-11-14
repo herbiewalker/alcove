@@ -126,6 +126,10 @@ from the admin, D-3 must be revisited (per-owner keys, browser-side decryption),
   a change at the next sign-in, and is refused while the server runs (a lock on the data folder), so it cannot corrupt a live store. A
   temporary password given to a new person is known to the administrator until the person changes it, which the forced change keeps
   short; it is shown once, never stored in the clear and never logged.
+- **R24 — Profile fields are sensitive and easy to over-share (D-33).** Sex, gender, orientation, ethnicity, location and a birth date are
+  among the most identifying things a person can show. Mitigations: everything is private until ticked per field, importing never ticks it,
+  the birth date is shown only as an age and must be an adult's, cards go through `share.Cards` (membership, pause, consent), values are
+  escaped on output, and a person writes only their own rows. A space member who has seen a card cannot unsee it (R23).
 - **R23 — One read gate for shared entries (D-32).** Every view of another person's entries is `share.Entries`; a new view that reads
   `cache_row` for someone else by another route would leak. Mitigations: the gate asks `spaces.Role` first, reads live membership on every
   request (nothing is copied, so leave, removal, pause, disable and delete are instant), requires the current consent wording of both the

@@ -126,6 +126,12 @@ file whose advisory lock keeps a second process out. A purge deletes, in order: 
 stored files, then for an account all of its rows, its folder under `blobs/` and its data key; a sweep removes files with no row (older
 than a day) and owners with no account, so a crash between the steps is finished by the next purge.
 
+## Implemented in M4 piece B (store schema v7)
+
+`profile` (owner, field, value, shared, time): one row per filled field from a fixed list (about, sex, gender, birth, ethnicity, height, body_type,
+orientation, location); no row means empty; `shared` is 0 unless the owner ticked it. The name shown to others is `user.display_name`. Cards are
+built by `share.Cards` and never read this table by another route.
+
 ## Implemented in M4 piece A (store schema v6)
 
 `entry_flag` (owner, entry id, private, time), keyed by owner and entry id so it survives new uploads. Shared views read the owner's head-revision

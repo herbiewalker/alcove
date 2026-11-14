@@ -203,6 +203,16 @@ m=$(rows "$J3")
 [ "$(post /entries /entries/private -d "id=$eid" -d private=0)" = "303" ] || die "could not share the entry again"
 ok "members see each other's entries; a private entry is hidden and can be shared again"
 
+# 4g. Profiles: a shared field shows on the card as typed (age for a birth date), a private one does not, a child is refused.
+[ "$(post /profile /profile --data-urlencode "name=Smoke Owner" --data-urlencode "v_height=smoke-height" -d s_height=1 --data-urlencode "v_sex=smoke-private" -d v_birth=1990-04-23 -d s_birth=1)" = "303" ] || die "could not save the profile"
+card=$(curl -fsS -b "$J3" "$URL/spaces/$spid")
+echo "$card" | grep -q "smoke-height" || die "a shared profile field is not on the member card"
+echo "$card" | grep -q "Age " || die "the birth date is not shown as an age"
+echo "$card" | grep -q "smoke-private" && die "a private profile field is on the member card"
+echo "$card" | grep -q "1990-04-23" && die "the exact birth date is on the member card"
+[ "$(post /profile /profile --data-urlencode "name=Smoke Owner" -d v_birth=2015-01-01)" = "400" ] || die "a child's birth date was accepted"
+ok "profile: shared fields reach the card, private ones and the birth date itself do not, a child is refused"
+
 [ "$(JAR="$J3" post "/spaces/$spid" "/spaces/$spid/leave")" = "303" ] || die "a member could not leave"
 [ "$(curl -s -o /dev/null -w '%{http_code}' -b "$J3" "$URL/spaces/$spid")" = "404" ] || die "a member who left can still open the space"
 [ "$(curl -s -o /dev/null -w '%{http_code}' -b "$J3" "$URL/spaces/$spid/entries")" = "404" ] || die "a member who left can still read the shared entries"

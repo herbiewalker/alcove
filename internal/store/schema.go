@@ -8,9 +8,9 @@ import (
 
 // SchemaVersion is the store schema this build writes. Migrations are forward-only and additive
 // (DATA_MODEL "Schema / migration rules"): never drop or repurpose a column.
-const SchemaVersion = 6
+const SchemaVersion = 7
 
-var migrations = []func(*sql.Tx) error{migrateV1, migrateV2, migrateV3, migrateV4, migrateV5, migrateV6}
+var migrations = []func(*sql.Tx) error{migrateV1, migrateV2, migrateV3, migrateV4, migrateV5, migrateV6, migrateV7}
 
 // migrateV1 is the M2a foundation. The domain tables (user, space, revision and the rest) arrive
 // with the milestones that need them, each as its own forward migration.
