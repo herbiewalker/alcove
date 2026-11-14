@@ -130,7 +130,7 @@ if [ $rc -ne 0 ] && echo "$out" | grep -qi "unseal failed\|wrong key"; then pass
 
 say "8. first run, headers and the network gate (M2b, N17)"
 docker run -d --name "$NAME" -p "127.0.0.1:${PORT}:8080" "${FLAGS[@]}" -e ALCOVE_TRUSTED_PROXIES=172.16.0.0/12 \
-  -v "$DIR/keys/alcove.key:/run/keys/alcove.key:ro" -v "$DIR/data:/data" "$IMG" >/dev/null
+  -v "$DIR/keys/alcove.key:/run/keys/alcove.key:ro" -v "$DIR/data:/data" "$IMAGE" >/dev/null
 wait_health >/dev/null || fail "no /healthz for the M2b checks"
 code=$(curl -s -o /dev/null -w '%{http_code} %{redirect_url}' "http://127.0.0.1:${PORT}/")
 case "$code" in "303 "*"/setup") pass "no accounts yet: / goes to /setup" ;; *) fail "first run did not redirect to /setup: $code" ;; esac
