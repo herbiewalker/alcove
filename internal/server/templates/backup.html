@@ -1,0 +1,50 @@
+{{define "content"}}
+<h1>Backups</h1>
+<p class="muted">A backup is a copy of everything this server stores, already encrypted. It cannot be opened without this server's key file, so keep a second copy of that key somewhere else and prove it works (see the runbook). The best proof is a restore drill with the copy.</p>
+
+<div class="stats">
+  <div><b>{{.LastBackup}}</b><span class="muted small">last backup</span></div>
+  <div><b>{{.LastDrill}}</b><span class="muted small">last restore drill</span></div>
+</div>
+
+{{if .JobRunning}}<p class="notice warn" role="status">{{.JobText}}</p>{{end}}
+
+{{if not .BackupOK}}
+<section class="card">
+  <h2>No backup folder</h2>
+  <p>Backups need a folder that is mounted into the container and is not inside the data folder (<code>ALCOVE_BACKUP_DIR</code>). Set <code>ALCOVE_BACKUP_PATH</code> in the compose file's <code>.env</code> and restart.</p>
+</section>
+{{else}}
+<form class="card" method="post" action="/admin/backup/run">
+  <h2>Back up now</h2>
+  <input type="hidden" name="csrf" value="{{.CSRF}}">
+  <p class="muted">Writes a new archive, re-reads it to check every checksum, then removes the oldest ones beyond the number kept. Asks for your password again.</p>
+  <div class="actions"><button class="btn" type="submit" {{if .JobRunning}}disabled{{end}}>Back up now</button></div>
+</form>
+
+<h2>Existing backups</h2>
+{{if .Backups}}
+<div class="scroll">
+<table>
+  <thead><tr><th>Made (UTC)</th><th>Size</th><th>Checksum file</th><th></th></tr></thead>
+  <tbody>
+  {{range .Backups}}
+    <tr>
+      <td>{{.When}}<br><code>{{.Name}}</code></td>
+      <td>{{.Size}}</td>
+      <td>{{if .Sidecar}}yes{{else}}missing{{end}}</td>
+      <td>
+        <form method="post" action="/admin/backup/verify"><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="name" value="{{.Name}}"><button class="btn secondary" type="submit" {{if $.JobRunning}}disabled{{end}}>Verify</button></form>
+        <form method="post" action="/admin/backup/drill"><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="name" value="{{.Name}}"><button class="btn secondary" type="submit" {{if $.JobRunning}}disabled{{end}}>Restore drill</button></form>
+      </td>
+    </tr>
+  {{end}}
+  </tbody>
+</table>
+</div>
+<p class="muted small">Verify re-reads the archive and checks every file. A restore drill goes further: it opens the backup with this server's key in a throwaway place and reads everything back, then deletes it.</p>
+{{else}}
+<p class="muted">No backups yet.</p>
+{{end}}
+{{end}}
+{{end}}

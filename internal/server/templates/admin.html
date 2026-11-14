@@ -11,6 +11,12 @@
   <p><a class="btn" href="/admin/log">Open the log</a></p>
 </section>
 <section class="card">
+  <h2>Backups</h2>
+  <p>Last backup: <b>{{.LastBackup}}</b>. Last restore drill: <b>{{.LastDrill}}</b>.</p>
+  <p class="muted">Back up, and prove a restore works, before you upload anything real.</p>
+  <p><a class="btn" href="/admin/backup">Open backups</a></p>
+</section>
+<section class="card">
   <h2>Network and security</h2>
   <p>Which networks may reach this server, reverse-proxy mode and requiring HTTPS.</p>
   <p><a class="btn" href="/admin/settings">Open settings</a></p>

@@ -187,6 +187,13 @@ jobs:
           docker stop -t 15 alcove-ci2 >/dev/null; docker rm alcove-ci2 >/dev/null
           echo "smoke OK"
 
+      # D-28: a backup is only real once it has been restored. This drives the shipped image
+      # through first-run setup, a backup, a verify and a restore drill from the admin pages, then
+      # restores with the command-line tools, proves a key with `drill`, and proves a damaged
+      # archive is refused. (scripts/smoke-backup.sh is also run by scripts/smoke-live.sh.)
+      - name: 'Smoke: backup, restore drill, key proof, tamper'
+        run: IMG=alcove:ci WORK="$(mktemp -d)" SUDO=sudo bash scripts/smoke-backup.sh
+
       # Secrets scan matters as much as CVEs: the image must never carry key material
       # (hard constraint 4).
       - name: Trivy — vulnerabilities and secrets

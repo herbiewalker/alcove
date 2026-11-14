@@ -17,6 +17,8 @@
 #   5. docker stop shuts down gracefully, and the data volume holds ciphertext only
 #   6. a restart with the same key needs no human step
 #   7. a different key is refused cleanly and leaves the sealed data untouched
+#   9. a real backup from the admin page, verified, a restore drill, command-line restore, a key proved
+#      by restoring with it, and a damaged archive refused (scripts/smoke-backup.sh)
 #   8. first run goes to /setup, the setup code is in the log, strict CSP, CSRF refusal, and the
 #      allowed-networks gate refuses a public caller and serves a LAN one (M2b)
 #
@@ -141,6 +143,13 @@ pub=$(curl -s -o /dev/null -w '%{http_code}' -H 'X-Forwarded-For: 203.0.113.9' "
 lan=$(curl -s -o /dev/null -w '%{http_code}' -H 'X-Forwarded-For: 192.168.1.5' "http://127.0.0.1:${PORT}/static/app.css")
 [ "$pub" = "403" ] && [ "$lan" = "200" ] && pass "a public caller is refused, a LAN caller is served" || fail "network gate: public=$pub lan=$lan"
 docker stop -t 15 "$NAME" >/dev/null; docker rm "$NAME" >/dev/null
+
+say "9. instance backup, restore drill, key proof and tamper check (M3, D-28)"
+if IMG="$IMAGE" WORK="$DIR/bk" PORT=$((PORT + 1)) bash "$(dirname "$0")/smoke-backup.sh"; then
+  pass "backup, verify, restore drill, command-line restore, key proof and tamper refusal all passed"
+else
+  fail "the backup smoke failed (see its output above)"
+fi
 
 say "later milestones"
 skip "M3: large upload accepted, oversize upload gets a fast 413"

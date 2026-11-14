@@ -241,6 +241,22 @@ func (s *Store) MarkDirty() { s.dirty.Store(true) }
 func (s *Store) SealNow(force bool) error {
 	s.sealMu.Lock()
 	defer s.sealMu.Unlock()
+	return s.sealLocked(force)
+}
+
+// SealedSnapshot seals the database and calls fn with the data directory while no other seal can
+// replace the files in it, so fn sees a consistent manifest and sealed database (D-28). fn must
+// not call back into the store.
+func (s *Store) SealedSnapshot(fn func(dataDir string) error) error {
+	s.sealMu.Lock()
+	defer s.sealMu.Unlock()
+	if err := s.sealLocked(true); err != nil {
+		return err
+	}
+	return fn(s.cfg.DataDir)
+}
+
+func (s *Store) sealLocked(force bool) error {
 	if s.db == nil {
 		return ErrClosed
 	}
@@ -381,3 +397,12 @@ func (s *Store) wipeKey() {
 
 // DataDir returns the data directory (the blob store lives under it).
 func (s *Store) DataDir() string { return s.cfg.DataDir }
+
+// KeyForDrill returns a copy of the master key so the in-server restore drill can open a backup
+// the way a real restore would (D-28). The caller must Zero it, and must not log or keep it.
+func (s *Store) KeyForDrill() (keyfile.Key, error) {
+	if s.closed.Load() {
+		return keyfile.Key{}, ErrClosed
+	}
+	return keyfile.FromBytes(s.key[:])
+}

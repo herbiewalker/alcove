@@ -3,6 +3,9 @@
 //	alcove                   run the server (needs a key file, see `alcove keygen`)
 //	alcove keygen [-out P]   create a master key (the server never makes one itself)
 //	alcove keycheck -file P  open a key file and print its fingerprint (prove a second copy)
+//	alcove backup-verify -file F   check every checksum in a backup (no key needed)
+//	alcove restore -backup F -to D extract a verified backup into an empty directory (no key needed)
+//	alcove drill -backup F -key K  restore into a throwaway place and read it back with that key
 //	alcove -healthcheck      probe /healthz on localhost, for the container HEALTHCHECK
 package main
 
@@ -19,6 +22,7 @@ import (
 	"time"
 
 	"github.com/herbiewalker/alcove/internal/app"
+	"github.com/herbiewalker/alcove/internal/backupcli"
 	"github.com/herbiewalker/alcove/internal/config"
 	"github.com/herbiewalker/alcove/internal/keycli"
 	"github.com/herbiewalker/alcove/internal/server"
@@ -40,6 +44,12 @@ func main() {
 		switch os.Args[1] {
 		case "keygen":
 			os.Exit(keycli.Keygen(os.Args[2:], os.Stdin, os.Stdout, os.Stderr))
+		case "backup-verify":
+			os.Exit(backupcli.Verify(os.Args[2:], os.Stdout, os.Stderr))
+		case "restore":
+			os.Exit(backupcli.Restore(os.Args[2:], os.Stdout, os.Stderr))
+		case "drill":
+			os.Exit(backupcli.Drill(os.Args[2:], os.Stdin, os.Stdout, os.Stderr))
 		case "keycheck":
 			os.Exit(keycli.Keycheck(os.Args[2:], os.Stdin, os.Stdout, os.Stderr))
 		}
@@ -71,7 +81,8 @@ func run(cfg config.Config) int {
 		return 1
 	}
 
-	web, err := server.New(backend{a}, server.Options{Version: version, Env: cfg.Net, Logger: logger})
+	web, err := server.New(backend{a}, server.Options{Version: version, Env: cfg.Net, Logger: logger,
+		BackupDir: cfg.BackupDir, BackupKeep: cfg.BackupKeep, TmpDir: cfg.TmpDir, AllowNonTmpfs: cfg.AllowNonTmpfsTmp})
 	if err != nil {
 		logger.Error("refusing to start", "reason", err.Error())
 		fmt.Fprintln(os.Stderr, "alcove: refusing to start:", err)

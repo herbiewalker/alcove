@@ -66,8 +66,14 @@
       (F30)**, with a progress bar
 - [ ] User lifecycle: add, disable, delete with grace, reset, data download (F2, F3), with **basic admin pages**
 - [ ] Soft delete with the 10 and 45 day windows and a real purge (F16, N13)
-- [ ] **Encrypted instance backup and a restore drill (F23)**, and the data key's second copy **proved by opening it**
-      (CRITICAL_ASSETS) before the first real upload
+- [x] **Piece A, built 2026-11-14: instance backup and a restore drill (F23, D-28).** `internal/backup` (one tar of ciphertext with a
+      hashed index and a sidecar checksum, consistent by ordering, never overwriting), the admin **Backups** page with background jobs
+      (back up, verify, restore drill, retention), and `alcove backup-verify`, `restore` and `drill`. The same flow is smoke-tested
+      end to end on the real image (`scripts/smoke-backup.sh`, in CI and the live smoke). Still **your step**: prove the key's second
+      copy with `drill` and a real backup (CRITICAL_ASSETS) before the first real upload
+- Order of the remaining pieces (decided with the owner): **B** upload, revisions, backup passwords and the rebuildable row cache;
+  **C** user lifecycle, soft delete and purge; **D** spaces, invites and join requests. Revisions are kept forever and the admin can
+  purge them on purpose (logged)
 - **Exit:** isolation tests across spaces pass; a deleted entry restores inside the window and is gone after it; an
   instance backup restores to a scratch location and reads back; a real backup uploads from a phone browser.
 

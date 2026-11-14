@@ -99,3 +99,10 @@ defence, and the tests drop the triggers to prove the chain catches the edit. `m
 updated in the same transaction as every entry, so cutting entries off the end is detected) and the console settings
 `setting.allowed_networks`, `setting.proxy_mode`, `setting.trusted_proxies` and `setting.require_tls`. Sessions are not stored (D-27).
 Free-text columns of `admin_log` accept only identifier characters, so no content can be logged by accident.
+
+## Implemented in M3 piece A (no schema change)
+
+`meta` gains `backup.last_ok` (unix time of the last verified backup) and `backup.last_drill` (`<unix time>:ok` or `:failed`). A
+backup is not part of the store: it is a tar of the data directory's files (`manifest.json`, `alcove.sealed`, `blobs/<owner>/<kind>/<id>`)
+plus `BACKUP.json` (every file's size and SHA-256) and a `<name>.sha256` checksum file next to it. The ordering rule that keeps a live
+backup consistent: **a blob is written before the row that refers to it** (enforced by the upload code in piece B).

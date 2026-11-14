@@ -315,7 +315,7 @@ func (s *Server) postAccount(q *rq) {
 // ---- step-up ----
 
 func stepUpTarget(s string) string {
-	if s == "/admin/settings" || s == "/admin" {
+	if s == "/admin/settings" || s == "/admin/backup" || s == "/admin" {
 		return s
 	}
 	return "/admin"
@@ -356,6 +356,7 @@ func (q *rq) needStepUp(next string) bool {
 
 func (s *Server) getAdmin(q *rq) {
 	p := &page{Title: "Admin", Active: "admin"}
+	p.LastBackup, p.LastDrill = s.lastTimes(q)
 	err := q.st.Update(q.r.Context(), false, func(tx *sql.Tx) error {
 		if _, err := adminlog.Append(tx, s.now(), q.id.user.ID, "admin.console.view", "console", "home", ""); err != nil {
 			return err

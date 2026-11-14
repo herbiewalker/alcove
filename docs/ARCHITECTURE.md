@@ -41,6 +41,7 @@
 | `internal/config` | env-only config; refuses to start if the key file is inside the data directory |
 | `internal/trystbk` | `TRYSTBK1` reader and writer: header, PBKDF2, streaming AEAD, ZIP and generic `data.json` tables |
 | `internal/store` | encrypted persistence: revisions, change-sets, media, soft-delete tombstones |
+| `internal/backup`, `internal/backupcli` | instance backup (one tar of ciphertext, hashed index, sidecar checksum), verify, restore, retention, and the restore drill; the command-line tools (M3 piece A, D-28) |
 | `internal/auth` | accounts, Argon2id password hashing, in-memory sessions with a step-up window, sign-in rate limiting (M2b). TOTP arrives later |
 | `internal/netsec` | D-23 transport security: allowed networks, proxy mode and client-address resolution, require-TLS, and the self-reverting network change (M2b) |
 | `internal/server` | M2b web layer: the middleware chain (security headers, network gate, locked and first-run gates), CSRF, templates and static files, sign-in, first run, the admin console, log viewer and network settings |

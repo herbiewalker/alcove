@@ -53,6 +53,12 @@ type Options struct {
 	Now       func() time.Time
 	Params    auth.Params // zero means auth.DefaultParams
 	AfterFunc func(time.Duration, func()) *time.Timer
+	// BackupDir and BackupKeep configure the instance backup (D-28); TmpDir is the tmpfs the restore
+	// drill opens its database in; AllowNonTmpfs is for tests and dev boxes only.
+	BackupDir     string
+	BackupKeep    int
+	TmpDir        string
+	AllowNonTmpfs bool
 }
 
 // level is who may call a route.
@@ -92,6 +98,8 @@ type Server struct {
 	mu        sync.Mutex
 	ready     bool // settings loaded from the unlocked store
 	setupCode string
+
+	jobs jobs
 }
 
 // New builds the server. It fails only on an invalid transport environment, so a typo in
@@ -135,7 +143,7 @@ func (s *Server) netOptions() netsec.Options {
 }
 
 func (s *Server) parseTemplates() error {
-	pages := []string{"message", "setup", "login", "unlock", "home", "account", "stepup", "admin", "adminlog", "settings"}
+	pages := []string{"message", "setup", "login", "unlock", "home", "account", "stepup", "admin", "adminlog", "settings", "backup"}
 	for _, p := range pages {
 		t, err := template.ParseFS(assets, "templates/base.html", "templates/"+p+".html")
 		if err != nil {
@@ -413,6 +421,11 @@ type page struct {
 	SteppedUp, Pending        bool
 	EnvNets, EnvProxy, EnvTLS bool
 	ProxyMode, RequireTLS     bool
+	// backup page
+	Backups                        []backupRow
+	BackupOK, JobRunning           bool
+	Refresh                        bool
+	JobText, LastBackup, LastDrill string
 }
 
 type logRow struct {
@@ -422,7 +435,7 @@ type logRow struct {
 }
 
 var knownPaths = map[string]bool{"/": true, "/login": true, "/setup": true, "/unlock": true, "/account": true,
-	"/admin": true, "/admin/log": true, "/admin/settings": true}
+	"/admin": true, "/admin/log": true, "/admin/settings": true, "/admin/backup": true}
 
 // render writes a page with a status code. It builds the whole page first so a template error
 // never leaves half a page on the wire.
@@ -592,6 +605,10 @@ func (s *Server) routes_() {
 	s.handle("GET /admin", admin, s.getAdmin)
 	s.handle("GET /admin/log", admin, s.getAdminLog)
 	s.handle("POST /admin/log/verify", admin, s.postVerifyLog)
+	s.handle("GET /admin/backup", admin, s.getBackup)
+	s.handle("POST /admin/backup/run", admin, s.postBackupRun)
+	s.handle("POST /admin/backup/verify", admin, s.postBackupVerify)
+	s.handle("POST /admin/backup/drill", admin, s.postBackupDrill)
 	s.handle("GET /admin/settings", admin, s.getSettings)
 	s.handle("POST /admin/settings/networks", admin, s.postNetworks)
 	s.handle("POST /admin/settings/networks/confirm", admin, s.postNetworksConfirm)

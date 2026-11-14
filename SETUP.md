@@ -28,6 +28,7 @@
   box only: on Linux the server otherwise refuses a scratch directory that is not tmpfs, so decrypted
   data cannot reach disk.
 - `ALCOVE_SEAL_EVERY_SECONDS` (default 10) is how often a changed database is sealed.
+- Instance backups (D-28): `ALCOVE_BACKUP_DIR` (default `/backups`, mounted from `ALCOVE_BACKUP_PATH` in compose; must not be inside the data directory) and `ALCOVE_BACKUP_KEEP` (default 7). With no folder the Backups page says so. Command-line tools for use with no server: `alcove backup-verify -file F`, `alcove restore -backup F -to DIR`, `alcove drill -backup F -key K`. See `RUNBOOK.md`.
 - **First run:** with no accounts the server logs a one-time setup code (`setup_code`, Warn level). Open the server in a
   browser, enter the code and create the administrator. In Unraid read it in the container's log. The code is not stored and a
   new one is made at each start until the first account exists.

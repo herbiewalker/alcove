@@ -110,6 +110,11 @@ from the admin, D-3 must be revisited (per-owner keys, browser-side decryption),
   planned (F20); until then a long passphrase is the control, and the admin log records every admin sign-in.
 - **R18 — Sessions end on restart (D-27).** They live in memory by design (nothing to steal from disk, nothing to
   purge), so a container restart signs everyone out. Accepted: a phone user signs in again.
+- **R19 — A backup folder holds all the data, in ciphertext (D-28).** Anyone who copies it and also gets the key file reads
+  everything, so the key file and the backup folder must not live together (the compose file mounts them apart, and the key
+  lives on the Unraid flash drive, not the array). A backup is useless without the key, which is also why the key's second copy
+  is proved with `drill` before the first real upload. Backups older than a purge still contain the purged user's wrapped data key
+  (R15) until retention removes them.
 - **R15 — A purge is complete only after the backups that predate it age out (D-26).** Destroying a user's wrapped data key makes their
   photos unreadable on the live instance. Older sealed generations and instance backups still contain that key, so they can still
   open the blobs they also contain. Mitigated by retention on instance backups and by saying so plainly in the runbook.

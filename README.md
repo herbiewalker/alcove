@@ -81,6 +81,7 @@ On Linux or in CI, `make check` runs the same gates.
 | [docs/DATA_MODEL.md](docs/DATA_MODEL.md) | entities, revisions, retention and migration rules |
 | [docs/ROADMAP.md](docs/ROADMAP.md) | milestones and their exit criteria |
 | [docs/DECISIONS.md](docs/DECISIONS.md) | the ADR log and open questions |
+| [RUNBOOK.md](RUNBOOK.md) | first start, backups, proving the key copy, restoring, locked-out recovery |
 | [CRITICAL_ASSETS.md](CRITICAL_ASSETS.md) | what git deliberately does not hold |
 
 ## Known limitations

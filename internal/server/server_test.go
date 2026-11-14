@@ -74,6 +74,8 @@ type env struct {
 	logs  *lockedBuf
 	clock time.Time
 	fire  func() // fires the pending network-revert timer
+
+	backupDir string
 }
 
 func newStore(t *testing.T) *store.Store {
@@ -96,6 +98,7 @@ func newEnv(t *testing.T, nenv netsec.Env) *env {
 	t.Helper()
 	e := &env{t: t, logs: &lockedBuf{}, clock: time.Date(2026, 11, 13, 10, 0, 0, 0, time.UTC)}
 	e.st = newStore(t)
+	e.backupDir = t.TempDir()
 	e.be = &fakeBackend{st: e.st}
 	e.srv = e.build(nenv)
 	return e
@@ -111,6 +114,7 @@ func (e *env) build(nenv netsec.Env) *Server {
 		_ = timer
 	}
 	s, err := New(e.be, Options{Version: "test", Env: nenv, Params: fastParams,
+		BackupDir: e.backupDir, BackupKeep: 2, TmpDir: filepath.Join(e.backupDir, "srvtmp"), AllowNonTmpfs: true,
 		Logger: slog.New(slog.NewJSONHandler(e.logs, nil)),
 		Now:    func() time.Time { return e.clock },
 		AfterFunc: func(d time.Duration, f func()) *time.Timer {
@@ -564,7 +568,7 @@ func TestAccessLevels(t *testing.T) {
 	member, _ := e.login("192.168.1.50:1", "sam", "sam has a long password")
 	anon := e.client("192.168.1.51:1")
 
-	adminOnly := []string{"/admin", "/admin/log", "/admin/settings", "/stepup"}
+	adminOnly := []string{"/admin", "/admin/log", "/admin/settings", "/admin/backup", "/stepup"}
 	for _, p := range adminOnly {
 		if w := anon.do("GET", p, nil); w.Code != 303 || w.Header().Get("Location") != "/login" {
 			t.Errorf("anonymous %s: %d", p, w.Code)

@@ -405,6 +405,40 @@ is a recurring check, not a one-off.
   console and are the break-glass path. TOTP, invites and account administration come in later milestones; until then the only
   account is the administrator's.
 
+## D-28 — Instance backup and the restore drill (implements F23; M3, piece A)
+- **Status:** Accepted
+- **Context:** Once edits live here Alcove is a system of record (CLAUDE.md, lessons from Sanctum). The data directory is already
+  ciphertext under the master key, and the one unrecoverable mistake is a key with no second copy or a backup nobody ever restored.
+- **Decision:**
+  1. **A backup is one archive of ciphertext files:** `manifest.json`, the sealed database and every blob, in a plain `tar` (no
+     compression: ciphertext does not compress), plus a last entry `BACKUP.json` holding every file's size and SHA-256, and a sidecar
+     `<name>.sha256` of the whole archive. **No second encryption layer.** The files are already sealed under the master key, and a
+     second passphrase would be a second secret to lose. Consequence, said plainly: **a backup is useless without the master key**,
+     which is why the key's second copy is proved before the first real upload.
+  2. **Consistency by ordering.** The server seals the database, then copies the manifest and the sealed file while holding the seal
+     lock (no seal can replace them mid-copy), and only afterwards copies the blobs. The rule that makes this safe, enforced where
+     uploads are written (M3 piece B): **a blob is written before the row that refers to it.** Any blob the copied database mentions
+     is therefore already on disk; an extra blob is a harmless orphan.
+  3. **Where it goes:** `ALCOVE_BACKUP_DIR` (default `/backups`), a mounted volume that must not be inside the data directory and is
+     scanned by the `no-plaintext` guard like the data volume. Unset or unmounted means the feature says so and does nothing. Files
+     are written to `.part`, flushed, then renamed, mode 0600.
+  4. **Triggered by a person, not a timer** (the owner prefers manual backups with a nudge, as with the Immich backups): an admin
+     page with step-up, "Back up now", "Verify", "Run restore drill". Every action is in the admin log. A reminder when the last
+     verified backup is older than 30 days comes with notifications (F24).
+  5. **Verify** re-reads the archive and checks every hash and the sidecar. It needs no key. **Restore drill** extracts into a scratch
+     directory, opens the store with a key, checks the admin-log chain, checks that every stored upload still matches its SHA-256,
+     counts rows, and reports counts only. `alcove drill -backup F -key K` runs it from the command line with any key file, so a
+     **key copy is proved by restoring a real backup with it**, which is stronger than comparing fingerprints.
+  6. **Restore** is `alcove restore -backup F -to DIR`: it verifies, then extracts into an empty directory (refusing a non-empty one,
+     a path that leaves the directory, or a duplicate name), needing no key. Putting the result in place of the data directory is a
+     runbook step with the container stopped.
+  7. **Retention:** keep the newest N verified backups (default 7), never delete the newest, prune only after a new backup verified.
+- **Alternatives:** encrypting each backup with its own passphrase (a second secret; rejected above); a live copy of the data
+  directory with no ordering rule (can hold a database that refers to a blob not yet copied); a built-in timer (the owner prefers a
+  person in the loop, and a timer that silently fails is worse than a nudge).
+- **Consequences:** backup size is the data size (photos dominate). Off-machine copies are safe to keep anywhere because they are
+  ciphertext, but only the key file opens them, so the key file's second copy is a mandatory first step (CRITICAL_ASSETS).
+
 ## Open questions
 > Decisions deferred on purpose. Each is a future ADR. Do not let these rot silently.
 

@@ -31,7 +31,7 @@
 
 ## Checks
 
-- [ ] The data key's second copy has been **opened and used**: `alcove keycheck -file <copy>` prints the same fingerprint as the live key file, and a test instance started from the copy opens the real data.
-- [ ] An instance backup has been restored to a scratch location and the data read back.
+- [ ] The data key's second copy has been **opened and used**: run `drill -backup <a real backup> -key <the copy>` (RUNBOOK section 3). Matching fingerprints are not enough; restoring a real backup with the copy is the proof.
+- [ ] An instance backup has been restored to a scratch location and the data read back (`drill`, or the Restore drill button, both read everything back and delete what they made).
 - [ ] Nothing in this file is a secret value.
 - [ ] Re-audit at each release: did this release mint a new key, token or artifact that belongs here?

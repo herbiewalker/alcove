@@ -109,10 +109,10 @@ guard_no_plaintext() {
     skip "no-plaintext: no storage layer yet (arrives in M2a)"
     return
   fi
-  if go test -run TestGuard_NoPlaintext -count=1 ./internal/store/ >/tmp/alcove-guard.log 2>&1; then
-    pass "no-plaintext: no plaintext found on the data volume"
+  if go test -run TestGuard_NoPlaintext -count=1 ./internal/store/ >/tmp/alcove-guard.log 2>&1 && go test -run TestBackupContainsNoPlaintext -count=1 ./internal/backup/ >>/tmp/alcove-guard.log 2>&1; then
+    pass "no-plaintext: no plaintext found on the data volume or in a backup"
   else
-    fail "no-plaintext: TestGuard_NoPlaintext failed"
+    fail "no-plaintext: the data-volume or backup plaintext test failed"
     sed -n 's/^/        /p' /tmp/alcove-guard.log | head -20
   fi
 }

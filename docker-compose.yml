@@ -46,6 +46,9 @@ services:
     volumes:
       - ${ALCOVE_DATA_PATH:?set ALCOVE_DATA_PATH in .env}:/data
       - ${ALCOVE_KEY_PATH:?set ALCOVE_KEY_PATH in .env}:/run/keys/alcove.key:ro
+      # Instance backups (D-28): ciphertext only, so this may be a different disk or a share. It must
+      # not be inside ALCOVE_DATA_PATH.
+      - ${ALCOVE_BACKUP_PATH:?set ALCOVE_BACKUP_PATH in .env}:/backups
 
     # tmpfs keeps decrypted data off the data volume. The live database and any
     # transient decrypt buffer live here and die with the container (ADR D-16). It is
@@ -58,6 +61,8 @@ services:
       ALCOVE_DATA_DIR: "/data"
       ALCOVE_KEY_FILE: "/run/keys/alcove.key"
       ALCOVE_TMP_DIR: "/tmp/alcove"
+      ALCOVE_BACKUP_DIR: "/backups"
+      ALCOVE_BACKUP_KEEP: "${ALCOVE_BACKUP_KEEP:-7}"
       # Transport security (D-23). Empty means "not set": the admin console decides. A value set
       # here wins over the console and is the break-glass path if you lock yourself out.
       ALCOVE_ALLOWED_NETWORKS: "${ALCOVE_ALLOWED_NETWORKS:-}"
