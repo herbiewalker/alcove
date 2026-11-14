@@ -6,7 +6,7 @@
 # broken; principle 4: one source). The Makefile, bootstrap.ps1 and CI all call
 # THIS script; do not reimplement a guard anywhere else.
 #
-# Usage:  scripts/guards.sh [all|digest-pin|no-secrets|no-outbound|no-plaintext|licenses]
+# Usage:  scripts/guards.sh [all|digest-pin|no-secrets|no-outbound|no-plaintext|licenses|unraid-template]
 #
 # Runs on Git Bash (Windows dev box) and on Ubuntu (CI). Keep it POSIX-ish.
 # Guards that need code which does not exist yet report SKIP, never a fake OK.
@@ -152,16 +152,37 @@ guard_licenses() {
   pass "licenses: every third-party module is approved with an allowed licence"
 }
 
+# --- hard constraints 2 + 9: the Unraid template cannot loosen the container -----
+guard_unraid_template() {
+  local f=deploy/unraid-template.xml
+  if [ ! -f "$f" ]; then
+    skip "unraid-template: no template yet"
+    return
+  fi
+  local bad=0 want
+  for want in '--user 65532:65532' '--read-only' '--cap-drop=ALL' 'no-new-privileges:true' '--memory=' '--cpus=' 'noexec,nosuid,nodev'; do
+    grep -q -- "<ExtraParams>.*$want" "$f" || { fail "unraid-template: ExtraParams lacks $want"; bad=1; }
+  done
+  [ "$(grep -c 'Type="Port"' "$f")" = "1" ] || { fail "unraid-template: expected exactly one published port"; bad=1; }
+  grep -q '<Privileged>false</Privileged>' "$f" || { fail "unraid-template: must not be privileged"; bad=1; }
+  grep -q '<Network>host</Network>' "$f" && { fail "unraid-template: host networking is not allowed"; bad=1; }
+  grep -E '<Repository>' "$f" | grep -qE ':latest|<Repository>[^:]+</Repository>' && { fail "unraid-template: the image must follow :stable or an exact version, never latest"; bad=1; }
+  grep -E 'Target="/run/keys/alcove.key"' "$f" | grep -q 'Mode="ro"' || { fail "unraid-template: the key file must be mounted read-only"; bad=1; }
+  grep -qiE 'Target="[A-Z_]*(PASS|SECRET|TOKEN|KEY_?B64)[A-Z_]*"' "$f" && { fail "unraid-template: no variable may carry a secret"; bad=1; }
+  [ "$bad" = "0" ] && pass "unraid-template: least privilege, one LAN port, key read-only, no secret variables"
+}
+
 main() {
   local what="${1:-all}"
   echo "alcove constraint guards (${what})"
   case "$what" in
-    all)         guard_digest_pin; guard_no_secrets; guard_no_outbound; guard_no_plaintext; guard_licenses ;;
+    all)         guard_digest_pin; guard_no_secrets; guard_no_outbound; guard_no_plaintext; guard_licenses; guard_unraid_template ;;
     digest-pin)  guard_digest_pin ;;
     no-secrets)  guard_no_secrets ;;
     no-outbound) guard_no_outbound ;;
     no-plaintext) guard_no_plaintext ;;
     licenses)    guard_licenses ;;
+    unraid-template) guard_unraid_template ;;
     *) echo "unknown guard: $what" >&2; exit 2 ;;
   esac
 

@@ -7,7 +7,12 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) · Versioning: 
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-11-14
+
+First release. Everything below is new in it.
+
 ### Added
+- L1 deploy kit: an Unraid template (`deploy/unraid-template.xml`, following `:stable`, least-privilege flags, key mounted read-only, one LAN port), a guard (`unraid-template`) that fails CI if the template ever loosens the container, and RUNBOOK sections for the first live deploy (with the validation ladder and a real-phone check) and for putting HTTPS in front (Caddy, Nginx Proxy Manager, `tailscale serve`, each with a check that Alcove still sees the real client address).
 - M4 piece D, compare metrics and time zones (D-35, F13): `internal/compare`, a versioned metrics registry (At a glance, Rhythm, Trend, Variety) built only from what `share` lets through, with per-period choices and a member whose backup is from a newer Tryst named and left out rather than shown wrongly; a Compare page per space; a per-member time zone on the profile page (`ALCOVE_TZ` sets the server default, UTC if empty) that decides each person's day boundaries everywhere; the zone database is built into the binary. Schema v8. This completes M4.
 - M4 piece C, the shared calendar (D-34, F12): a month grid per space with a lettered, coloured marker per member per day, a highlight when two or more members were active, and a day view listing that day's entries; no script, plain links; `share.Days` shares one gate definition with `share.Entries` and a test keeps them in step across every way of hiding an entry. Days are UTC for now.
 - M4 piece B, profiles and member cards (D-33, F26, F28): a profile page (name shown to others plus nine optional fields, each with its own share tick, everything private to start); "fill from my latest backup" lists what the backup's profile holds and imports only what is ticked, never turning sharing on; the birth date is stored for the owner, must be an adult's, and is shown to others as an age only; member cards on the space page come from `share.Cards`, which applies the same membership, pause and consent rules as entries. Schema v7; purge removes profiles. No profile photo yet.

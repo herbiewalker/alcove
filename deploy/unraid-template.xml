@@ -1,0 +1,46 @@
+<?xml version="1.0"?>
+<!--
+  Unraid template for Alcove. The Repository follows the :stable tag, which every release
+  moves, so the Docker tab's "check for updates", "update" and "force update" work like any
+  other container. To stay on one version, replace stable with an exact release such as
+  0.1.0. There is no latest tag. The GHCR package must be public for Unraid to check it.
+
+  Before the first start, make the key (see RUNBOOK section 1) and give the data and backup
+  folders to the container's user:  chown -R 65532:65532 <data folder> <backup folder>
+  Alcove starts on its own after a restart or an update: the key file is read from the path
+  below, so there is no unlock step. Keep the key on the flash drive, not on the array.
+-->
+<Container version="2">
+  <Name>alcove</Name>
+  <Repository>ghcr.io/herbiewalker/alcove:stable</Repository>
+  <Registry>https://github.com/herbiewalker/alcove/pkgs/container/alcove</Registry>
+  <Network>bridge</Network>
+  <MyIP/>
+  <Shell>sh</Shell>
+  <Privileged>false</Privileged>
+  <Support>https://github.com/herbiewalker/alcove</Support>
+  <Project>https://github.com/herbiewalker/alcove</Project>
+  <Overview>A private, self-hosted place for a couple or a family to upload their Tryst backups and see, side by side, what they choose to share: a shared calendar, compare views and member cards, in spaces that only members can see. Encrypted at rest, no outside connections, for adults who have all agreed. Keep this on your LAN only; never forward the port to the internet.</Overview>
+  <Category>Tools: Other:</Category>
+  <WebUI>http://[IP]:[PORT:8080]/</WebUI>
+  <TemplateURL>https://raw.githubusercontent.com/herbiewalker/alcove/main/deploy/unraid-template.xml</TemplateURL>
+  <Icon>https://raw.githubusercontent.com/herbiewalker/alcove/main/deploy/icon.png</Icon>
+  <ExtraParams>--user 65532:65532 --read-only --cap-drop=ALL --security-opt=no-new-privileges:true --memory=2g --cpus=2 --tmpfs /tmp:rw,mode=1777,size=1g,noexec,nosuid,nodev</ExtraParams>
+  <PostArgs/>
+  <CPUset/>
+  <DateInstalled/>
+  <DonateText/>
+  <DonateLink/>
+  <Requires>The data and backup folders must be writable by uid 65532, and the key file must exist before the first start (RUNBOOK section 1). Do not publish the port outside your LAN.</Requires>
+  <Config Name="Web UI port" Target="8080" Default="8260" Mode="tcp" Description="LAN only. Never forward this port to the internet." Type="Port" Display="always" Required="true" Mask="false">8260</Config>
+  <Config Name="Data" Target="/data" Default="/mnt/user/appdata/alcove/data" Mode="rw" Description="Uploads, photos and the sealed database. Only ciphertext is ever written here." Type="Path" Display="always" Required="true" Mask="false">/mnt/user/appdata/alcove/data</Config>
+  <Config Name="Key file" Target="/run/keys/alcove.key" Default="/boot/config/alcove/alcove.key" Mode="ro" Description="The one master key file, on a different disk than the data (the flash drive is a good home). Make it once with the keygen command in the RUNBOOK, and keep a second copy somewhere else. If every copy is lost, the data cannot be recovered." Type="Path" Display="always" Required="true" Mask="false">/boot/config/alcove/alcove.key</Config>
+  <Config Name="Backups" Target="/backups" Default="/mnt/user/backups/alcove" Mode="rw" Description="Instance backups (ciphertext only). Must not be inside the data folder. A different disk or a share is best." Type="Path" Display="always" Required="true" Mask="false">/mnt/user/backups/alcove</Config>
+  <Config Name="Time zone for new people" Target="ALCOVE_TZ" Default="" Mode="" Description="A name like Europe/Berlin. Used for anyone who has not set their own on their profile. Empty means UTC." Type="Variable" Display="always" Required="false" Mask="false"></Config>
+  <Config Name="Allowed networks" Target="ALCOVE_ALLOWED_NETWORKS" Default="" Mode="" Description="Optional, comma separated, for example 192.168.1.0/24. Empty means the private LAN ranges only. A value here beats the admin console (the way back in if you lock yourself out)." Type="Variable" Display="advanced" Required="false" Mask="false"></Config>
+  <Config Name="Backups to keep" Target="ALCOVE_BACKUP_KEEP" Default="7" Mode="" Description="How many of the newest instance backups a run keeps (never fewer than one)." Type="Variable" Display="advanced" Required="false" Mask="false">7</Config>
+  <Config Name="Largest upload (MiB)" Target="ALCOVE_MAX_UPLOAD_MB" Default="512" Mode="" Description="1 to 512." Type="Variable" Display="advanced" Required="false" Mask="false">512</Config>
+  <Config Name="Person's recovery window (days)" Target="ALCOVE_USER_RECOVERY_DAYS" Default="10" Mode="" Description="How long a person can restore something they deleted." Type="Variable" Display="advanced" Required="false" Mask="false">10</Config>
+  <Config Name="Administrator's recovery window (days)" Target="ALCOVE_ADMIN_RECOVERY_DAYS" Default="45" Mode="" Description="How long the administrator can restore a deletion. Never shorter than the person's window." Type="Variable" Display="advanced" Required="false" Mask="false">45</Config>
+  <Config Name="Container time zone" Target="TZ" Default="UTC" Mode="" Description="For log timestamps." Type="Variable" Display="advanced" Required="false" Mask="false">UTC</Config>
+</Container>

@@ -64,10 +64,30 @@ environment always beats the console.
 
 ## 6. Putting HTTPS in front (optional)
 
-The default is a password-protected wifi over plain HTTP (R14). To encrypt the connection, run a reverse proxy that you control
-(Caddy or Nginx Proxy Manager with a DNS-challenge certificate, or `tailscale serve`) on the same host, set
-`ALCOVE_TRUSTED_PROXIES` to its address, and open Alcove through the proxy. Then, from that HTTPS address, turn on **Require
-HTTPS** in the console. Never publish Alcove's own port to the internet.
+The default is a password-protected wifi over plain HTTP (R14). To encrypt the connection, run a reverse proxy that you control on the
+same host, set `ALCOVE_TRUSTED_PROXIES` to the address Alcove sees the proxy connect from, set `ALCOVE_PROXY_MODE` to true, and open
+Alcove through the proxy. Then, from that HTTPS address, turn on **Require HTTPS** in the console. Never publish Alcove's own port
+to the internet, and never let the proxy itself be reachable from outside your network.
+
+**Check before you trust it.** After the proxy is in, open Admin, Settings, and read the line "Your own address is". It must show YOUR device's
+address. If it shows the proxy's address, Alcove cannot tell people apart, the allowed-networks rule is weakened and rate limits are
+shared: undo it and fix the proxy's forwarded-address header before going on.
+
+- **Caddy** (certificate by DNS challenge, so nothing is opened to the internet; needs a domain you own and a Caddy build with your
+  DNS provider's module):
+  ```
+  alcove.home.example.com {
+      tls { dns <provider> <token-from-the-provider> }
+      reverse_proxy 127.0.0.1:8260
+  }
+  ```
+  Caddy sends the client's address in `X-Forwarded-For` by itself. Put the token in Caddy's own environment, never in Alcove's.
+- **Nginx Proxy Manager:** a proxy host to the Alcove port, "Websockets" off, "Block common exploits" on, a Let's Encrypt certificate by
+  DNS challenge, Force SSL on. Do not enable its external access list features for the internet.
+- **`tailscale serve`:** `tailscale serve --bg --https=443 http://127.0.0.1:8260` on the host, so only your tailnet reaches it
+  (never `tailscale funnel`). Do the "Your own address" check above: if it does not show the device's own address, use Caddy instead.
+
+If you lock yourself out of the network settings, section 5 is the way back.
 
 ## 7. Lost the administrator password
 
@@ -137,3 +157,48 @@ Admin console → **People**.
 - **Leave** at any time; the **owner** can remove a member, hand the space to another member, or delete it (restorable for the same windows
   as everything else). The only owner cannot leave without handing over or deleting.
 - The **administrator** sees every space (Admin → Spaces) and can delete or restore one. Every look is in the admin log.
+
+## 12. The first live deploy on Unraid (L1)
+
+Do these in order. Nothing here needs the internet except pulling the image once.
+
+**A. Before you start.** A release is published and its image package on GHCR is public, so the Docker tab can pull
+`ghcr.io/herbiewalker/alcove:stable` and check for updates. You have one spare folder on the flash drive for the key and a share for
+instance backups on a **different disk** from the data.
+
+**B. Set it up.**
+1. Make the folders and give them to the container's user (the image runs as 65532, not root):
+   ```
+   mkdir -p /mnt/user/appdata/alcove/data /mnt/user/backups/alcove /boot/config/alcove
+   chown -R 65532:65532 /mnt/user/appdata/alcove/data /mnt/user/backups/alcove
+   ```
+2. Make the key (section 1 step 1), then **save a second copy somewhere that is not this machine**.
+3. Install the template: copy `deploy/unraid-template.xml` to `/boot/config/plugins/dockerMan/templates-user/alcove.xml`, then in the
+   Docker tab choose Add Container and pick `alcove` from the template list. Check the three paths and the port, then Apply.
+4. Read the log for the setup code: `docker logs alcove 2>&1 | grep setup_code`. Open `http://<server>:8260/` from a computer on the
+   LAN, enter the code and make the administrator. Write the administrator password down in the same place as the key copy.
+5. Open Admin, Settings and check that "Your own address is" shows your own LAN address. Leave Allowed networks at the default (private ranges).
+
+**C. Prove the safety net before any real data.**
+1. Admin, Backups: run **Back up now**, then **Verify** and **Restore drill**. All three must say they passed.
+2. Prove your key copy with the command in section 3 (this is the mandatory first check). Record the date in `CRITICAL_ASSETS.md`.
+3. Confirm the container is the least-privilege one: `docker inspect alcove` shows user 65532, ReadonlyRootfs true, no added
+   capabilities, and one published port.
+
+**D. The validation ladder (principle 11).** Take each rung only when the one before is clean, and run a backup and a drill after each.
+1. **Synthetic data.** Make fake backups (`test-backup`, section 8), upload one as you and one as a second test person, make a space,
+   invite the second person, and look at the calendar, the list, Compare and the profile cards. Try the private flag, pause and leave.
+2. **One real backup.** Upload one real backup from one phone. Check the entry count on the My data page matches what Tryst shows, and
+   open the calendar. Nothing in a space is shown until you both agreed to the join text.
+3. **The full history, both of you.** Upload both real backups, join one space, and check the calendar and Compare against what you
+   know happened. Set each person's time zone on their profile.
+
+**E. From a real phone.** On the same wifi, open Alcove in the phone browser, sign in, upload a backup from the phone (section 8) and open
+the calendar. Add the page to the home screen if you like. This is the check no test can do for you.
+
+**F. If something is wrong.** Stop the container (the data is untouched) and read section 4 to restore from an instance backup. The
+setup code only works while there are no accounts, so a failed first run can be wiped by stopping the container and removing the
+contents of the data folder, then starting again.
+
+**G. Done means:** both of you use it for real, a backup and a restore drill have passed since the last upload, and the README status
+line says what is and is not proven.

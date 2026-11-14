@@ -104,10 +104,11 @@
 
 ## L1 — First live deploy *(read-only features; the validation ladder starts here)*
 
-- [ ] `RUNBOOK`, `docker-compose`, the live smoke script, deploy on the real host, LAN-only, limits applied
+- [x] `RUNBOOK` (section 12), `docker-compose`, the Unraid template and its guard, the live smoke script. **Still to do on the real host:** deploy, LAN-only, limits applied
+- [ ] Deploy on the real host (needs the first published release)
 - [ ] Validation ladder (principle 11): synthetic data, then one real backup, then the full history
 - [ ] Checked from a real phone browser: upload a backup from the phone, view the overlay
-- [ ] Runbook recipes for HTTPS (Caddy or Nginx Proxy Manager, `tailscale serve`); the default stays secured wifi (D-23)
+- [x] Runbook recipes for HTTPS (Caddy or Nginx Proxy Manager, `tailscale serve`); the default stays secured wifi (D-23)
 - **Exit:** the two of you use it for real. The README status line says what is and is not proven.
 
 ## M5 — Editing
