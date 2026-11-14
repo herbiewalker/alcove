@@ -159,6 +159,7 @@ func TestDurableWriteSurvivesACrashButLazyWriteMayNot(t *testing.T) {
 	}); err != nil {
 		t.Fatal(err)
 	}
+	s.simulateCrash()
 	d2 := dirs{data: d.data, tmp: filepath.Join(filepath.Dir(d.tmp), "tmp2")}
 	s2 := open(t, d2, k)
 	if v, ok, _ := s2.GetMeta("durable"); !ok || v != "yes" {
@@ -344,6 +345,7 @@ func TestDestroyDataKeyIsDurable(t *testing.T) {
 		t.Fatalf("after destroy: %v", err)
 	}
 	// Without closing (a crash right after the purge): the sealed copy already has it gone.
+	s.simulateCrash()
 	d2 := dirs{data: d.data, tmp: filepath.Join(filepath.Dir(d.tmp), "tmp2")}
 	s2 := open(t, d2, k)
 	defer s2.Close()

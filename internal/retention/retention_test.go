@@ -393,7 +393,14 @@ func TestSweepFinishesWhatACrashLeft(t *testing.T) {
 	ctx := context.Background()
 	a := r.upload("ualice", 14, 3, true)
 	old := t0.Add(-3 * day)
-	age := func(p string) { _ = os.Chmod(p, 0o600); _ = os.Chtimes(p, old, old) }
+	age := func(p string) {
+		mode := os.FileMode(0o600)
+		if fi, err := os.Stat(p); err == nil && fi.IsDir() {
+			mode = 0o700 // a directory without the execute bit cannot be read
+		}
+		_ = os.Chmod(p, mode)
+		_ = os.Chtimes(p, old, old)
+	}
 
 	udir := filepath.Join(r.st.DataDir(), "blobs", "ualice", "u")
 	stray := filepath.Join(udir, "upstray0000")
