@@ -213,6 +213,18 @@ echo "$card" | grep -q "1990-04-23" && die "the exact birth date is on the membe
 [ "$(post /profile /profile --data-urlencode "name=Smoke Owner" -d v_birth=2015-01-01)" = "400" ] || die "a child's birth date was accepted"
 ok "profile: shared fields reach the card, private ones and the birth date itself do not, a child is refused"
 
+# 4j. Open one entry: your own in full, someone else's through the space, a made-up one refused.
+myid=$(curl -fsS -b "$JAR" "$URL/entries" | sed -n 's/.*href="\/entries\/\([^"]*\)".*/\1/p' | head -1)
+[ -n "$myid" ] || die "My entries has no link to an entry"
+curl -fsS -b "$JAR" "$URL/entries/$myid" | grep -q "Your entry" || die "the owner cannot open their own entry"
+[ "$(curl -s -o /dev/null -w '%{http_code}' -b "$JAR" "$URL/entries/does-not-exist")" = "404" ] || die "a made-up entry id was not refused"
+[ "$(curl -s -o /dev/null -w '%{http_code}' -b "$J3" "$URL/entries/$myid")" = "404" ] || die "another person opened an entry through the own-entry page"
+sharedlink=$(curl -fsS -b "$J3" "$URL/spaces/$spid/entries" | sed -n 's/.*href="\(\/spaces\/[^"]*\/entry\/[^"]*\)".*/\1/p' | head -1)
+[ -n "$sharedlink" ] || die "the shared list has no link to an entry"
+curl -fsS -b "$J3" "$URL$sharedlink" | grep -q "Shared by" || die "a member cannot open a shared entry"
+[ "$(curl -s -o /dev/null -w '%{http_code}' "$URL$sharedlink")" != "200" ] || die "a signed-out visitor opened a shared entry"
+ok "an entry opens for its owner and, through the space, for a member; a made-up id and a signed-out visitor are refused"
+
 # 4h. The shared calendar: a member sees the grid and the owner's day, an outsider does not.
 cal=$(curl -fsS -b "$J3" "$URL/spaces/$spid/calendar")
 echo "$cal" | grep -q 'class="cal"' || die "the calendar has no grid"

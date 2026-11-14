@@ -1,0 +1,38 @@
+{{define "content"}}
+{{with .Detail}}
+<h1>{{.Local.Format "Monday 2 January 2006"}}</h1>
+<p class="muted">{{.Local.Format "15:04"}} in {{if .Mine}}your{{else}}{{.OwnerName}}'s{{end}} time zone. {{if .Mine}}Your entry.{{else}}Shared by {{.OwnerName}}.{{end}}
+{{if .Private}} <b>Private:</b> nobody else can see it.{{end}}</p>
+
+<section class="card">
+  {{if .Fields}}<dl class="facts">{{range .Fields}}<dt>{{.Label}}</dt><dd>{{.Value}}</dd>{{end}}</dl>
+  {{else}}<p class="muted">Nothing but the time was logged.</p>{{end}}
+</section>
+
+{{range .Groups}}
+<section class="card">
+  <h2>{{.Label}}</h2>
+  <ul class="chips">{{range .Items}}<li>{{.}}</li>{{end}}</ul>
+</section>
+{{end}}
+
+{{if or .Partner .PartnersHidden}}
+<section class="card">
+  <h2>With</h2>
+  {{if .Partner}}<ul class="chips">{{range .Partner}}<li>{{.}}</li>{{end}}</ul>
+  {{else}}<p class="muted">{{.PartnersHidden}} {{if eq .PartnersHidden 1}}person{{else}}people{{end}}. Their names are not shared in this space.</p>{{end}}
+</section>
+{{end}}
+
+{{if .Note}}
+<section class="card">
+  <h2>Note</h2>
+  <p class="note">{{.Note}}</p>
+</section>
+{{else if .NoteHidden}}
+<p class="muted">{{.OwnerName}} keeps notes out of this space.</p>
+{{end}}
+<p class="muted small">Photos are not shown here yet.</p>
+{{end}}
+<p><a class="btn secondary" href="{{.DetailBack}}">Back to {{.DetailBackLabel}}</a>{{if .Detail.Mine}} <a class="btn secondary" href="/entries">Private or shared</a>{{end}}</p>
+{{end}}

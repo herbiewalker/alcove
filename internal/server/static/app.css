@@ -277,3 +277,9 @@ td form { margin: 4px 0; }
 .notice progress { display: block; width: 100%; margin: 0 0 8px; }
 button:disabled, .btn[disabled] { opacity: .6; cursor: progress; }
 @media (prefers-reduced-motion: reduce) { progress { animation: none; } }
+
+/* One entry (D-37) */
+.chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 0; padding: 0; list-style: none; }
+.chips li { padding: 3px 10px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface); }
+.note { white-space: pre-wrap; overflow-wrap: anywhere; margin: 0; }
+td a { color: inherit; font-weight: 600; }

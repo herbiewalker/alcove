@@ -53,11 +53,11 @@ func TestCalendarShowsEveryMembersDaysAndHighlightsOverlap(t *testing.T) {
 	}
 	// Choosing a day lists that day's entries from everyone, with notes.
 	_, body = s.cal(s.sam, "?month=2026-03&day=2026-03-10")
-	if strings.Count(body, "<tr><td>2026-03-10") != 2 || !strings.Contains(body, "note-s10") || !strings.Contains(body, "note-k10") {
+	if strings.Count(body, `">2026-03-10 `) != 2 || !strings.Contains(body, "note-s10") || !strings.Contains(body, "note-k10") {
 		t.Errorf("the 10th should list both entries")
 	}
 	_, body = s.cal(s.sam, "?day=2026-03-15") // the month follows the day
-	if !strings.Contains(body, "March 2026") || strings.Count(body, "<tr><td>2026-03-15") != 1 || strings.Contains(body, "note-k10") {
+	if !strings.Contains(body, "March 2026") || strings.Count(body, `">2026-03-15 `) != 1 || strings.Contains(body, "note-k10") {
 		t.Error("the 15th should list only sam's entry")
 	}
 	// An empty month and an empty day say so.

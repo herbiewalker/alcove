@@ -684,3 +684,21 @@ is a recurring check, not a one-off.
   5. **A running job** (backup, verify, drill) shows an animated bar, "Running for N min N s" counted from the job's start, and keeps refreshing itself without the script. Its buttons are disabled while it runs.
 - **Alternatives:** polling a status endpoint for real percentages (needs the jobs to report progress, which backup, verify and drill do not yet); a script only on the pages that need it (almost all of them have a form); a server-sent progress stream (another route and a looser CSP for little gain).
 - **Consequences:** bars for backup, verify and drill are animated, not percentages; real progress for them needs the jobs to report counts, which is a later change.
+
+## D-37 — Opening one entry, read-only, for its owner and through a space (M4 follow-up; the read half of F14)
+- **Status:** Accepted
+- **Context:** the lists and the calendar showed only a summary of each entry, so a person could not open an encounter. Editing is M5; seeing is needed now.
+- **Decision:**
+  1. **Two pages, one builder.** `GET /entries/{id}` is the owner's own entry in full (`share.OwnDetail`, which reads only that person's rows).
+     `GET /spaces/{id}/entry/{owner}/{entry}` is a member's entry through the space (`share.EntryDetail`). Both build the page with the same code.
+  2. **The shared page uses the list's gate.** `EntryDetail` runs the same `check` and the same `scope` as `Entries`, narrowed to one owner and one entry, so
+     every condition that hides an entry from the list (paused, left, removed, not admitted, older wording, disabled, deleted, private, space deleted) hides its page.
+     A missing entry, an entry in another space, a wrong owner and an outsider all get the same 404 page.
+  3. **The owner's choices apply to the page,** as they do to the list: no note unless they include notes (the page says they keep notes out); partners are not
+     named unless they show partner names (the page says how many people, nothing more). Partner orgasm counts and any other per-partner detail are not shown.
+  4. **Names, not ids.** Acts, positions, kinks, toys, occasions and finish locations are shown by their labels from the entry's own owner's catalogs; a token that
+     points at a removed item shows "(a removed item)". Plain Tryst enums (mood, who started it, protection, settings) are shown in words. A label is looked up in
+     the owner's catalog only, so two people who use the same id for different things never mix.
+  5. **No raw row leaves the package.** The page struct carries resolved text only; the encounter's JSON is never passed to the template.
+  6. **Photos are not shown yet** (a note on the page says so); they come with the photo milestone.
+- **Consequences:** the lists and the calendar's day view now link to the entry. An entry is a read-only page until M5.

@@ -95,6 +95,7 @@
 - [x] **Piece B (D-33):** profile page, prefill from the backup with per-field choice, per-field sharing, birth date as an age, member cards. No avatar yet (arrives with photo sharing)
 - [x] **Piece C (D-34):** the calendar overlay, with the "more than one member active" highlight and a day view
 - [x] **Piece D (D-35):** the compare metrics registry (At a glance, Rhythm, Trend, Variety), the Compare page, per-member time zones
+- [x] **Open an entry (D-37):** a read-only entry page for the owner and, through the gate, for space members
 - [ ] Metrics registry per D-18 (reviewed whenever Tryst Insights changes); space visibility, pause, per-entry private,
       include settings and owner approval of joins (F5, F11; D-21); the `all_members` mode is a later per-space setting
 - [ ] Profile prefill from the Tryst profile with per-field sharing, and member cards (F26, F28; D-14)

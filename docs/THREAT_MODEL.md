@@ -130,6 +130,10 @@ from the admin, D-3 must be revisited (per-owner keys, browser-side decryption),
   among the most identifying things a person can show. Mitigations: everything is private until ticked per field, importing never ticks it,
   the birth date is shown only as an age and must be an adult's, cards go through `share.Cards` (membership, pause, consent), values are
   escaped on output, and a person writes only their own rows. A space member who has seen a card cannot unsee it (R23).
+- **R25 — The entry page shows more than the list (D-37).** An entry's page carries every detail, so it is the likeliest place to leak. Mitigations: it uses the list's own
+  gate, narrowed to one owner and entry; the page struct holds resolved text only, never the row; the note and partner names obey the owner's choices; catalog labels are read
+  from the entry owner's tables only; every refusal is the same 404; tests close the page in every way the list is closed and check that content hidden by choice is absent
+  from the struct and the page. Photos, whose location is sensitive, stay out until the photo milestone.
 - **R23 — One read gate for shared entries (D-32).** Every view of another person's entries is `share.Entries`; a new view that reads
   `cache_row` for someone else by another route would leak. Mitigations: the gate asks `spaces.Role` first, reads live membership on every
   request (nothing is copied, so leave, removal, pause, disable and delete are instant), requires the current consent wording of both the

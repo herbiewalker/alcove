@@ -42,7 +42,7 @@
   <thead><tr><th>Time</th><th>Who</th><th>Length</th><th>Rating</th><th>Note</th></tr></thead>
   <tbody>
   {{range .DayRows}}
-    <tr><td>{{.When}}</td><td>{{.Who}}{{if .Mine}} <span class="muted">(you)</span>{{end}}</td><td>{{.Duration}}</td><td>{{.Rating}}</td><td>{{.Note}}</td></tr>
+    <tr><td><a href="/spaces/{{$.SpaceID}}/entry/{{.OwnerID | urlquery}}/{{.ID | urlquery}}">{{.When}}</a></td><td>{{.Who}}{{if .Mine}} <span class="muted">(you)</span>{{end}}</td><td>{{.Duration}}</td><td>{{.Rating}}</td><td>{{.Note}}</td></tr>
   {{end}}
   </tbody>
 </table>

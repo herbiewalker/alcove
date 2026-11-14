@@ -15,12 +15,12 @@ import (
 const entriesPerPage = 50
 
 type entryRow struct {
-	ID, Who, When, Duration, Rating, Note string
-	Mine, Private                         bool
+	ID, OwnerID, Who, When, Duration, Rating, Note string
+	Mine, Private                                  bool
 }
 
 func fmtEntry(e share.Entry) entryRow {
-	r := entryRow{ID: e.ID, Who: e.OwnerName, When: e.Local.Format(timeFmt), Note: e.Note, Mine: e.Mine}
+	r := entryRow{ID: e.ID, OwnerID: e.OwnerID, Who: e.OwnerName, When: e.Local.Format(timeFmt), Note: e.Note, Mine: e.Mine}
 	if e.Duration != nil {
 		r.Duration = fmt.Sprintf("%d min", *e.Duration)
 	}
@@ -129,4 +129,49 @@ func (s *Server) postEntryPrivate(q *rq) {
 		next += "?page=" + strconv.Itoa(n)
 	}
 	q.redirect(next)
+}
+
+// getMyEntry opens one of the signed-in person's own entries in full. Only their own rows are read.
+func (s *Server) getMyEntry(q *rq) {
+	var d share.Detail
+	err := q.st.View(q.r.Context(), func(tx *sql.Tx) (err error) {
+		d, err = share.OwnDetail(tx, q.id.user.ID, q.r.PathValue("id"))
+		return
+	})
+	switch {
+	case errors.Is(err, share.ErrNoEntry):
+		q.notFound()
+		return
+	case err != nil:
+		q.serverError("read entry", err)
+		return
+	}
+	q.render(http.StatusOK, "entry", &page{Title: "Entry", Active: "uploads", Detail: &d, DetailBack: "/entries", DetailBackLabel: "My entries"})
+}
+
+// getSpaceEntry opens one entry of a member of a space, only if the space's list would show it to
+// this person. A missing space, a missing entry, a hidden entry and an outsider all get the same page.
+func (s *Server) getSpaceEntry(q *rq) {
+	sp, _, ok := s.gate(q)
+	if !ok {
+		return
+	}
+	var d share.Detail
+	err := q.st.View(q.r.Context(), func(tx *sql.Tx) (err error) {
+		d, err = share.EntryDetail(tx, sp.ID, q.id.user.ID, spaces.ConsentVersion, q.r.PathValue("owner"), q.r.PathValue("entry"))
+		return
+	})
+	switch {
+	case errors.Is(err, share.ErrNotMember), errors.Is(err, share.ErrNoEntry):
+		q.notFound()
+		return
+	case errors.Is(err, share.ErrNeedConsent):
+		q.redirect("/spaces/" + sp.ID)
+		return
+	case err != nil:
+		q.serverError("read shared entry", err)
+		return
+	}
+	q.render(http.StatusOK, "entry", &page{Title: "Entry", Active: "spaces", Detail: &d, SpaceID: sp.ID, SpaceName: sp.Name,
+		DetailBack: "/spaces/" + sp.ID + "/entries", DetailBackLabel: sp.Name + ": entries"})
 }

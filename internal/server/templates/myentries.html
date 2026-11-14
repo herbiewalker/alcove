@@ -7,7 +7,7 @@
   <thead><tr><th>When</th><th>Length</th><th>Rating</th><th>In spaces</th></tr></thead>
   <tbody>
   {{range .Shared}}
-    <tr><td>{{.When}}</td><td>{{.Duration}}</td><td>{{.Rating}}</td>
+    <tr><td><a href="/entries/{{.ID | urlquery}}">{{.When}}</a></td><td>{{.Duration}}</td><td>{{.Rating}}</td>
     <td><form method="post" action="/entries/private"><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="id" value="{{.ID}}"><input type="hidden" name="page" value="{{$.PageNo}}">
       {{if .Private}}<input type="hidden" name="private" value="0"><button class="btn secondary" type="submit">Private: share it</button>{{else}}<input type="hidden" name="private" value="1"><button class="btn secondary" type="submit">Shared: make private</button>{{end}}</form></td></tr>
   {{end}}

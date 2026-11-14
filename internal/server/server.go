@@ -34,6 +34,7 @@ import (
 	"github.com/herbiewalker/alcove/internal/ingest"
 	"github.com/herbiewalker/alcove/internal/netsec"
 	"github.com/herbiewalker/alcove/internal/retention"
+	"github.com/herbiewalker/alcove/internal/share"
 	"github.com/herbiewalker/alcove/internal/store"
 )
 
@@ -156,7 +157,7 @@ func (s *Server) netOptions() netsec.Options {
 }
 
 func (s *Server) parseTemplates() error {
-	pages := []string{"message", "setup", "login", "unlock", "home", "account", "stepup", "admin", "adminlog", "settings", "backup", "uploads", "users", "usercreated", "forcepw", "mydeleted", "admindeleted", "spaces", "space", "join", "joinconsent", "codeshown", "adminspaces", "spaceentries", "myentries", "profile", "prefill", "calendar", "compare"}
+	pages := []string{"message", "setup", "login", "unlock", "home", "account", "stepup", "admin", "adminlog", "settings", "backup", "uploads", "users", "usercreated", "forcepw", "mydeleted", "admindeleted", "spaces", "space", "join", "joinconsent", "codeshown", "adminspaces", "spaceentries", "myentries", "profile", "prefill", "calendar", "compare", "entry"}
 	for _, p := range pages {
 		t, err := template.ParseFS(assets, "templates/base.html", "templates/"+p+".html")
 		if err != nil {
@@ -484,13 +485,16 @@ type page struct {
 	EntryTotal, PageNo int
 	SpaceID, SpaceName string
 	// profiles (D-33)
-	ProfileName   string
-	ProfileFields []profileField
-	Offers        []offerRow
-	Cal           *calView
-	Compare       *compareView
-	ProfileTZ     string
-	DefaultTZ     string
+	ProfileName     string
+	ProfileFields   []profileField
+	Offers          []offerRow
+	Cal             *calView
+	Compare         *compareView
+	Detail          *share.Detail
+	DetailBack      string
+	DetailBackLabel string
+	ProfileTZ       string
+	DefaultTZ       string
 }
 
 type logRow struct {
@@ -688,9 +692,11 @@ func (s *Server) routes_() {
 	s.handle("GET /profile/prefill", user, s.getPrefill)
 	s.handle("POST /profile/prefill", user, s.postPrefill)
 	s.handle("GET /entries", user, s.getMyEntries)
+	s.handle("GET /entries/{id}", user, s.getMyEntry)
 	s.handle("POST /entries/private", user, s.postEntryPrivate)
 	s.handle("GET /spaces/{id}", user, s.getSpace)
 	s.handle("GET /spaces/{id}/entries", user, s.getSpaceEntries)
+	s.handle("GET /spaces/{id}/entry/{owner}/{entry}", user, s.getSpaceEntry)
 	s.handle("GET /spaces/{id}/calendar", user, s.getSpaceCalendar)
 	s.handle("GET /spaces/{id}/compare", user, s.getSpaceCompare)
 	s.handle("POST /spaces/{id}/restore", user, s.postSpaceRestore)
