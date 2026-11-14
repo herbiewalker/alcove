@@ -1,7 +1,7 @@
-// Command logocrop makes the square header mark and favicons from the full Alcove logo: the A and
-// heart without the wordmark, cropped square and resized. It uses only the standard library.
+// Command logocrop makes the square header mark and favicons from the square Alcove icon (the A, heart
+// and server stack). It uses only the standard library.
 //
-//	go run ./tools/logocrop docs/img/alcove-logo.png internal/server/static
+//	go run ./tools/logocrop docs/img/alcove-icon-512.png internal/server/static
 //
 // The mark keeps the logo's own deep-purple background, so it reads as a small rounded tile in
 // both the light and the dark theme (the CSS rounds the corners).
@@ -16,8 +16,8 @@ import (
 	"path/filepath"
 )
 
-// The crop is a square around the A and heart, above the wordmark, in the 1254 px original.
-var crop = image.Rect(277, 132, 977, 832)
+// The master icon is already a square tile, so the crop is the whole image.
+var crop = image.Rectangle{}
 
 func main() {
 	if len(os.Args) != 3 {
@@ -39,6 +39,13 @@ func run(src, outDir string) error {
 	img, err := png.Decode(f)
 	if err != nil {
 		return err
+	}
+	crop := crop
+	if crop.Empty() {
+		crop = img.Bounds()
+	}
+	if crop.Dx() != crop.Dy() {
+		return fmt.Errorf("the source must be square, got %v", crop)
 	}
 	if !crop.In(img.Bounds()) {
 		return fmt.Errorf("the crop %v does not fit the image %v", crop, img.Bounds())

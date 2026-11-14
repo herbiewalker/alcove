@@ -38,7 +38,7 @@
   `ALCOVE_ALLOWED_NETWORKS` (CIDR ranges; default is the private LAN ranges, loopback and Tailscale),
   `ALCOVE_TRUSTED_PROXIES` (proxy addresses whose forwarded client address is believed), `ALCOVE_PROXY_MODE` and
   `ALCOVE_REQUIRE_TLS` (`true` or `false`). A typo stops the start instead of opening the door.
-- The header mark and favicons are generated from the master logo: `go run ./tools/logocrop docs/img/alcove-logo.png internal/server/static`.
+- The header mark and favicons are generated from the master logo: `go run ./tools/logocrop docs/img/alcove-icon-512.png internal/server/static`.
 - Secrets never go in env vars in the repo. The data key lives in a key file kept **outside** the data
   directory (see CLAUDE.md constraint 4). `.env` files are gitignored.
 

@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="deploy/icon.png" alt="Alcove" width="220">
+<img src="docs/img/alcove-banner.png" alt="Alcove" width="100%">
 
 # Alcove
 
