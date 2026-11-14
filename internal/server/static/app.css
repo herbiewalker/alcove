@@ -283,3 +283,15 @@ button:disabled, .btn[disabled] { opacity: .6; cursor: progress; }
 .chips li { padding: 3px 10px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface); }
 .note { white-space: pre-wrap; overflow-wrap: anywhere; margin: 0; }
 td a { color: inherit; font-weight: 600; }
+
+/* Search (D-38) */
+.hits { list-style: none; margin: 0; padding: 0; }
+.hits li { padding: 10px 0; border-bottom: 1px solid var(--line); }
+.snippet { margin: 4px 0 0; overflow-wrap: anywhere; }
+mark { background: var(--warn-bg); color: var(--warn); padding: 0 2px; border-radius: 3px; }
+
+/* Search (D-38) */
+.hits { list-style: none; margin: 0; padding: 0; }
+.hits li { padding: 10px 0; border-bottom: 1px solid var(--line); }
+.snippet { margin: 4px 0 0; overflow-wrap: anywhere; }
+mark { background: var(--warn-bg); color: var(--warn); padding: 0 2px; border-radius: 3px; }

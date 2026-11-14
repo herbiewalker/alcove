@@ -1,0 +1,34 @@
+{{define "content"}}
+<h1>Search</h1>
+<p class="muted">Finds words in notes, and in your own partners' names. In a space it searches only the notes members have chosen to share there. What you type is sent as a form, not in the address, so it stays out of your browser history and any log.</p>
+<form class="card" method="post" action="/search" autocomplete="off" data-busy="Searching...">
+  <input type="hidden" name="csrf" value="{{.CSRF}}">
+  <div class="field">
+    <label for="q">Words to find</label>
+    <input id="q" name="q" type="search" maxlength="100" value="{{.SearchQ}}" autocapitalize="none" spellcheck="false" required>
+    <p class="hint">Every word must match. The last word can be the start of a word.</p>
+  </div>
+  <div class="field">
+    <label for="scope">Where</label>
+    <select id="scope" name="scope">{{range .SearchScopes}}<option value="{{.Value}}"{{if .Selected}} selected{{end}}>{{.Label}}</option>{{end}}</select>
+  </div>
+  <div class="actions"><button class="btn" type="submit">Search</button></div>
+</form>
+
+{{if .Searched}}
+  {{if .Results}}
+  <h2>{{len .Results}} {{if eq (len .Results) 1}}entry{{else}}entries{{end}} found</h2>
+  {{if .SearchFull}}<p class="muted small">Showing the newest {{len .Results}}. Add a word to narrow it down.</p>{{end}}
+  <ul class="hits">
+    {{range .Results}}
+    <li>
+      <a href="{{.Link}}">{{.When}}</a> <span class="muted">{{.Who}}{{if .Mine}} (you){{end}}{{if .Partner}} · matched a partner{{end}}</span>
+      <p class="snippet">{{range .Segs}}{{if .Hit}}<mark>{{.Text}}</mark>{{else}}{{.Text}}{{end}}{{end}}</p>
+    </li>
+    {{end}}
+  </ul>
+  {{else}}
+  <p class="muted">Nothing found. Check the spelling, or try fewer words.{{if .SearchScopes}} Searching a space only finds notes their owners share there.{{end}}</p>
+  {{end}}
+{{end}}
+{{end}}

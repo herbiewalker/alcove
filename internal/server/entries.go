@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"net/url"
 	"strconv"
 
 	"github.com/herbiewalker/alcove/internal/share"
@@ -175,3 +176,6 @@ func (s *Server) getSpaceEntry(q *rq) {
 	q.render(http.StatusOK, "entry", &page{Title: "Entry", Active: "spaces", Detail: &d, SpaceID: sp.ID, SpaceName: sp.Name,
 		DetailBack: "/spaces/" + sp.ID + "/entries", DetailBackLabel: sp.Name + ": entries"})
 }
+
+// urlSeg escapes one path segment for a link built in Go.
+func urlSeg(s string) string { return url.PathEscape(s) }

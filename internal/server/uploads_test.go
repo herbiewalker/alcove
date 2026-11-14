@@ -412,7 +412,7 @@ func TestEveryPageUsesTheOneSameOriginScriptUnderACleanCSP(t *testing.T) {
 		t.Errorf("CSP is too loose: %s", csp)
 	}
 	// Every page has the same single script: N11 (at most one), now on every page (D-36).
-	for _, p := range []string{"/", "/account", "/admin", "/admin/log", "/admin/settings", "/admin/backup", "/spaces", "/profile", "/entries"} {
+	for _, p := range []string{"/", "/account", "/admin", "/admin/log", "/admin/settings", "/admin/backup", "/spaces", "/profile", "/entries", "/search"} {
 		oneScript(t, p, c.do("GET", p, nil).Body.String())
 	}
 	oneScript(t, "/login", e.client("192.168.1.77:1").do("GET", "/login", nil).Body.String())

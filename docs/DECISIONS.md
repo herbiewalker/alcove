@@ -702,3 +702,16 @@ is a recurring check, not a one-off.
   5. **No raw row leaves the package.** The page struct carries resolved text only; the encounter's JSON is never passed to the template.
   6. **Photos are not shown yet** (a note on the page says so); they come with the photo milestone.
 - **Consequences:** the lists and the calendar's day view now link to the entry. An entry is a read-only page until M5.
+
+## D-38 — Search for members: own entries, and the notes a space shows (M8 in part; implements the member half of D-17)
+- **Status:** Accepted
+- **Context:** D-17 gave search an FTS5 index inside the sealed database, filled at upload time from notes, partner names and profile text, with "members search only what they may see". Nothing used it yet.
+- **Decision:**
+  1. **Two scopes, one page** (`/search`): *My own entries* and *Shared in <space>* for each space the person is active in.
+  2. **Own search** matches the person's own notes and the names and notes of their own partners, and returns the entries (a partner match returns the entries that partner was in). It reads only that person's rows.
+  3. **Space search matches notes only,** and an entry is a result only if `share.Entries` would list it for the viewer AND its owner includes notes: what is matched is the note, so an owner who keeps notes out cannot be found by them. Partner names are never searched in a space, because other members are not shown them by default (D-21, D-37). It uses the same `scope` as every other shared view, so every condition that hides an entry hides it from search.
+  4. **A search is a POST.** What a person looks for is never in an address, so it stays out of browser history, any reverse proxy's log and a Referer, and the server never logs it (constraint 8; a test scrapes the log).
+  5. **Safe by construction.** Every word is turned into a quoted string and the words are ANDed; the last word matches as a prefix. No operator, column filter or wildcard from the person reaches the engine, control characters are dropped, at most 8 words of 40 characters and 100 characters in all, at least 2. A hostile-input test runs a list of attack strings through both searches.
+  6. **Results are text, never markup:** the matched words are marked by control characters inside SQLite's snippet and split into plain segments for the template to escape. At most 50 results, newest first, in each owner's own time zone. An entry that matches by note and by partner appears once.
+  7. **Not in this piece:** the administrator's search over everything including deleted and paused content (D-17, logged by scope, count and term length only), searching by catalog labels (acts, toys), and profile text.
+- **Consequences:** searching a space for a word tells a member nothing about notes they cannot read. A search that finds nothing is the same whether the entries do not exist or are hidden.

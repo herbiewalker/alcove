@@ -225,6 +225,13 @@ curl -fsS -b "$J3" "$URL$sharedlink" | grep -q "Shared by" || die "a member cann
 [ "$(curl -s -o /dev/null -w '%{http_code}' "$URL$sharedlink")" != "200" ] || die "a signed-out visitor opened a shared entry"
 ok "an entry opens for its owner and, through the space, for a member; a made-up id and a signed-out visitor are refused"
 
+# 4k. Search: the page opens, a search is a POST (a GET with a term finds nothing), a foreign space is refused.
+curl -fsS -b "$J3" "$URL/search" | grep -q "Words to find" || die "the search page did not open"
+[ "$(curl -s -o /dev/null -w '%{http_code}' -b "$J3" -d q=synthetic -d scope=sp00000000000000000000000000000000 --data-urlencode "csrf=$(JAR="$J3" token /search)" "$URL/search")" = "404" ] || die "a made-up space was searchable"
+curl -fsS -b "$J3" "$URL/search?q=synthetic&scope=me" | grep -q "found" && die "a search ran from the address"
+[ "$(curl -s -o /dev/null -w '%{http_code}' "$URL/search")" != "200" ] || die "a signed-out visitor opened the search page"
+ok "search opens for a member, never runs from an address and refuses a space that is not theirs"
+
 # 4h. The shared calendar: a member sees the grid and the owner's day, an outsider does not.
 cal=$(curl -fsS -b "$J3" "$URL/spaces/$spid/calendar")
 echo "$cal" | grep -q 'class="cal"' || die "the calendar has no grid"

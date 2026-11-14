@@ -157,7 +157,7 @@ func (s *Server) netOptions() netsec.Options {
 }
 
 func (s *Server) parseTemplates() error {
-	pages := []string{"message", "setup", "login", "unlock", "home", "account", "stepup", "admin", "adminlog", "settings", "backup", "uploads", "users", "usercreated", "forcepw", "mydeleted", "admindeleted", "spaces", "space", "join", "joinconsent", "codeshown", "adminspaces", "spaceentries", "myentries", "profile", "prefill", "calendar", "compare", "entry"}
+	pages := []string{"message", "setup", "login", "unlock", "home", "account", "stepup", "admin", "adminlog", "settings", "backup", "uploads", "users", "usercreated", "forcepw", "mydeleted", "admindeleted", "spaces", "space", "join", "joinconsent", "codeshown", "adminspaces", "spaceentries", "myentries", "profile", "prefill", "calendar", "compare", "entry", "search"}
 	for _, p := range pages {
 		t, err := template.ParseFS(assets, "templates/base.html", "templates/"+p+".html")
 		if err != nil {
@@ -485,16 +485,21 @@ type page struct {
 	EntryTotal, PageNo int
 	SpaceID, SpaceName string
 	// profiles (D-33)
-	ProfileName     string
-	ProfileFields   []profileField
-	Offers          []offerRow
-	Cal             *calView
-	Compare         *compareView
-	Detail          *share.Detail
-	DetailBack      string
-	DetailBackLabel string
-	ProfileTZ       string
-	DefaultTZ       string
+	ProfileName   string
+	ProfileFields []profileField
+	Offers        []offerRow
+	Cal           *calView
+	Compare       *compareView
+	Detail        *share.Detail
+	// search (D-38)
+	SearchScopes         []scopeOption
+	SearchQ              string
+	Results              []resultRow
+	Searched, SearchFull bool
+	DetailBack           string
+	DetailBackLabel      string
+	ProfileTZ            string
+	DefaultTZ            string
 }
 
 type logRow struct {
@@ -691,6 +696,8 @@ func (s *Server) routes_() {
 	s.handle("POST /profile", user, s.postProfile)
 	s.handle("GET /profile/prefill", user, s.getPrefill)
 	s.handle("POST /profile/prefill", user, s.postPrefill)
+	s.handle("GET /search", user, s.getSearch)
+	s.handle("POST /search", user, s.postSearch)
 	s.handle("GET /entries", user, s.getMyEntries)
 	s.handle("GET /entries/{id}", user, s.getMyEntry)
 	s.handle("POST /entries/private", user, s.postEntryPrivate)
