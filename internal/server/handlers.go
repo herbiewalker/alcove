@@ -303,7 +303,7 @@ func (s *Server) postAccount(q *rq) {
 	}
 	u := q.id.user
 	err = q.st.Update(q.r.Context(), true, func(tx *sql.Tx) error {
-		if err := auth.SetPassword(tx, u.ID, hash); err != nil {
+		if err := auth.ChangePassword(tx, u.ID, hash); err != nil {
 			return err
 		}
 		if u.Role == auth.RoleAdmin {
@@ -323,25 +323,42 @@ func (s *Server) postAccount(q *rq) {
 
 // ---- step-up ----
 
-func stepUpTarget(s string) string {
-	if s == "/admin/settings" || s == "/admin/backup" || s == "/admin" {
+// stepUpPaths are the only places a step-up may return to, so the "next" field can never be an
+// open redirect. The first is the default for an administrator, the second for everyone else.
+var stepUpPaths = map[string]bool{
+	"/admin": true, "/admin/settings": true, "/admin/backup": true, "/admin/users": true, "/admin/deleted": true,
+	"/uploads": true, "/uploads/deleted": true, "/account": true,
+}
+
+func (q *rq) stepUpTarget(s string) string {
+	if stepUpPaths[s] && (q.id.user.Role == auth.RoleAdmin || !strings.HasPrefix(s, "/admin")) {
 		return s
 	}
-	return "/admin"
+	if q.id.user.Role == auth.RoleAdmin {
+		return "/admin"
+	}
+	return "/uploads"
+}
+
+func (q *rq) stepUpActive() string {
+	if q.id.user.Role == auth.RoleAdmin {
+		return "admin"
+	}
+	return "uploads"
 }
 
 func (s *Server) getStepUp(q *rq) {
-	q.render(http.StatusOK, "stepup", &page{Title: "Confirm it is you", Active: "admin", Next: stepUpTarget(q.r.URL.Query().Get("next"))})
+	q.render(http.StatusOK, "stepup", &page{Title: "Confirm it is you", Active: q.stepUpActive(), Next: q.stepUpTarget(q.r.URL.Query().Get("next"))})
 }
 
 func (s *Server) postStepUp(q *rq) {
-	next := stepUpTarget(q.r.PostForm.Get("next"))
+	next := q.stepUpTarget(q.r.PostForm.Get("next"))
 	if !s.stepLim.Allow(q.ip() + "|stepup") {
 		q.message(http.StatusTooManyRequests, "Too many attempts", "Wait a little and try again.", next)
 		return
 	}
 	if ok, _ := auth.Verify(q.r.PostForm.Get("password"), q.id.user.PWHash, s.params); !ok {
-		q.render(http.StatusUnauthorized, "stepup", &page{Title: "Confirm it is you", Active: "admin", Next: next, Error: "That password is not right."})
+		q.render(http.StatusUnauthorized, "stepup", &page{Title: "Confirm it is you", Active: q.stepUpActive(), Next: next, Error: "That password is not right."})
 		return
 	}
 	if err := q.audit("session.stepup", "user", q.id.user.ID, "", nil); err != nil {

@@ -1,0 +1,21 @@
+{{define "content"}}
+<h1>Choose a new password</h1>
+{{if .Forced}}<p class="muted">You signed in with a temporary password. Choose your own now; nothing else works until you do.</p>{{end}}
+<form class="card" method="post" action="/account/password" autocomplete="off">
+  <input type="hidden" name="csrf" value="{{.CSRF}}">
+  <div class="field">
+    <label for="current">Current password</label>
+    <input id="current" name="current" type="password" autocomplete="current-password" required autofocus>
+  </div>
+  <div class="field">
+    <label for="password">New password</label>
+    <input id="password" name="password" type="password" autocomplete="new-password" required>
+    <p class="hint">At least 10 characters. A few ordinary words make a strong, memorable passphrase.</p>
+  </div>
+  <div class="field">
+    <label for="confirm">Repeat the new password</label>
+    <input id="confirm" name="confirm" type="password" autocomplete="new-password" required>
+  </div>
+  <div class="actions"><button class="btn" type="submit">Save the new password</button></div>
+</form>
+{{end}}

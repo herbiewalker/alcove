@@ -265,3 +265,97 @@ func TestLimiter(t *testing.T) {
 		t.Fatal("reset should forgive")
 	}
 }
+
+func TestTempPassword(t *testing.T) {
+	seen := map[string]bool{}
+	for i := 0; i < 200; i++ {
+		p, err := TempPassword()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(p) != 19 || strings.Count(p, "-") != 3 || seen[p] {
+			t.Fatalf("bad or repeated temporary password %q", p)
+		}
+		if strings.ContainsAny(p, "ilo01") {
+			t.Fatalf("look-alike characters in %q", p)
+		}
+		if err := CheckPassword(p, "someone"); err != nil {
+			t.Fatalf("a temporary password must satisfy the policy: %v", err)
+		}
+		seen[p] = true
+	}
+}
+
+func TestDeletionFlagsAndAdminCount(t *testing.T) {
+	s := openStore(t)
+	now := time.Date(2026, 11, 14, 9, 0, 0, 0, time.UTC)
+	var a, b, m User
+	if err := upd(t, s, func(tx *sql.Tx) (err error) {
+		if a, err = Create(tx, now, "admina", "A", RoleAdmin, "h"); err != nil {
+			return err
+		}
+		if b, err = Create(tx, now, "adminb", "B", RoleAdmin, "h"); err != nil {
+			return err
+		}
+		m, err = Create(tx, now, "member", "M", RoleMember, "h")
+		return err
+	}); err != nil {
+		t.Fatal(err)
+	}
+	err := upd(t, s, func(tx *sql.Tx) error {
+		if n, _ := CountActiveAdmins(tx); n != 2 {
+			t.Errorf("admins = %d", n)
+		}
+		// Deleting requires disabled first.
+		if err := MarkDeleted(tx, m.ID, now); !errors.Is(err, ErrNoUser) {
+			t.Errorf("deleting an active account must be refused: %v", err)
+		}
+		if err := SetStatus(tx, m.ID, StatusDisabled); err != nil {
+			return err
+		}
+		if err := MarkDeleted(tx, m.ID, now); err != nil {
+			return err
+		}
+		got, _ := ByID(tx, m.ID)
+		if !got.Deleted() || !got.DeletedAt.Equal(now) {
+			t.Errorf("deleted flags: %+v", got)
+		}
+		if err := Undelete(tx, m.ID); err != nil {
+			return err
+		}
+		if got, _ = ByID(tx, m.ID); got.Deleted() {
+			t.Error("undelete did not clear the flag")
+		}
+		// A disabled or deleted admin does not count.
+		_ = SetStatus(tx, a.ID, StatusDisabled)
+		if n, _ := CountActiveAdmins(tx); n != 1 {
+			t.Errorf("admins after disabling one = %d", n)
+		}
+		// Forced change survives a login-time rehash but not the person's own change.
+		if err := SetPasswordForced(tx, b.ID, "temp", true); err != nil {
+			return err
+		}
+		_ = SetPassword(tx, b.ID, "rehashed")
+		if got, _ = ByID(tx, b.ID); !got.MustChange || got.PWHash != "rehashed" {
+			t.Errorf("rehash cleared the forced change: %+v", got)
+		}
+		_ = ChangePassword(tx, b.ID, "mine")
+		if got, _ = ByID(tx, b.ID); got.MustChange || got.PWHash != "mine" {
+			t.Errorf("own change did not clear it: %+v", got)
+		}
+		list, err := List(tx)
+		if err != nil || len(list) != 3 {
+			t.Errorf("list: %d %v", len(list), err)
+		}
+		if err := Remove(tx, m.ID); err != nil {
+			return err
+		}
+		if _, err := ByID(tx, m.ID); !errors.Is(err, ErrNoUser) {
+			t.Errorf("removed account still there: %v", err)
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+}

@@ -6,6 +6,11 @@
   <div><b>{{.Stats.Sealed}}</b><span class="muted small">last sealed to disk</span></div>
 </div>
 <section class="card">
+  <h2>People</h2>
+  <p>Add people, disable them, reset a password, or delete them with a grace period before everything is removed.</p>
+  <p><a class="btn" href="/admin/users">Open People</a> <a class="btn secondary" href="/admin/deleted">Recently deleted</a></p>
+</section>
+<section class="card">
   <h2>Admin log</h2>
   <p>Every admin action is written to an append-only log that is chained by hash, so a changed or removed line is detected. It records what was touched, never the content.</p>
   <p><a class="btn" href="/admin/log">Open the log</a></p>

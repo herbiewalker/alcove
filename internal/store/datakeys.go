@@ -7,6 +7,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"time"
 )
 
 // DataKeySize is the per-user data key length (AES-256).
@@ -140,6 +141,25 @@ func (s *Store) DestroyDataKey(owner string) error {
 	}
 	if _, err := s.db.Exec(`DELETE FROM data_key WHERE owner_id = ?`, owner); err != nil {
 		return err
+	}
+	s.MarkDirty()
+	return s.SealNow(false)
+}
+
+// DestroyDataKeyIfOlderThan removes owner's data key only when it was created before cutoff, and
+// reports ErrNoDataKey when nothing was removed. The retention sweep uses it for keys whose
+// account no longer exists, with a grace so a key made a moment ago for an account still being
+// created is never swept.
+func (s *Store) DestroyDataKeyIfOlderThan(owner string, cutoff time.Time) error {
+	if !ValidOwnerID(owner) {
+		return ErrOwnerID
+	}
+	res, err := s.db.Exec(`DELETE FROM data_key WHERE owner_id = ? AND created_at <= ?`, owner, cutoff.Unix())
+	if err != nil {
+		return err
+	}
+	if n, _ := res.RowsAffected(); n == 0 {
+		return ErrNoDataKey
 	}
 	s.MarkDirty()
 	return s.SealNow(false)

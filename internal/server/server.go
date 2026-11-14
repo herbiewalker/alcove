@@ -33,6 +33,7 @@ import (
 	"github.com/herbiewalker/alcove/internal/auth"
 	"github.com/herbiewalker/alcove/internal/ingest"
 	"github.com/herbiewalker/alcove/internal/netsec"
+	"github.com/herbiewalker/alcove/internal/retention"
 	"github.com/herbiewalker/alcove/internal/store"
 )
 
@@ -61,7 +62,9 @@ type Options struct {
 	TmpDir     string
 	// MaxUploadBytes caps one uploaded backup (never above the Tryst reader bound, 512 MiB).
 	MaxUploadBytes int64
-	AllowNonTmpfs  bool
+	// UserRecoveryDays and AdminRecoveryDays are the soft-delete windows (zero means 10 and 45).
+	UserRecoveryDays, AdminRecoveryDays int
+	AllowNonTmpfs                       bool
 }
 
 // level is who may call a route.
@@ -107,6 +110,8 @@ type Server struct {
 	ingMu    sync.Mutex
 	ing      *ingest.Service
 	ingStore *store.Store
+	ret      *retention.Service
+	retStore *store.Store
 }
 
 // New builds the server. It fails only on an invalid transport environment, so a typo in
@@ -150,7 +155,7 @@ func (s *Server) netOptions() netsec.Options {
 }
 
 func (s *Server) parseTemplates() error {
-	pages := []string{"message", "setup", "login", "unlock", "home", "account", "stepup", "admin", "adminlog", "settings", "backup", "uploads"}
+	pages := []string{"message", "setup", "login", "unlock", "home", "account", "stepup", "admin", "adminlog", "settings", "backup", "uploads", "users", "usercreated", "forcepw", "mydeleted", "admindeleted"}
 	for _, p := range pages {
 		t, err := template.ParseFS(assets, "templates/base.html", "templates/"+p+".html")
 		if err != nil {
@@ -331,6 +336,10 @@ func (s *Server) register(pattern string, lv level, stream bool, h func(*rq)) {
 		if lv >= anyone && q.st != nil {
 			q.id = s.identify(q)
 		}
+		if lv >= user && q.id != nil && q.id.user.MustChange && r.URL.Path != "/account/password" {
+			http.Redirect(w, r, "/account/password", http.StatusSeeOther)
+			return
+		}
 		if lv >= user && q.id == nil {
 			http.Redirect(w, r, "/login", http.StatusSeeOther)
 			return
@@ -454,6 +463,13 @@ type page struct {
 	BackupOK, JobRunning           bool
 	Refresh                        bool
 	JobText, LastBackup, LastDrill string
+	// accounts, deleted items, password change (D-30)
+	Users, DeletedUsers       []userRow
+	DeletedUploads            []delRow
+	MyDeleted                 []myDelRow
+	NewUsername, TempPassword string
+	Created, Forced           bool
+	UserDays, AdminDays       int
 }
 
 type logRow struct {
@@ -463,7 +479,7 @@ type logRow struct {
 }
 
 var knownPaths = map[string]bool{"/": true, "/login": true, "/setup": true, "/unlock": true, "/account": true,
-	"/admin": true, "/admin/log": true, "/admin/settings": true, "/admin/backup": true, "/uploads": true}
+	"/admin": true, "/admin/log": true, "/admin/settings": true, "/admin/backup": true, "/uploads": true, "/admin/users": true, "/admin/deleted": true, "/uploads/deleted": true, "/account/password": true}
 
 // render writes a page with a status code. It builds the whole page first so a template error
 // never leaves half a page on the wire.
@@ -515,14 +531,20 @@ func (q *rq) serverError(what string, err error) {
 // Flash messages travel as a short key in a cookie, never as text, so a link cannot make the
 // page say anything.
 var flashes = map[string]string{
-	"pw":        "Password changed. Other devices were signed out.",
-	"net-prop":  "The new network list is live. Confirm it below within a minute, or it reverts.",
-	"net-ok":    "Network list saved.",
-	"net-undo":  "Network list reverted.",
-	"proxy":     "Proxy settings saved.",
-	"tls":       "HTTPS setting saved.",
-	"signedout": "Signed out.",
-	"uploaded":  "Backup uploaded and checked. It is now your current data.",
+	"pw":              "Password changed. Other devices were signed out.",
+	"net-prop":        "The new network list is live. Confirm it below within a minute, or it reverts.",
+	"net-ok":          "Network list saved.",
+	"net-undo":        "Network list reverted.",
+	"proxy":           "Proxy settings saved.",
+	"tls":             "HTTPS setting saved.",
+	"signedout":       "Signed out.",
+	"uploaded":        "Backup uploaded and checked. It is now your current data.",
+	"done":            "Done.",
+	"purged":          "Expired items were removed for good.",
+	"restored":        "Restored.",
+	"deleted":         "Moved to Recently deleted. You can restore it from there.",
+	"deleted-empty":   "Moved to Recently deleted. You have no current data now; upload a backup to start again.",
+	"deleted-nocache": "Moved to Recently deleted. Your current data could not be rebuilt because no backup password is remembered, so it is empty until you upload again.",
 }
 
 func (q *rq) setFlash(key string) {
@@ -630,13 +652,27 @@ func (s *Server) routes_() {
 	s.handle("GET /{$}", user, s.getHome)
 	s.handle("GET /uploads", user, s.getUploads)
 	s.handleStream("POST /uploads", user, s.postUploads)
+	s.handle("POST /uploads/delete", user, s.postUploadDelete)
+	s.handle("GET /uploads/deleted", user, s.getMyDeleted)
+	s.handle("POST /uploads/restore", user, s.postUploadRestore)
+	s.handle("POST /uploads/download", user, s.postDownload)
+	s.handle("GET /account/password", user, s.getPassword)
+	s.handle("POST /account/password", user, s.postPassword)
 	s.handle("GET /account", user, s.getAccount)
 	s.handle("POST /account", user, s.postAccount)
-	s.handle("GET /stepup", admin, s.getStepUp)
-	s.handle("POST /stepup", admin, s.postStepUp)
+	s.handle("GET /stepup", user, s.getStepUp)
+	s.handle("POST /stepup", user, s.postStepUp)
 	s.handle("GET /admin", admin, s.getAdmin)
 	s.handle("GET /admin/log", admin, s.getAdminLog)
 	s.handle("POST /admin/log/verify", admin, s.postVerifyLog)
+	s.handle("GET /admin/users", admin, s.getUsers)
+	s.handle("POST /admin/users/create", admin, s.postUserCreate)
+	for _, k := range []string{"disable", "enable", "delete", "restore", "reset"} {
+		s.handle("POST /admin/users/"+k, admin, s.userAction(k))
+	}
+	s.handle("GET /admin/deleted", admin, s.getAdminDeleted)
+	s.handle("POST /admin/deleted/restore", admin, s.postAdminRestoreUpload)
+	s.handle("POST /admin/deleted/purge", admin, s.postAdminPurge)
 	s.handle("GET /admin/backup", admin, s.getBackup)
 	s.handle("POST /admin/backup/run", admin, s.postBackupRun)
 	s.handle("POST /admin/backup/verify", admin, s.postBackupVerify)

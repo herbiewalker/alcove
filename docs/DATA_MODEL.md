@@ -116,3 +116,12 @@ piece C), `backup_password` (owner, the password sealed with AES-256-GCM under t
 the row as raw JSON with its columns in file order). Everything except `upload`, `revision` and `backup_password` is derived and rebuilt
 by `ingest.Rebuild`. The `search` table gains rows of kind `encounter`, `partner` and `profile` built from the note and name columns. The
 head revision of an owner is the newest one with no `deleted_at`.
+
+## Implemented in M3 piece C (store schema v4)
+
+Two additive columns on `user`: `deleted_at` (a disabled account with this set is **deleted**, waiting for its purge) and `must_change`
+(the person must choose a new password before anything else works). No table was rebuilt: the `status` check still allows only `active`
+and `disabled`. `revision.deleted_at` (from v3) is now used: the soft delete of an upload. The data directory also holds an empty `.lock`
+file whose advisory lock keeps a second process out. A purge deletes, in order: the revision and upload rows (one transaction), then the
+stored files, then for an account all of its rows, its folder under `blobs/` and its data key; a sweep removes files with no row (older
+than a day) and owners with no account, so a crash between the steps is finished by the next purge.

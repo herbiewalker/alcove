@@ -64,6 +64,8 @@ services:
       ALCOVE_BACKUP_DIR: "/backups"
       ALCOVE_BACKUP_KEEP: "${ALCOVE_BACKUP_KEEP:-7}"
       ALCOVE_MAX_UPLOAD_MB: "${ALCOVE_MAX_UPLOAD_MB:-512}"
+      ALCOVE_USER_RECOVERY_DAYS: "${ALCOVE_USER_RECOVERY_DAYS:-10}"
+      ALCOVE_ADMIN_RECOVERY_DAYS: "${ALCOVE_ADMIN_RECOVERY_DAYS:-45}"
       # Transport security (D-23). Empty means "not set": the admin console decides. A value set
       # here wins over the console and is the break-glass path if you lock yourself out.
       ALCOVE_ALLOWED_NETWORKS: "${ALCOVE_ALLOWED_NETWORKS:-}"

@@ -1,0 +1,9 @@
+{{define "content"}}
+<h1>{{if .Created}}Account created{{else}}Password reset{{end}}</h1>
+<section class="card">
+  <p>Give <b>@{{.NewUsername}}</b> this temporary password in person. <b>It is shown only now</b> and cannot be looked up again.</p>
+  <p class="temp"><code>{{.TempPassword}}</code></p>
+  <p class="muted">They must choose their own password the first time they sign in. If you lose this one, reset the password from the People page.</p>
+  <p><a class="btn" href="/admin/users">Back to People</a></p>
+</section>
+{{end}}

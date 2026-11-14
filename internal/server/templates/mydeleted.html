@@ -1,0 +1,22 @@
+{{define "content"}}
+<h1>Recently deleted</h1>
+<p class="muted">You can restore an upload yourself for {{.UserDays}} days after deleting it. After that only the administrator can, until {{.AdminDays}} days have passed, and then it is removed for good.</p>
+{{if .MyDeleted}}
+<div class="scroll">
+<table>
+  <thead><tr><th>Deleted (UTC)</th><th>File</th><th>Entries</th><th>Size</th><th>Yours to restore until (UTC)</th><th></th></tr></thead>
+  <tbody>
+  {{range .MyDeleted}}
+    <tr>
+      <td>{{.DeletedAt}}</td><td>{{.Filename}}</td><td>{{.Entries}}</td><td>{{.Size}}</td><td>{{.Until}}</td>
+      <td><form method="post" action="/uploads/restore"><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="id" value="{{.ID}}"><button class="btn secondary" type="submit">Restore</button></form></td>
+    </tr>
+  {{end}}
+  </tbody>
+</table>
+</div>
+{{else}}
+<p class="muted">Nothing here. Deleted uploads you can still restore appear in this list.</p>
+{{end}}
+<p><a class="btn secondary" href="/uploads">Back to My data</a></p>
+{{end}}

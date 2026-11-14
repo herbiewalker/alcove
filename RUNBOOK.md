@@ -71,8 +71,22 @@ HTTPS** in the console. Never publish Alcove's own port to the internet.
 
 ## 7. Lost the administrator password
 
-There is no reset yet. Until a break-glass command exists, a lost admin password means starting from an empty store (restore an
-older backup that predates nothing you need, or start fresh). Keep a second copy of the admin password until then.
+There is a break-glass command. It needs the same access as running the server itself (the data folder and the key file), and the
+server must be **stopped**, because two processes must never write the same database (the command is refused, and changes nothing, if
+the server is running).
+
+1. `docker compose stop`
+2. Make a temporary password and set it:
+   ```
+   docker run --rm -v <key file>:/run/keys/alcove.key:ro -v <data folder>:/data --tmpfs /tmp <image> \
+       reset-password -user <name> -generate
+   ```
+   It prints the temporary password once. (To choose the password yourself, leave out `-generate` and pipe it in on standard
+   input; if the key file is passphrase-wrapped, the key passphrase is the first line.)
+3. `docker compose start`, sign in with the temporary password, and choose a new one when asked.
+
+The reset ends nothing else and is written to the admin log as done by the system. It will not reset a deleted account (restore it
+from the People page first), and it does not need any other administrator.
 
 ## 8. Uploading a backup from a phone
 
@@ -91,3 +105,20 @@ the password to use.
 They are copies made from each person's current upload and can be thrown away. Admin console → **Backups** → **Rebuild now** (asks
 for your password again). It needs each person's remembered backup password; anyone who chose not to remember it is skipped and
 listed in the result. No upload is touched.
+
+## 10. Adding and removing people
+
+Admin console → **People**.
+
+- **Add a person:** pick a username and a role. A temporary password is made and **shown once**; give it to them in person. At their
+  first sign-in they must choose their own password before anything else works. Reset a forgotten password the same way.
+- **Disable** ends their sessions at once and blocks sign-in; **Enable** undoes it. Nothing is deleted.
+- **Delete** (the account must be disabled first) starts a grace period of `ALCOVE_ADMIN_RECOVERY_DAYS` (45). **Restore** during it
+  brings the account back, still disabled. After it, a purge that runs by itself every hour removes the account and everything it
+  owns for good: the stored files, the rows, the search index, the remembered backup password and the data key.
+- Everyone asks for their password again before the sensitive steps here. You cannot disable, delete or reset yourself, so the
+  server is never left without an administrator.
+- A person can download everything they have uploaded (My data → Download all my data) and can restore their own deleted uploads
+  for `ALCOVE_USER_RECOVERY_DAYS` (10); you can restore any of them for the longer window (Recently deleted).
+- Older instance backups still contain a purged person's data until they age out of retention (R15, R19). Prune old backups when
+  somebody has asked to be removed.

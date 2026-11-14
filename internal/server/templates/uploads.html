@@ -24,20 +24,30 @@
 {{if .Uploads}}
 <div class="scroll">
 <table>
-  <thead><tr><th>Uploaded (UTC)</th><th>File</th><th>Entries</th><th>Photos</th><th>Size</th><th></th></tr></thead>
+  <thead><tr><th>Uploaded (UTC)</th><th>File</th><th>Entries</th><th>Photos</th><th>Size</th><th></th><th></th></tr></thead>
   <tbody>
   {{range .Uploads}}
     <tr>
       <td>{{.When}}</td><td>{{.Filename}}</td><td>{{.Entries}}</td><td>{{.Media}}</td><td>{{.Size}}</td>
       <td>{{if .Current}}<b>current</b>{{end}}{{if .ReadOnly}} <span class="muted">read-only ({{.Schema}} is newer than this server knows)</span>{{end}}</td>
+      <td><form method="post" action="/uploads/delete"><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="id" value="{{.ID}}"><button class="btn secondary" type="submit">Delete</button></form></td>
     </tr>
   {{end}}
   </tbody>
 </table>
 </div>
-<p class="muted small">The newest upload is your current data. Older ones are kept as history.</p>
+<p class="muted small">The newest upload is your current data. Older ones are kept as history. Deleting moves an upload to Recently deleted, where you can restore it for {{.UserDays}} days. Deleting asks for your password again.</p>
 {{else}}
 <p class="muted">Nothing uploaded yet.</p>
 {{end}}
+
+<section class="card">
+  <h2>Your data, to keep</h2>
+  <form method="post" action="/uploads/download">
+    <input type="hidden" name="csrf" value="{{.CSRF}}">
+    <p class="muted">Download a zip of every backup you have uploaded here, exactly as you uploaded it. They stay encrypted with your own backup password. Asks for your password again.</p>
+    <div class="actions"><button class="btn secondary" type="submit">Download all my data</button> <a class="btn secondary" href="/uploads/deleted">Recently deleted</a></div>
+  </form>
+</section>
 <script src="/static/upload.js" defer></script>
 {{end}}

@@ -54,6 +54,7 @@ var (
 	ErrTmpInsideData   = errors.New("store: TmpDir must not be inside DataDir")
 	ErrManifestMissing = errors.New("store: a sealed database exists but manifest.json is missing; restore it from a backup of the data directory")
 	ErrClosed          = errors.New("store: closed")
+	ErrLocked          = errors.New("store: another Alcove process is using this data directory (stop the server first); nothing was changed")
 )
 
 // Store is an open, unsealed database.
@@ -71,6 +72,7 @@ type Store struct {
 	stop     context.CancelFunc
 	wg       sync.WaitGroup
 	lastSeal atomic.Int64 // unix nano of the last successful seal
+	lock     *dirLock
 }
 
 // manifest.json sits in the data directory in the clear. It holds no secret: it names the store
@@ -81,7 +83,10 @@ type manifest struct {
 	Created string `json:"created"`
 }
 
-const manifestName = "manifest.json"
+const (
+	manifestName = "manifest.json"
+	lockName     = ".lock"
+)
 const layoutVersion = 1
 
 // Open unseals (or creates) the database and starts the background sealer.
@@ -107,6 +112,17 @@ func Open(cfg Config) (*Store, error) {
 	if err := os.MkdirAll(cfg.DataDir, 0o700); err != nil {
 		return nil, err
 	}
+	// Lock first: a second process must not touch the sealed database or the live copy on tmpfs.
+	lk, err := lockDir(cfg.DataDir)
+	if err != nil {
+		return nil, err
+	}
+	opened := false
+	defer func() {
+		if !opened {
+			lk.release()
+		}
+	}()
 	if err := os.MkdirAll(cfg.TmpDir, 0o700); err != nil {
 		return nil, err
 	}
@@ -169,6 +185,8 @@ func Open(cfg Config) (*Store, error) {
 	s.stop = cancel
 	s.wg.Add(1)
 	go s.sealLoop(ctx)
+	s.lock = lk
+	opened = true
 	return s, nil
 }
 
@@ -386,6 +404,7 @@ func (s *Store) Close() error {
 		_ = os.Remove(s.dbPath + suffix)
 	}
 	s.wipeKey()
+	s.lock.release()
 	return err
 }
 

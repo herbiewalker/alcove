@@ -569,7 +569,7 @@ func TestAccessLevels(t *testing.T) {
 	member, _ := e.login("192.168.1.50:1", "sam", "sam has a long password")
 	anon := e.client("192.168.1.51:1")
 
-	adminOnly := []string{"/admin", "/admin/log", "/admin/settings", "/admin/backup", "/stepup"}
+	adminOnly := []string{"/admin", "/admin/log", "/admin/settings", "/admin/backup", "/admin/users", "/admin/deleted"}
 	for _, p := range adminOnly {
 		if w := anon.do("GET", p, nil); w.Code != 303 || w.Header().Get("Location") != "/login" {
 			t.Errorf("anonymous %s: %d", p, w.Code)

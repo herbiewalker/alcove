@@ -1,0 +1,47 @@
+{{define "content"}}
+<h1>Recently deleted</h1>
+<p class="muted">As administrator you can restore a deleted upload for {{.AdminDays}} days (a person can for {{.UserDays}}). After that everything is removed for good by a purge that runs by itself every hour. Looking at this page is written to the admin log.{{if not .SteppedUp}} Restoring and purging ask for your password again: <a href="/stepup?next=/admin/deleted">confirm it is you</a>.{{end}}</p>
+
+<h2>Uploads</h2>
+{{if .DeletedUploads}}
+<div class="scroll">
+<table>
+  <thead><tr><th>Person</th><th>File</th><th>Entries</th><th>Size</th><th>Deleted (UTC)</th><th>Removed after (UTC)</th><th></th></tr></thead>
+  <tbody>
+  {{range .DeletedUploads}}
+    <tr>
+      <td>@{{.OwnerName}}</td><td>{{.Filename}}</td><td>{{.Entries}}</td><td>{{.Size}}</td><td>{{.DeletedAt}}</td><td>{{.Until}}</td>
+      <td><form method="post" action="/admin/deleted/restore"><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="id" value="{{.RevisionID}}"><button class="btn secondary" type="submit">Restore</button></form></td>
+    </tr>
+  {{end}}
+  </tbody>
+</table>
+</div>
+{{else}}
+<p class="muted">No deleted uploads are waiting.</p>
+{{end}}
+
+<h2>Accounts</h2>
+{{if .DeletedUsers}}
+<div class="scroll">
+<table>
+  <thead><tr><th>Person</th><th>Removed for good after (UTC)</th><th></th></tr></thead>
+  <tbody>
+  {{range .DeletedUsers}}
+    <tr><td>@{{.Username}}</td><td>{{.Until}}</td>
+    <td><form method="post" action="/admin/users/restore"><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="id" value="{{.ID}}"><button class="btn secondary" type="submit">Restore</button></form></td></tr>
+  {{end}}
+  </tbody>
+</table>
+</div>
+{{else}}
+<p class="muted">No deleted accounts are waiting.</p>
+{{end}}
+
+<form class="card" method="post" action="/admin/deleted/purge">
+  <h2>Purge now</h2>
+  <input type="hidden" name="csrf" value="{{.CSRF}}">
+  <p class="muted">Removes everything already past its window, right now, instead of waiting for the hourly run. Nothing inside a window is touched.</p>
+  <div class="actions"><button class="btn secondary" type="submit">Purge expired items</button></div>
+</form>
+{{end}}

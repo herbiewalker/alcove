@@ -107,7 +107,8 @@ from the admin, D-3 must be revisited (per-owner keys, browser-side decryption),
   guess cost about 100 to 200 ms and 64 MiB, a per-address limit allows ten tries and then one every 20 seconds, and a
   password must be at least 10 characters. There is deliberately **no per-account lockout**, because that would let anyone
   on the wifi lock the admin out. A distributed guesser on many addresses is slowed, not stopped. TOTP for admins is
-  planned (F20); until then a long passphrase is the control, and the admin log records every admin sign-in.
+  planned (F20); until then a long passphrase is the control, and the admin log records every admin sign-in. A lost password is
+  recoverable through the break-glass reset (R21).
 - **R18 — Sessions end on restart (D-27).** They live in memory by design (nothing to steal from disk, nothing to
   purge), so a container restart signs everyone out. Accepted: a phone user signs in again.
 - **R19 — A backup folder holds all the data, in ciphertext (D-28).** Anyone who copies it and also gets the key file reads
@@ -120,6 +121,11 @@ from the admin, D-3 must be revisited (per-owner keys, browser-side decryption),
   (R1). A member who wants less can untick "remember": rebuild, edit and export then ask again. A hostile upload is bounded by the reader
   (header iteration cap, ZIP and size limits, 512 MiB), at most two are decrypted at once, and a refused one is deleted and recorded
   nowhere, so the cost of a bad upload is time and a few hundred MiB of memory for a moment, not stored data.
+- **R21 — The break-glass reset and a shared data folder (D-30).** `alcove reset-password` needs the data folder and the key file, so
+  anyone who has those could already read everything (R1); it adds no new reader. It is recorded in the admin log by the system, forces
+  a change at the next sign-in, and is refused while the server runs (a lock on the data folder), so it cannot corrupt a live store. A
+  temporary password given to a new person is known to the administrator until the person changes it, which the forced change keeps
+  short; it is shown once, never stored in the clear and never logged.
 - **R15 — A purge is complete only after the backups that predate it age out (D-26).** Destroying a user's wrapped data key makes their
   photos unreadable on the live instance. Older sealed generations and instance backups still contain that key, so they can still
   open the blobs they also contain. Mitigated by retention on instance backups and by saying so plainly in the runbook.

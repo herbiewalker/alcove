@@ -1,7 +1,10 @@
 #!/usr/bin/env bash
-# Alcove backup smoke test (D-28): drives a REAL container through first-run setup, a backup, a
-# verification and a restore drill from the admin pages, then restores the backup with the
-# command-line tools, proves a key with `drill`, and proves a damaged archive is refused.
+# Alcove end-to-end smoke test (D-28, D-29, D-30): drives a REAL container through first-run setup,
+# an upload and its refusals, a backup, a verification and a restore drill, adding a person with a
+# temporary password, the forced password change, delete, restore and download, disabling the person,
+# and the break-glass `reset-password` (refused while the server runs, working when it is stopped).
+# Then it restores the backup with the command-line tools, proves a key with `drill`, and proves a
+# damaged archive is refused.
 #
 # Used by CI (image job) and scripts/smoke-live.sh. It uses a throwaway container and a scratch
 # directory, never a real `alcove` container, data or key.
@@ -19,9 +22,11 @@ PORT="${PORT:-18082}"
 SUDO="${SUDO:-}"
 NAME="alcove-smoke-bk"
 PW="smoke test passphrase 1"
+PATPW="pat chose this password"
 FLAGS=(--read-only --cap-drop ALL --security-opt no-new-privileges:true --tmpfs /tmp:mode=1777,noexec,nosuid,nodev)
 URL="http://127.0.0.1:${PORT}"
 JAR="$WORK/jar"
+J2="$WORK/jar2"
 
 die() { echo "::error::$*"; docker logs "$NAME" 2>&1 | tail -15 || true; exit 1; }
 ok()  { echo "  PASS  $*"; }
@@ -33,12 +38,17 @@ cleanup
 mkdir -p "$WORK/keys" "$WORK/data" "$WORK/backups" "$WORK/restored"
 chmod 777 "$WORK/keys" "$WORK/data" "$WORK/backups" "$WORK/restored"
 
+MOUNTS=(-v "$WORK/keys/alcove.key:/run/keys/alcove.key:ro" -v "$WORK/data:/data")
+
+start_server() {
+  docker run -d --name "$NAME" -p "127.0.0.1:${PORT}:8080" "${FLAGS[@]}" -e ALCOVE_MAX_UPLOAD_MB=1 \
+    "${MOUNTS[@]}" -v "$WORK/backups:/backups" "$IMG" >/dev/null
+  for _ in $(seq 1 30); do curl -fsS "$URL/healthz" >/dev/null 2>&1 && break; sleep 1; done
+  curl -fsS "$URL/healthz" >/dev/null 2>&1 || die "the server did not start"
+}
+
 docker run --rm "${FLAGS[@]}" -v "$WORK/keys:/keys" "$IMG" keygen -out /keys/alcove.key >/dev/null
-docker run -d --name "$NAME" -p "127.0.0.1:${PORT}:8080" "${FLAGS[@]}" \
-  -e ALCOVE_MAX_UPLOAD_MB=1 \
-  -v "$WORK/keys/alcove.key:/run/keys/alcove.key:ro" -v "$WORK/data:/data" -v "$WORK/backups:/backups" "$IMG" >/dev/null
-for _ in $(seq 1 30); do curl -fsS "$URL/healthz" >/dev/null 2>&1 && break; sleep 1; done
-curl -fsS "$URL/healthz" >/dev/null 2>&1 || die "the server did not start"
+start_server
 
 token() { curl -fsS -c "$JAR" -b "$JAR" "$URL$1" | sed -n 's/.*name="csrf" value="\([^"]*\)".*/\1/p' | head -1; }
 post()  { # post <token page> <path> [curl -d args...]; prints the HTTP status
@@ -57,6 +67,11 @@ wait_for() { # wait_for <text> : poll the backup page until the job finishes
   done
   return 1
 }
+up() { # up <password> <file> : prints the HTTP status (uses the cookie jar in $JAR)
+  local t; t=$(token /uploads)
+  curl -s -o /dev/null -w '%{http_code}' -c "$JAR" -b "$JAR" -F "csrf=$t" -F "password=$1" -F remember=1 -F "file=@$2" "$URL/uploads"
+}
+stepup() { post "/stepup?next=$1" /stepup -d "password=$2" -d "next=$1"; }
 
 # 1. First run: the setup code is in the log; create the administrator.
 code=$(docker logs "$NAME" 2>&1 | sed -n 's/.*"setup_code":"\([^"]*\)".*/\1/p' | head -1)
@@ -64,18 +79,14 @@ code=$(docker logs "$NAME" 2>&1 | sed -n 's/.*"setup_code":"\([^"]*\)".*/\1/p' |
 [ "$(post /setup /setup -d "code=$code" -d username=owner -d "password=$PW" -d "confirm=$PW")" = "303" ] || die "first-run setup failed"
 ok "first run created the administrator"
 
-
 # 1b. Upload a real (synthetic) Tryst backup through the real server, and prove the refusals.
 BKPW="synthetic smoke password"
 mkdir -p "$WORK/files"; chmod 777 "$WORK/files"
 docker run --rm "${FLAGS[@]}" -v "$WORK/files:/files" "$IMG" test-backup -out /files/t.tryst -entries 9 -photos 2 -password "$BKPW" >/dev/null || die "test-backup failed"
-$SUDO chmod a+r "$WORK/files/t.tryst"
+docker run --rm "${FLAGS[@]}" -v "$WORK/files:/files" "$IMG" test-backup -out /files/p.tryst -seed 2 -entries 4 -password "pat backup password" >/dev/null || die "test-backup (pat) failed"
+$SUDO chmod a+r "$WORK/files/t.tryst" "$WORK/files/p.tryst"
 head -c 3145728 /dev/urandom > "$WORK/files/big.bin"
 echo "this is a plain text file and not a backup at all" > "$WORK/files/notes.txt"
-up() { # up <password> <file> : prints the HTTP status
-  local t; t=$(token /uploads)
-  curl -s -o /dev/null -w '%{http_code}' -c "$JAR" -b "$JAR" -F "csrf=$t" -F "password=$1" -F remember=1 -F "file=@$2" "$URL/uploads"
-}
 [ "$(up "wrong password" "$WORK/files/t.tryst")" = "401" ] || die "a wrong backup password was not refused"
 [ "$(up "$BKPW" "$WORK/files/notes.txt")" = "422" ] || die "a text file was not refused as not-a-backup"
 [ "$(up "$BKPW" "$WORK/files/big.bin")" = "413" ] || die "an oversize upload was not refused with 413"
@@ -84,8 +95,9 @@ up() { # up <password> <file> : prints the HTTP status
 curl -fsS -c "$JAR" -b "$JAR" "$URL/uploads" | grep -q "t.tryst" || die "the uploaded backup is not listed"
 curl -fsS -c "$JAR" -b "$JAR" "$URL/" | grep -q "<b>9</b> entries" || die "home does not show the 9 uploaded entries"
 ok "uploaded a synthetic backup from the real server; wrong password, non-backup, oversize and duplicate were all refused"
+
 # 2. Step-up, then back up from the admin page.
-[ "$(post "/stepup?next=/admin/backup" /stepup -d "password=$PW" -d next=/admin/backup)" = "303" ] || die "step-up failed"
+[ "$(stepup /admin/backup "$PW")" = "303" ] || die "step-up failed"
 [ "$(post /admin/backup /admin/backup/run)" = "303" ] || die "could not start a backup"
 wait_for "written and verified" || die "the backup did not finish cleanly"
 archive=$(basename "$(ls "$WORK"/backups/alcove-backup-*.tar | head -1)")
@@ -104,6 +116,59 @@ if $SUDO grep -q "SQLite format 3" "$WORK/backups/$archive"; then die "plaintext
 if $SUDO grep -q "Synthetic entry" "$WORK/backups/$archive"; then die "uploaded entry text found in the clear inside the backup"; fi
 ok "no plaintext database inside the backup"
 
+# 4b. A person: temporary password, forced change, own upload, delete, restore, download, disable.
+[ "$(stepup /admin/users "$PW")" = "303" ] || die "step-up for People failed"
+t=$(token /admin/users)
+body=$(curl -s -c "$JAR" -b "$JAR" --data-urlencode "csrf=$t" -d username=pat -d display=Pat -d role=member "$URL/admin/users/create")
+temp=$(echo "$body" | sed -n 's/.*<code>\([a-z2-9-]\{19\}\)<\/code>.*/\1/p' | head -1)
+[ -n "$temp" ] || die "no temporary password was shown for the new person"
+t2=$(JAR="$J2" token /login)
+[ "$(curl -s -o /dev/null -w '%{http_code}' -c "$J2" -b "$J2" --data-urlencode "csrf=$t2" -d username=pat --data-urlencode "password=$temp" "$URL/login")" = "303" ] || die "the new person could not sign in with the temporary password"
+forced=$(curl -s -o /dev/null -w '%{http_code} %{redirect_url}' -b "$J2" "$URL/")
+case "$forced" in "303 "*"/account/password") ;; *) die "a temporary password did not force a change: $forced" ;; esac
+[ "$(JAR="$J2" post /account/password /account/password --data-urlencode "current=$temp" --data-urlencode "password=$PATPW" --data-urlencode "confirm=$PATPW")" = "303" ] || die "the person could not change the temporary password"
+[ "$(curl -s -o /dev/null -w '%{http_code}' -b "$J2" "$URL/")" = "200" ] || die "the person is still blocked after changing the password"
+[ "$(JAR="$J2" up "pat backup password" "$WORK/files/p.tryst")" = "303" ] || die "the person's own upload was refused"
+[ "$(JAR="$J2" stepup /uploads "$PATPW")" = "303" ] || die "the person's step-up failed"
+rev=$(curl -fsS -b "$J2" "$URL/uploads" | sed -n 's/.*name="id" value="\(rv[a-f0-9]*\)".*/\1/p' | head -1)
+[ -n "$rev" ] || die "no upload id on the person's page"
+[ "$(JAR="$J2" post /uploads /uploads/delete -d "id=$rev")" = "303" ] || die "the person could not delete their upload"
+curl -fsS -b "$J2" "$URL/uploads/deleted" | grep -q "p.tryst" || die "the deleted upload is not in Recently deleted"
+[ "$(JAR="$J2" post /uploads/deleted /uploads/restore -d "id=$rev")" = "303" ] || die "the person could not restore their upload"
+curl -fsS -b "$J2" "$URL/uploads" | grep -q "p.tryst" || die "the restored upload is not listed"
+t3=$(JAR="$J2" token /uploads)
+[ "$(curl -s -o "$WORK/pat.zip" -w '%{http_code}' -c "$J2" -b "$J2" --data-urlencode "csrf=$t3" "$URL/uploads/download")" = "200" ] || die "the data download failed"
+[ "$(head -c 2 "$WORK/pat.zip")" = "PK" ] || die "the download is not a zip"
+ok "a new person: temporary password forces a change, then upload, delete, restore and download all work"
+
+[ "$(stepup /admin/users "$PW")" = "303" ] || die "step-up (2) failed"
+padid=$(curl -fsS -c "$JAR" -b "$JAR" "$URL/admin/users" | sed -n 's/.*action="\/admin\/users\/disable".*name="id" value="\([a-z0-9]*\)".*/\1/p' | head -1)
+[ -n "$padid" ] || die "no disable button for the new person"
+[ "$(post /admin/users /admin/users/disable -d "id=$padid")" = "303" ] || die "disabling the person failed"
+gone=$(curl -s -o /dev/null -w '%{http_code} %{redirect_url}' -b "$J2" "$URL/")
+case "$gone" in "303 "*"/login") ;; *) die "a disabled person kept their session: $gone" ;; esac
+curl -fsS -c "$JAR" -b "$JAR" "$URL/admin/log" | grep -q "user.disable" || die "the disable is not in the admin log"
+ok "disabling a person ends their session at once and is in the admin log"
+
+# 4c. Break-glass: refused while the server runs.
+out=$(docker run --rm "${FLAGS[@]}" "${MOUNTS[@]}" "$IMG" reset-password -user owner -generate 2>&1) && die "reset-password ran while the server was running"
+echo "$out" | grep -q "Stop it first" || die "the refusal did not say to stop the server: $out"
+ok "reset-password is refused while the server holds the data folder"
+
+docker stop -t 15 "$NAME" >/dev/null
+docker rm "$NAME" >/dev/null
+
+# 4d. ...and works when the server is stopped; the next sign-in must change the password.
+out=$(docker run --rm "${FLAGS[@]}" "${MOUNTS[@]}" "$IMG" reset-password -user owner -generate) || die "reset-password failed with the server stopped"
+newtemp=$(echo "$out" | sed -n 's/^temporary password (shown only now): \(.*\)$/\1/p')
+[ -n "$newtemp" ] || die "no temporary password from reset-password: $out"
+start_server
+rm -f "$JAR"
+t4=$(token /login)
+[ "$(curl -s -o /dev/null -w '%{http_code}' -c "$JAR" -b "$JAR" --data-urlencode "csrf=$t4" -d username=owner --data-urlencode "password=$PW" "$URL/login")" = "401" ] || die "the old administrator password still works after a reset"
+[ "$(curl -s -o /dev/null -w '%{http_code}' -c "$JAR" -b "$JAR" --data-urlencode "csrf=$t4" -d username=owner --data-urlencode "password=$newtemp" "$URL/login")" = "303" ] || die "the reset password does not sign in"
+case "$(curl -s -o /dev/null -w '%{http_code} %{redirect_url}' -b "$JAR" "$URL/")" in "303 "*"/account/password") ;; *) die "a reset did not force a password change" ;; esac
+ok "reset-password works with the server stopped, forces a change, and survives a restart"
 docker stop -t 15 "$NAME" >/dev/null
 docker rm "$NAME" >/dev/null
 
@@ -120,7 +185,6 @@ ok "backup-verify and restore work from the command line; restore refuses a non-
 out=$(docker run --rm "${FLAGS[@]}" -v "$WORK/keys:/keys:ro" -v "$WORK/backups:/backups:ro" "$IMG" drill -backup "/backups/$archive" -key /keys/alcove.key -tmp /tmp/drill) || die "drill with the key failed"
 echo "$out" | grep -q "chain verifies" || die "drill output: $out"
 echo "$out" | grep -q "uploads read back: 1" || die "the drill did not read the uploaded backup back: $out"
-echo "$out" | grep -q "photos decrypted: 0" || true
 docker run --rm "${FLAGS[@]}" -v "$WORK/keys:/keys" "$IMG" keygen -out /keys/other.key >/dev/null
 if docker run --rm "${FLAGS[@]}" -v "$WORK/keys:/keys:ro" -v "$WORK/backups:/backups:ro" "$IMG" drill -backup "/backups/$archive" -key /keys/other.key -tmp /tmp/drill >/dev/null 2>&1; then
   die "a different key opened the backup"

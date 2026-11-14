@@ -31,6 +31,8 @@ type User struct {
 	PWHash      string
 	CreatedAt   time.Time
 	LastLoginAt time.Time // zero if never
+	DeletedAt   time.Time // zero unless the account is deleted (pending purge, D-30)
+	MustChange  bool      // must set a new password before anything else works
 }
 
 var (
@@ -62,18 +64,22 @@ func NewID() (string, error) {
 	return "u" + hex.EncodeToString(b[:]), nil
 }
 
-const userCols = `id, username, display_name, role, status, pw_hash, created_at, last_login_at`
+const userCols = `id, username, display_name, role, status, pw_hash, created_at, last_login_at, COALESCE(deleted_at, 0), must_change`
 
 func scanUser(row interface{ Scan(...any) error }) (User, error) {
 	var u User
-	var created, last int64
-	if err := row.Scan(&u.ID, &u.Username, &u.DisplayName, &u.Role, &u.Status, &u.PWHash, &created, &last); err != nil {
+	var created, last, deleted int64
+	var must int
+	if err := row.Scan(&u.ID, &u.Username, &u.DisplayName, &u.Role, &u.Status, &u.PWHash, &created, &last, &deleted, &must); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return User{}, ErrNoUser
 		}
 		return User{}, err
 	}
-	u.CreatedAt = time.Unix(created, 0).UTC()
+	u.CreatedAt, u.MustChange = time.Unix(created, 0).UTC(), must != 0
+	if deleted > 0 {
+		u.DeletedAt = time.Unix(deleted, 0).UTC()
+	}
 	if last > 0 {
 		u.LastLoginAt = time.Unix(last, 0).UTC()
 	}
@@ -129,7 +135,7 @@ func Count(tx *sql.Tx) (int, error) {
 
 // SetPassword replaces an account's password hash.
 func SetPassword(tx *sql.Tx, id, pwHash string) error {
-	return mustChange(tx.Exec(`UPDATE user SET pw_hash = ? WHERE id = ?`, pwHash, id))
+	return mustChangeRow(tx.Exec(`UPDATE user SET pw_hash = ? WHERE id = ?`, pwHash, id))
 }
 
 // SetStatus enables or disables an account. Disabling does not delete anything (constraint 7);
@@ -138,15 +144,15 @@ func SetStatus(tx *sql.Tx, id, status string) error {
 	if status != StatusActive && status != StatusDisabled {
 		return fmt.Errorf("auth: unknown status %q", status)
 	}
-	return mustChange(tx.Exec(`UPDATE user SET status = ? WHERE id = ?`, status, id))
+	return mustChangeRow(tx.Exec(`UPDATE user SET status = ? WHERE id = ?`, status, id))
 }
 
 // TouchLogin records a successful sign-in.
 func TouchLogin(tx *sql.Tx, id string, now time.Time) error {
-	return mustChange(tx.Exec(`UPDATE user SET last_login_at = ? WHERE id = ?`, now.Unix(), id))
+	return mustChangeRow(tx.Exec(`UPDATE user SET last_login_at = ? WHERE id = ?`, now.Unix(), id))
 }
 
-func mustChange(res sql.Result, err error) error {
+func mustChangeRow(res sql.Result, err error) error {
 	if err != nil {
 		return err
 	}
@@ -154,4 +160,64 @@ func mustChange(res sql.Result, err error) error {
 		return ErrNoUser
 	}
 	return nil
+}
+
+// Deleted reports whether the account is deleted and waiting for its purge.
+func (u User) Deleted() bool { return !u.DeletedAt.IsZero() }
+
+// SetPasswordForced replaces the hash and says whether the person must choose a new one at the
+// next sign-in (a temporary password from an admin, or a break-glass reset).
+func SetPasswordForced(tx *sql.Tx, id, pwHash string, mustChange bool) error {
+	n := 0
+	if mustChange {
+		n = 1
+	}
+	return mustChangeRow(tx.Exec(`UPDATE user SET pw_hash = ?, must_change = ? WHERE id = ?`, pwHash, n, id))
+}
+
+// MarkDeleted starts an account's grace period. The account must already be disabled.
+func MarkDeleted(tx *sql.Tx, id string, now time.Time) error {
+	return mustChangeRow(tx.Exec(`UPDATE user SET deleted_at = ? WHERE id = ? AND status = 'disabled'`, now.Unix(), id))
+}
+
+// Undelete ends the grace period; the account stays disabled until an admin enables it.
+func Undelete(tx *sql.Tx, id string) error {
+	return mustChangeRow(tx.Exec(`UPDATE user SET deleted_at = NULL WHERE id = ?`, id))
+}
+
+// Remove deletes the account row for good (the last step of a purge).
+func Remove(tx *sql.Tx, id string) error {
+	return mustChangeRow(tx.Exec(`DELETE FROM user WHERE id = ?`, id))
+}
+
+// List returns every account, deleted ones last, newest first within each group.
+func List(tx *sql.Tx) ([]User, error) {
+	rows, err := tx.Query(`SELECT ` + userCols + ` FROM user ORDER BY (deleted_at IS NOT NULL), created_at DESC, id`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []User
+	for rows.Next() {
+		u, err := scanUser(rows)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, u)
+	}
+	return out, rows.Err()
+}
+
+// CountActiveAdmins counts administrators who can sign in (active and not deleted).
+func CountActiveAdmins(tx *sql.Tx) (int, error) {
+	var n int
+	err := tx.QueryRow(`SELECT COUNT(*) FROM user WHERE role = 'admin' AND status = 'active' AND deleted_at IS NULL`).Scan(&n)
+	return n, err
+}
+
+// ChangePassword is a person changing their own password: the new hash replaces the old and the
+// forced-change flag is cleared. (SetPassword leaves the flag alone, so a login-time rehash of a
+// temporary password does not clear it.)
+func ChangePassword(tx *sql.Tx, id, pwHash string) error {
+	return SetPasswordForced(tx, id, pwHash, false)
 }

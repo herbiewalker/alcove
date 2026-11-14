@@ -28,6 +28,8 @@ type Config struct {
 	BackupDir string
 	// MaxUploadMB caps one uploaded backup in MiB (1 to 512, the Tryst reader bound).
 	MaxUploadMB int
+	// UserRecoveryDays and AdminRecoveryDays are the two soft-delete windows (D-8, D-30).
+	UserRecoveryDays, AdminRecoveryDays int
 	// BackupKeep is how many of the newest backups a run keeps (never fewer than one).
 	BackupKeep int
 	// Net holds the transport-security values set in the environment (D-23). An unset variable is a
@@ -38,14 +40,15 @@ type Config struct {
 // Load builds a Config from getenv (os.Getenv in production, a map in tests).
 func Load(getenv func(string) string) (Config, error) {
 	c := Config{
-		Addr:        get(getenv, "ALCOVE_ADDR", ":8080"),
-		DataDir:     get(getenv, "ALCOVE_DATA_DIR", "/data"),
-		KeyFile:     get(getenv, "ALCOVE_KEY_FILE", "/run/keys/alcove.key"),
-		TmpDir:      get(getenv, "ALCOVE_TMP_DIR", "/tmp/alcove"),
-		SealEvery:   10 * time.Second,
-		BackupDir:   get(getenv, "ALCOVE_BACKUP_DIR", "/backups"),
-		BackupKeep:  7,
-		MaxUploadMB: 512,
+		Addr:             get(getenv, "ALCOVE_ADDR", ":8080"),
+		DataDir:          get(getenv, "ALCOVE_DATA_DIR", "/data"),
+		KeyFile:          get(getenv, "ALCOVE_KEY_FILE", "/run/keys/alcove.key"),
+		TmpDir:           get(getenv, "ALCOVE_TMP_DIR", "/tmp/alcove"),
+		SealEvery:        10 * time.Second,
+		BackupDir:        get(getenv, "ALCOVE_BACKUP_DIR", "/backups"),
+		BackupKeep:       7,
+		MaxUploadMB:      512,
+		UserRecoveryDays: 10, AdminRecoveryDays: 45,
 	}
 	var err error
 	if c.AllowNonTmpfsTmp, err = boolEnv(getenv, "ALCOVE_ALLOW_NONTMPFS_TMPDIR", false); err != nil {
@@ -64,6 +67,18 @@ func Load(getenv func(string) string) (Config, error) {
 			return Config{}, fmt.Errorf("ALCOVE_MAX_UPLOAD_MB must be 1..512, got %q", v)
 		}
 		c.MaxUploadMB = n
+	}
+	for key, dst := range map[string]*int{"ALCOVE_USER_RECOVERY_DAYS": &c.UserRecoveryDays, "ALCOVE_ADMIN_RECOVERY_DAYS": &c.AdminRecoveryDays} {
+		if v := strings.TrimSpace(getenv(key)); v != "" {
+			n, perr := strconv.Atoi(v)
+			if perr != nil || n < 1 || n > 3650 {
+				return Config{}, fmt.Errorf("%s must be 1..3650, got %q", key, v)
+			}
+			*dst = n
+		}
+	}
+	if c.AdminRecoveryDays < c.UserRecoveryDays {
+		return Config{}, fmt.Errorf("ALCOVE_ADMIN_RECOVERY_DAYS (%d) must not be shorter than ALCOVE_USER_RECOVERY_DAYS (%d)", c.AdminRecoveryDays, c.UserRecoveryDays)
 	}
 	if v := strings.TrimSpace(getenv("ALCOVE_BACKUP_KEEP")); v != "" {
 		n, perr := strconv.Atoi(v)

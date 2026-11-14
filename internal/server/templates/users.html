@@ -1,0 +1,66 @@
+{{define "content"}}
+<h1>People</h1>
+<p class="muted">Add people, disable them, or remove them. Disabling is instant and can be undone. Deleting starts a grace period of {{.AdminDays}} days, after which everything they stored is removed for good. {{if not .SteppedUp}}Every change here asks for your password again: <a href="/stepup?next=/admin/users">confirm it is you</a>.{{end}}</p>
+
+<form class="card" method="post" action="/admin/users/create" autocomplete="off">
+  <h2>Add a person</h2>
+  <input type="hidden" name="csrf" value="{{.CSRF}}">
+  <div class="field">
+    <label for="username">Username</label>
+    <input id="username" name="username" type="text" autocapitalize="none" autocomplete="off" spellcheck="false" required>
+    <p class="hint">3 to 32 characters: letters, digits, dot, dash, underscore.</p>
+  </div>
+  <div class="field">
+    <label for="display">Name shown to others</label>
+    <input id="display" name="display" type="text" autocomplete="off">
+  </div>
+  <div class="field">
+    <label for="role">Role</label>
+    <select id="role" name="role">
+      <option value="member" selected>Member</option>
+      <option value="admin">Administrator</option>
+    </select>
+    <p class="hint">An administrator can see and manage everything on this server. A temporary password is made for them and shown once.</p>
+  </div>
+  <div class="actions"><button class="btn" type="submit">Add the person</button></div>
+</form>
+
+<div class="scroll">
+<table>
+  <thead><tr><th>Person</th><th>Role</th><th>State</th><th>Uploads</th><th>Last sign-in (UTC)</th><th></th></tr></thead>
+  <tbody>
+  {{range .Users}}
+    <tr>
+      <td><b>{{.Name}}</b><br><span class="muted">@{{.Username}}{{if .Self}} (you){{end}}</span></td>
+      <td>{{.Role}}</td><td>{{.State}}</td><td>{{.Uploads}}</td><td>{{.LastLogin}}</td>
+      <td>
+        {{if .CanDisable}}<form method="post" action="/admin/users/disable"><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="id" value="{{.ID}}"><button class="btn secondary" type="submit">Disable</button></form>{{end}}
+        {{if .CanEnable}}<form method="post" action="/admin/users/enable"><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="id" value="{{.ID}}"><button class="btn secondary" type="submit">Enable</button></form>{{end}}
+        {{if .CanReset}}<form method="post" action="/admin/users/reset"><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="id" value="{{.ID}}"><button class="btn secondary" type="submit">Reset password</button></form>{{end}}
+        {{if .CanDelete}}<form method="post" action="/admin/users/delete"><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="id" value="{{.ID}}"><button class="btn secondary" type="submit">Delete</button></form>{{end}}
+      </td>
+    </tr>
+  {{end}}
+  </tbody>
+</table>
+</div>
+
+{{if .DeletedUsers}}
+<h2>Deleted, waiting for removal</h2>
+<div class="scroll">
+<table>
+  <thead><tr><th>Person</th><th>Removed for good after (UTC)</th><th></th></tr></thead>
+  <tbody>
+  {{range .DeletedUsers}}
+    <tr>
+      <td><b>{{.Name}}</b><br><span class="muted">@{{.Username}}</span></td><td>{{.Until}}</td>
+      <td><form method="post" action="/admin/users/restore"><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="id" value="{{.ID}}"><button class="btn secondary" type="submit">Restore</button></form></td>
+    </tr>
+  {{end}}
+  </tbody>
+</table>
+</div>
+<p class="muted small">A restored account stays disabled until you enable it.</p>
+{{end}}
+<p><a class="btn secondary" href="/admin/deleted">Recently deleted uploads</a></p>
+{{end}}

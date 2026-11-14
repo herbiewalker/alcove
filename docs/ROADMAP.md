@@ -70,8 +70,14 @@
       the success path. `alcove test-backup` writes synthetic backups so none of this needs real data
 - [ ] **Still open from piece B:** a real backup uploaded from a real phone over the real LAN (F30), which needs the first live deploy
 - [x] Rebuild path: the row cache and search index can be rebuilt from revisions (moved here from M2a)
-- [ ] User lifecycle: add, disable, delete with grace, reset, data download (F2, F3), with **basic admin pages**
-- [ ] Soft delete with the 10 and 45 day windows and a real purge (F16, N13)
+- [x] **Piece C, built 2026-11-14: accounts, soft delete, purge and the break-glass reset (D-30).** The admin People page (add with a
+      temporary password shown once and a forced change at first sign-in; disable, enable, reset, delete with a grace period, restore),
+      a person's own delete, restore and "download all my data" (step-up for everyone), the admin's Recently deleted page, the
+      `internal/retention` purge (hourly and on demand; real deletion of files, rows, search, remembered password and data key, plus a
+      sweep for crash leftovers), `alcove reset-password`, and a data-directory lock so two processes can never share a store. Schema v4
+      (additive columns). Each security behaviour was proven by mutation: the purge's file and key deletions, the forced-change gate,
+      session revocation on disable, and step-up before a person's delete
+- [x] Soft delete with the 10 and 45 day windows and a real purge (F16, N13)
 - [x] **Piece A, built 2026-11-14: instance backup and a restore drill (F23, D-28).** `internal/backup` (one tar of ciphertext with a
       hashed index and a sidecar checksum, consistent by ordering, never overwriting), the admin **Backups** page with background jobs
       (back up, verify, restore drill, retention), and `alcove backup-verify`, `restore` and `drill`. The same flow is smoke-tested

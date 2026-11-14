@@ -45,9 +45,9 @@ func (s *Server) ingestFor(st *store.Store) *ingest.Service {
 }
 
 type uploadRow struct {
-	Filename, When, Size, Schema string
-	Entries, Media               int
-	Current, ReadOnly            bool
+	ID, Filename, When, Size, Schema string
+	Entries, Media                   int
+	Current, ReadOnly                bool
 }
 
 func uploadRows(list []ingest.UploadInfo) []uploadRow {
@@ -56,7 +56,7 @@ func uploadRows(list []ingest.UploadInfo) []uploadRow {
 		if u.Deleted {
 			continue
 		}
-		out = append(out, uploadRow{Filename: u.Filename, When: u.UploadedAt.UTC().Format(timeFmt), Size: humanBytes(u.Size),
+		out = append(out, uploadRow{ID: u.RevisionID, Filename: u.Filename, When: u.UploadedAt.UTC().Format(timeFmt), Size: humanBytes(u.Size),
 			Schema: fmt.Sprintf("Tryst database v%d", u.TrystSchema), Entries: u.Encounters, Media: u.Media,
 			Current: u.Head, ReadOnly: u.SchemaStatus == trystbk.SchemaNewer})
 	}
@@ -70,8 +70,9 @@ func (s *Server) getUploads(q *rq) {
 		q.serverError("list uploads", err)
 		return
 	}
+	userDays, _ := s.days()
 	q.render(http.StatusOK, "uploads", &page{Title: "My data", Active: "uploads", Uploads: uploadRows(list),
-		HasPassword: svc.HasStoredPassword(q.r.Context(), q.id.user.ID), MaxMB: int(s.maxUpload() >> 20)})
+		HasPassword: svc.HasStoredPassword(q.r.Context(), q.id.user.ID), MaxMB: int(s.maxUpload() >> 20), UserDays: userDays})
 }
 
 // fail answers an upload failure as JSON for the progress script and as a page otherwise. It asks

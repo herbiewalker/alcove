@@ -117,3 +117,22 @@ func DummyVerify(pw string, p Params) {
 	})
 	Verify(pw, dummy, p)
 }
+
+// TempPassword makes a random temporary password such as "k7mq-x2ab-9trw-hd4e": 16 characters from
+// an alphabet with no look-alikes, about 80 bits, shown once to the admin. It satisfies the
+// password policy, and the person must change it at first sign-in.
+func TempPassword() (string, error) {
+	const alphabet = "abcdefghjkmnpqrstuvwxyz23456789" // no i, l, o, 0, 1
+	var b [16]byte
+	if _, err := rand.Read(b[:]); err != nil {
+		return "", err
+	}
+	out := make([]byte, 0, 19)
+	for i, c := range b {
+		if i > 0 && i%4 == 0 {
+			out = append(out, '-')
+		}
+		out = append(out, alphabet[int(c)%len(alphabet)])
+	}
+	return string(out), nil
+}

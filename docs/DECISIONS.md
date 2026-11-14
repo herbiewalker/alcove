@@ -481,6 +481,47 @@ is a recurring check, not a one-off.
   Unverified or failed uploads leave nothing but a log line with counts. Re-uploading a changed phone backup creates a new revision
   each time, which is the point.
 
+## D-30 — Account lifecycle, soft delete, purge and the break-glass reset (implements F2, F3, F16, F21, N13; M3 piece C)
+- **Status:** Accepted
+- **Context:** people join, leave and forget passwords; data has to be recoverable for a while and then really gone; and a lost
+  admin password must not mean losing everything (the M2b gap).
+- **Decision:**
+  1. **Account states without a table rebuild.** `user.status` stays `active` or `disabled`; a new `deleted_at` column makes a disabled
+     account **deleted** (pending purge), and a new `must_change` column forces a password change at the next sign-in. Disable is
+     instant and reversible and ends the person's sessions. **Delete requires disabled first** and starts the grace period; the admin
+     can restore until the admin window ends. The last active admin can be neither disabled nor deleted, and nobody can do either to
+     themselves, so the server can never be left with no administrator.
+  2. **New accounts get a temporary password.** The admin creates a person with a role and the server makes a random temporary
+     password, shown **once** on that page (never stored in the clear, never logged), and the person must change it at first sign-in
+     before anything else works. Invite links (F27) come with spaces in piece D; this is the simpler path until then. An admin reset
+     does the same.
+  3. **Soft delete is a timestamp, in one place per thing.** An upload's revision gets `deleted_at`; so does an account. Deleting or
+     restoring a revision can change which one is the head, so the cache and search index are rebuilt from the new head (from the
+     remembered password) or, if that is not possible, cleared and flagged, never left showing a deleted revision's rows.
+  4. **Two windows, both configurable:** the person can restore their own deleted upload for **10 days** (`ALCOVE_USER_RECOVERY_DAYS`),
+     the admin can restore anything for **45** (`ALCOVE_ADMIN_RECOVERY_DAYS`, never less than the person's). Between the two a deleted
+     item shows only to the admin, in an admin "Recently deleted" page (viewing it is logged).
+  5. **Purge is real and runs by itself.** Hourly, and once at start, `internal/retention` deletes everything past the admin window:
+     for a revision its blob and rows, and its search rows; for an account everything it owns (blobs, uploads, revisions, cache,
+     search, remembered password, **its data key**, its sessions) and then the account row. Counts are written to the admin log as the
+     system. A test proves the files and rows are gone (N13). Older instance backups still hold the data until they age out (R15, R19).
+  6. **Download my data (F3).** A person can download a zip of every upload they have, exactly as Tryst wrote them (still encrypted
+     with their own backup password), plus a short read-me. It asks for the password again (F21) because it is the most sensitive
+     thing the site hands out. An admin cannot download another person's data through this route.
+  7. **Step-up is available to everyone,** not only the admin: the same five-minute window guards a delete, a download and the admin
+     account actions.
+  8. **Break-glass reset:** `alcove reset-password -user NAME` opens the store directly with the key file, sets a new password read
+     from standard input (or generates one), forces a change at next sign-in, ends that person's sessions, and writes an admin-log
+     entry as the system. Because two processes must never write the same sealed database, **the data directory is locked**
+     (`flock` on `.lock`, held until close); a second process, including this command while the server runs, gets a clear refusal and
+     changes nothing. The runbook says to stop the container first.
+- **Alternatives:** an `ALCOVE_RESET_ADMIN` environment variable (a secret in `docker inspect`, and easy to leave on); deleting
+  immediately with no grace (loses the "nothing lost silently" promise); hard-deleting accounts and letting data dangle; a `deleted`
+  status value (needs a table rebuild, against the additive-migration rule).
+- **Consequences:** a person who deletes their only upload and had asked the server not to remember the password has no data and no
+  cache until they upload again, which is the honest result. The admin can see that deleted things exist and restore them, and every
+  such look is in the log.
+
 ## Open questions
 > Decisions deferred on purpose. Each is a future ADR. Do not let these rot silently.
 

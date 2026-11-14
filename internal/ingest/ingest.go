@@ -23,6 +23,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -45,11 +46,15 @@ var (
 
 // DuplicateError means the same file (same SHA-256) is already stored for this owner.
 type DuplicateError struct {
+	Deleted    bool // the earlier copy is in "recently deleted"
 	ExistingID string
 	UploadedAt time.Time
 }
 
 func (e *DuplicateError) Error() string {
+	if e.Deleted {
+		return "this exact file was uploaded on " + e.UploadedAt.UTC().Format("2006-01-02 15:04") + " UTC and is in Recently deleted: restore it there instead"
+	}
 	return "this exact file was already uploaded on " + e.UploadedAt.UTC().Format("2006-01-02 15:04") + " UTC"
 }
 
@@ -164,7 +169,7 @@ func (s *Service) Upload(ctx context.Context, p Params, body io.Reader) (UploadI
 	var dup DuplicateError
 	var dupAt int64
 	err = s.St.View(ctx, func(tx *sql.Tx) error {
-		e := tx.QueryRow(`SELECT id, uploaded_at FROM upload WHERE owner_id = ? AND sha256 = ?`, p.Owner, sum).Scan(&dup.ExistingID, &dupAt)
+		e := tx.QueryRow(`SELECT u.id, u.uploaded_at, COALESCE(r.deleted_at IS NOT NULL, 0) FROM upload u LEFT JOIN revision r ON r.upload_id = u.id WHERE u.owner_id = ? AND u.sha256 = ?`, p.Owner, sum).Scan(&dup.ExistingID, &dupAt, &dup.Deleted)
 		if errors.Is(e, sql.ErrNoRows) {
 			dup.ExistingID = ""
 			return nil
@@ -553,4 +558,57 @@ func (s *Service) CacheRows(ctx context.Context, owner, table string) ([]string,
 		return rows.Err()
 	})
 	return out, err
+}
+
+// ClearCache removes an owner's derived rows and search index (the cache for nothing: used when
+// the owner has no current revision, or when it cannot be rebuilt right now).
+func (s *Service) ClearCache(ctx context.Context, owner string) error {
+	return s.St.Update(ctx, true, func(tx *sql.Tx) error { return clearCache(tx, owner) })
+}
+
+func clearCache(tx *sql.Tx, owner string) error {
+	for _, q := range []string{`DELETE FROM cache_row WHERE owner_id = ?`, `DELETE FROM search WHERE owner_id = ?`, `DELETE FROM cache_head WHERE owner_id = ?`} {
+		if _, err := tx.Exec(q, owner); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// Refresh brings an owner's derived data in line with the newest active revision after a delete or
+// a restore. With no active revision the cache is cleared. When the cache cannot be rebuilt (no
+// remembered password) it is cleared too, never left showing a revision that is no longer current;
+// rebuilt reports whether it was refilled.
+func (s *Service) Refresh(ctx context.Context, owner string) (rebuilt bool, err error) {
+	err = s.Rebuild(ctx, owner)
+	switch {
+	case err == nil:
+		return true, nil
+	case errors.Is(err, ErrNoRevision), errors.Is(err, ErrNoPassword):
+		return false, s.ClearCache(ctx, owner)
+	default:
+		return false, err
+	}
+}
+
+// OpenUpload opens one of owner's stored uploads for download, verifying its SHA-256 (N6). The
+// bytes are exactly what Tryst wrote, still encrypted with the owner's own backup password.
+func (s *Service) OpenUpload(ctx context.Context, owner, uploadID string) (*os.File, UploadInfo, error) {
+	var u UploadInfo
+	var at int64
+	var st int
+	err := s.St.View(ctx, func(tx *sql.Tx) error {
+		e := tx.QueryRow(`SELECT id, filename, sha256, size, tryst_schema, schema_status, rows_total, encounters, media_count, uploaded_at
+			FROM upload WHERE id = ? AND owner_id = ?`, uploadID, owner).Scan(&u.ID, &u.Filename, &u.SHA256, &u.Size, &u.TrystSchema, &st, &u.Rows, &u.Encounters, &u.Media, &at)
+		if errors.Is(e, sql.ErrNoRows) {
+			return ErrNoRevision
+		}
+		return e
+	})
+	if err != nil {
+		return nil, u, err
+	}
+	u.SchemaStatus, u.UploadedAt = trystbk.SchemaSupport(st), time.Unix(at, 0).UTC()
+	f, err := s.Blobs.OpenUpload(owner, u.ID, u.SHA256)
+	return f, u, err
 }
