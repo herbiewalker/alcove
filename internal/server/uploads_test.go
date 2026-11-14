@@ -385,14 +385,23 @@ func TestRebuildFromTheAdminPage(t *testing.T) {
 
 var scriptRE = regexp.MustCompile(`<script[^>]*>`)
 
-func TestUploadPageUsesOneSameOriginScriptUnderACleanCSP(t *testing.T) {
+// oneScript checks that a page carries exactly one script, the same-origin ui.js, and no inline script.
+func oneScript(t *testing.T, name, body string) {
+	t.Helper()
+	got := scriptRE.FindAllString(body, -1)
+	if len(got) != 1 || !strings.Contains(got[0], `src="/static/ui.js"`) || !strings.Contains(got[0], "defer") {
+		t.Errorf("%s: scripts = %v, want exactly the one ui.js", name, got)
+	}
+	if strings.Contains(body, "onclick=") || strings.Contains(body, "onsubmit=") || strings.Contains(body, " style=") {
+		t.Errorf("%s: an inline handler or style", name)
+	}
+}
+
+func TestEveryPageUsesTheOneSameOriginScriptUnderACleanCSP(t *testing.T) {
 	e := newEnv(t, netsec.Env{})
 	c := e.setupAdmin()
 	w := c.do("GET", "/uploads", nil)
-	scripts := scriptRE.FindAllString(w.Body.String(), -1)
-	if len(scripts) != 1 || !strings.Contains(scripts[0], `src="/static/upload.js"`) {
-		t.Fatalf("scripts on the upload page: %v", scripts)
-	}
+	oneScript(t, "/uploads", w.Body.String())
 	csp := w.Header().Get("Content-Security-Policy")
 	for _, want := range []string{"script-src 'self'", "connect-src 'self'", "default-src 'none'"} {
 		if !strings.Contains(csp, want) {
@@ -402,24 +411,34 @@ func TestUploadPageUsesOneSameOriginScriptUnderACleanCSP(t *testing.T) {
 	if strings.Contains(csp, "unsafe") || strings.Contains(csp, "http:") || strings.Contains(csp, "https:") || strings.Contains(csp, "*") {
 		t.Errorf("CSP is too loose: %s", csp)
 	}
-	// Every other page has no script at all (N11: at most one, and only here).
-	for _, p := range []string{"/", "/account", "/admin", "/admin/log", "/admin/settings", "/admin/backup"} {
-		if got := scriptRE.FindAllString(c.do("GET", p, nil).Body.String(), -1); len(got) != 0 {
-			t.Errorf("%s has a script: %v", p, got)
+	// Every page has the same single script: N11 (at most one), now on every page (D-36).
+	for _, p := range []string{"/", "/account", "/admin", "/admin/log", "/admin/settings", "/admin/backup", "/spaces", "/profile", "/entries"} {
+		oneScript(t, p, c.do("GET", p, nil).Body.String())
+	}
+	oneScript(t, "/login", e.client("192.168.1.77:1").do("GET", "/login", nil).Body.String())
+	js := c.do("GET", "/static/ui.js", nil)
+	if js.Code != 200 || !strings.HasPrefix(js.Header().Get("Content-Type"), "text/javascript") || !strings.Contains(js.Body.String(), "XMLHttpRequest") {
+		t.Fatalf("ui.js: %d %s", js.Code, js.Header().Get("Content-Type"))
+	}
+	src := js.Body.String()
+	for _, bad := range []string{"eval(", "innerHTML", "document.write", "localStorage", "sessionStorage", "fetch(", "http://", "https://", "WebSocket", "sendBeacon"} {
+		if strings.Contains(src, bad) {
+			t.Errorf("ui.js uses %s", bad)
 		}
 	}
-	js := c.do("GET", "/static/upload.js", nil)
-	if js.Code != 200 || !strings.HasPrefix(js.Header().Get("Content-Type"), "text/javascript") || !strings.Contains(js.Body.String(), "XMLHttpRequest") {
-		t.Fatalf("upload.js: %d %s", js.Code, js.Header().Get("Content-Type"))
-	}
-	for _, bad := range []string{"eval(", "innerHTML", "document.write", "localStorage", "sessionStorage", "document.cookie", "fetch("} {
-		if strings.Contains(js.Body.String(), bad) {
-			t.Errorf("upload.js uses %s", bad)
+	// The one cookie it touches is the download marker, never anything else.
+	for _, line := range strings.Split(src, "\n") {
+		if strings.Contains(line, "document.cookie") && !strings.Contains(line, "alcove_dl") {
+			t.Errorf("ui.js touches a cookie other than alcove_dl: %s", strings.TrimSpace(line))
 		}
 	}
 	// The script never touches the password field.
-	if strings.Contains(js.Body.String(), "password") && !strings.Contains(js.Body.String(), "never reads or stores the password") {
-		t.Error("upload.js refers to the password")
+	if strings.Contains(src, "password") && !strings.Contains(src, "never touches a password") {
+		t.Error("ui.js refers to the password")
+	}
+	// The old file is gone.
+	if c.do("GET", "/static/upload.js", nil).Code != 404 {
+		t.Error("the old upload.js is still served")
 	}
 }
 

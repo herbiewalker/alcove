@@ -1,6 +1,6 @@
 {{define "content"}}
 <h1>Admin log</h1>
-<form class="card" method="post" action="/admin/log/verify">
+<form class="card" method="post" action="/admin/log/verify" data-busy="Checking every entry of the log...">
   <input type="hidden" name="csrf" value="{{.CSRF}}">
   <p class="muted">Check that every entry still matches the one before it. {{if .Head}}Current head: <code>{{.Head}}</code>. Note it somewhere else to catch even a wholesale rewrite.{{end}}</p>
   <div class="actions"><button class="btn secondary" type="submit">Verify the chain now</button></div>

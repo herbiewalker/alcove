@@ -267,3 +267,13 @@ td form { margin: 4px 0; }
 .cmp { font-size: .88rem; }
 .cmp th, .cmp td { padding: 8px 6px; }
 .cmp th[scope="row"] { width: 38%; white-space: normal; }
+
+/* "Something is happening" (D-36) */
+.busy { position: fixed; left: 0; right: 0; bottom: 0; z-index: 50; display: flex; align-items: center; gap: 12px;
+  padding: 10px 16px calc(10px + env(safe-area-inset-bottom)); background: var(--surface); color: var(--text);
+  border-top: 2px solid var(--accent); box-shadow: 0 -4px 16px rgba(0, 0, 0, .25); }
+.busy[hidden] { display: none; }
+.busy progress { flex: 0 0 120px; width: 120px; margin: 0; }
+.notice progress { display: block; width: 100%; margin: 0 0 8px; }
+button:disabled, .btn[disabled] { opacity: .6; cursor: progress; }
+@media (prefers-reduced-motion: reduce) { progress { animation: none; } }

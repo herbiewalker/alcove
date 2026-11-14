@@ -7,6 +7,9 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) · Versioning: 
 
 ## [Unreleased]
 
+### Added
+- Progress and status for every wait (D-36): a "Working..." bar with a running clock for any form that takes a moment (sign-in, creating or deleting a person, deleting and restoring an upload, starting a backup, a check or a drill, and so on), buttons disabled so a second click cannot repeat the action; the upload bar now carries on as an animated "Checking the backup" bar with a clock; "Download all my data" says it is preparing the file until the browser has really received it; a running backup, check or restore drill shows an animated bar and how long it has run. The one script is now `ui.js` and loads on every page; nothing works differently without it.
+
 ## [0.1.0] - 2026-11-14
 
 First release. Everything below is new in it.

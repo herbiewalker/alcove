@@ -464,6 +464,7 @@ type page struct {
 	BackupOK, JobRunning           bool
 	Refresh                        bool
 	JobText, LastBackup, LastDrill string
+	JobSince                       int64
 	// accounts, deleted items, password change (D-30)
 	Users, DeletedUsers       []userRow
 	DeletedUploads            []delRow
@@ -653,7 +654,7 @@ func (s *Server) routes_() {
 		}
 	}
 	serveStatic("app.css", "text/css; charset=utf-8")
-	serveStatic("upload.js", "text/javascript; charset=utf-8")
+	serveStatic("ui.js", "text/javascript; charset=utf-8")
 	for _, n := range []string{"mark-32.png", "mark-96.png", "mark-192.png"} {
 		serveStatic(n, "image/png")
 	}

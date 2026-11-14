@@ -4,7 +4,7 @@
   <h1>Sign in</h1>
   <p class="muted">Private to this home network. Invite only.</p>
 </section>
-<form class="card" method="post" action="/login">
+<form class="card" method="post" action="/login" data-busy="Signing in...">
   <input type="hidden" name="csrf" value="{{.CSRF}}">
   <div class="field">
     <label for="username">Username</label>

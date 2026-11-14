@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"regexp"
 	"strings"
 
 	"github.com/herbiewalker/alcove/internal/retention"
@@ -114,6 +115,7 @@ func (s *Server) postDownload(q *rq) {
 	h.Set("Content-Type", "application/zip")
 	h.Set("Content-Disposition", `attachment; filename="`+name+`"`)
 	h.Set("Cache-Control", "no-store")
+	setDownloadToken(q)
 	zw := zip.NewWriter(q.w)
 	var readme strings.Builder
 	readme.WriteString("Your data from Alcove\n\nEach file below is a Tryst backup exactly as you uploaded it. It is still encrypted with the\nbackup password you chose in Tryst. Keep it safe, and restore it in Tryst when you want it back.\n\n")
@@ -167,4 +169,17 @@ func safeZipName(name string) string {
 		return "backup.tryst"
 	}
 	return out
+}
+
+var downloadTokenRE = regexp.MustCompile(`^[a-z0-9]{8,40}$`)
+
+// setDownloadToken tells the page's script that this download has really begun: it echoes the short
+// random token the page made for this one request into a cookie the script can read, then forgets it.
+// The token is not a secret and grants nothing; an invalid or missing one sets nothing.
+func setDownloadToken(q *rq) {
+	t := q.r.PostForm.Get("dltoken")
+	if !downloadTokenRE.MatchString(t) {
+		return
+	}
+	http.SetCookie(q.w, &http.Cookie{Name: "alcove_dl", Value: t, Path: "/", MaxAge: 120, SameSite: http.SameSiteStrictMode, Secure: q.c.Secure})
 }

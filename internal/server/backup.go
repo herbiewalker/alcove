@@ -63,6 +63,19 @@ func (j *jobs) start(kind, name string, fn func() (string, error), now func() ti
 	return true
 }
 
+// jobLabel is what a job is called on the page.
+func jobLabel(kind string) string {
+	switch kind {
+	case "run":
+		return "backup"
+	case "verify":
+		return "check of the backup"
+	case "drill":
+		return "restore drill"
+	}
+	return kind
+}
+
 func humanBytes(n int64) string {
 	const unit = 1024
 	if n < unit {
@@ -118,7 +131,7 @@ func (s *Server) backupPage(q *rq) *page {
 		switch {
 		case !j.done:
 			p.JobRunning, p.Refresh = true, true
-			p.JobText = "Working on a " + j.kind + " since " + j.started.UTC().Format("15:04:05") + " UTC. This page refreshes by itself."
+			p.JobText, p.JobSince = "Working on a "+jobLabel(j.kind)+", started at "+j.started.UTC().Format("15:04:05")+" UTC.", j.started.Unix()
 		case j.ok:
 			p.Flash = j.text
 		default:

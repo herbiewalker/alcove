@@ -7,9 +7,9 @@
   <div><b>{{.LastDrill}}</b><span class="muted small">last restore drill</span></div>
 </div>
 
-{{if .JobRunning}}<p class="notice warn" role="status">{{.JobText}}</p>{{end}}
+{{if .JobRunning}}<div class="notice warn" role="status"><progress aria-label="Working"></progress><p>{{.JobText}} Running for <b data-since="{{.JobSince}}"></b>. This page refreshes by itself.</p></div>{{end}}
 
-<form class="card" method="post" action="/admin/backup/rebuild">
+<form class="card" method="post" action="/admin/backup/rebuild" data-busy="Starting the rebuild. This can take a while...">
   <h2>Rebuild the search index and cache</h2>
   <input type="hidden" name="csrf" value="{{.CSRF}}">
   <p class="muted">The cache and the search index are copies made from each person's current upload. If they ever look wrong, this throws them away and rebuilds them. No data is lost: the uploads are not touched. Asks for your password again.</p>
@@ -21,7 +21,7 @@
   <p>Backups need a folder that is mounted into the container and is not inside the data folder (<code>ALCOVE_BACKUP_DIR</code>). Set <code>ALCOVE_BACKUP_PATH</code> in the compose file's <code>.env</code> and restart.</p>
 </section>
 {{else}}
-<form class="card" method="post" action="/admin/backup/run">
+<form class="card" method="post" action="/admin/backup/run" data-busy="Starting the backup...">
   <h2>Back up now</h2>
   <input type="hidden" name="csrf" value="{{.CSRF}}">
   <p class="muted">Writes a new archive, re-reads it to check every checksum, then removes the oldest ones beyond the number kept. Asks for your password again.</p>
@@ -40,8 +40,8 @@
       <td>{{.Size}}</td>
       <td>{{if .Sidecar}}yes{{else}}missing{{end}}</td>
       <td>
-        <form method="post" action="/admin/backup/verify"><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="name" value="{{.Name}}"><button class="btn secondary" type="submit" {{if $.JobRunning}}disabled{{end}}>Verify</button></form>
-        <form method="post" action="/admin/backup/drill"><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="name" value="{{.Name}}"><button class="btn secondary" type="submit" {{if $.JobRunning}}disabled{{end}}>Restore drill</button></form>
+        <form method="post" action="/admin/backup/verify" data-busy="Starting the check..."><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="name" value="{{.Name}}"><button class="btn secondary" type="submit" {{if $.JobRunning}}disabled{{end}}>Verify</button></form>
+        <form method="post" action="/admin/backup/drill" data-busy="Starting the restore drill..."><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="name" value="{{.Name}}"><button class="btn secondary" type="submit" {{if $.JobRunning}}disabled{{end}}>Restore drill</button></form>
       </td>
     </tr>
   {{end}}

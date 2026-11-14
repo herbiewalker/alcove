@@ -4,7 +4,7 @@
   <h1>Welcome to Alcove</h1>
   <p class="muted">Alcove is a private space for consenting adults. It is invite only: there is no public sign-up. The account you create now becomes the administrator, who can see and manage everything on this server, with every action written to a tamper-evident log.</p>
 </section>
-<form class="card" method="post" action="/setup" autocomplete="off">
+<form class="card" method="post" action="/setup" autocomplete="off" data-busy="Creating the administrator...">
   <input type="hidden" name="csrf" value="{{.CSRF}}">
   <div class="field">
     <label for="code">Setup code</label>

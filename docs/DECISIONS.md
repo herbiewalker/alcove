@@ -672,3 +672,15 @@ is a recurring check, not a one-off.
   zone for everyone's entries (an entry would move day depending on who looks).
 - **Consequences:** the calendar and entries pages now say times follow each person's zone. A person who travels changes their own zone and their past entries
   move days with it.
+
+## D-36 — Telling people something is happening: one script on every page (implements N11 in a wider form)
+- **Status:** Accepted
+- **Context:** several actions make a person wait: an upload and its check, a backup, a verify, a restore drill, a rebuild, a download of all one's data, signing in (Argon2id), deleting and restoring an upload (the data is rebuilt). Until now only the upload had a bar and the Backups page had a plain notice. A page that goes quiet looks broken.
+- **Decision:**
+  1. **One same-origin script, `ui.js`, on every page,** replacing `upload.js`. It is still the only script (N11: at most one), still no inline script or handler, still `script-src 'self'`; what changes is that it loads everywhere. Every page works without it.
+  2. **Any POST form shows a "Working..." bar** at the bottom of the screen with a running clock after three seconds, and its buttons are disabled (after the browser has read the form, so a button's own value is not lost) so a second click cannot repeat the action. A form can carry its own words in `data-busy`. The state is cleared if the page comes back from the browser's back/forward cache.
+  3. **The upload keeps its real progress bar,** then switches to an animated bar with a clock for "Checking the backup", whose length is unknown.
+  4. **A download says "Preparing your download" until the browser has really received it.** The script makes a short random token for that one request; the server echoes it into a short-lived, `SameSite=Strict`, non-secret cookie `alcove_dl` (only if it matches `[a-z0-9]{8,40}`) as the file starts; the script sees it, clears it and says "Your download has started". It is the one cookie the script reads, and a test pins that.
+  5. **A running job** (backup, verify, drill) shows an animated bar, "Running for N min N s" counted from the job's start, and keeps refreshing itself without the script. Its buttons are disabled while it runs.
+- **Alternatives:** polling a status endpoint for real percentages (needs the jobs to report progress, which backup, verify and drill do not yet); a script only on the pages that need it (almost all of them have a form); a server-sent progress stream (another route and a looser CSP for little gain).
+- **Consequences:** bars for backup, verify and drill are animated, not percentages; real progress for them needs the jobs to report counts, which is a later change.

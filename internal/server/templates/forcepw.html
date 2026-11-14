@@ -1,7 +1,7 @@
 {{define "content"}}
 <h1>Choose a new password</h1>
 {{if .Forced}}<p class="muted">You signed in with a temporary password. Choose your own now; nothing else works until you do.</p>{{end}}
-<form class="card" method="post" action="/account/password" autocomplete="off">
+<form class="card" method="post" action="/account/password" autocomplete="off" data-busy="Changing your password...">
   <input type="hidden" name="csrf" value="{{.CSRF}}">
   <div class="field">
     <label for="current">Current password</label>

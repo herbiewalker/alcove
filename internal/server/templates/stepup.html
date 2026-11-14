@@ -1,6 +1,6 @@
 {{define "content"}}
 <h1>Confirm it is you</h1>
-<form class="card" method="post" action="/stepup" autocomplete="off">
+<form class="card" method="post" action="/stepup" autocomplete="off" data-busy="Checking your password...">
   <p class="muted">This part of the console changes how the server protects itself, so it asks for your password again. It stays unlocked for a few minutes.</p>
   <input type="hidden" name="csrf" value="{{.CSRF}}">
   <input type="hidden" name="next" value="{{.Next}}">

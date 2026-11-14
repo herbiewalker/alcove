@@ -9,7 +9,7 @@
   {{range .MyDeleted}}
     <tr>
       <td>{{.DeletedAt}}</td><td>{{.Filename}}</td><td>{{.Entries}}</td><td>{{.Size}}</td><td>{{.Until}}</td>
-      <td><form method="post" action="/uploads/restore"><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="id" value="{{.ID}}"><button class="btn secondary" type="submit">Restore</button></form></td>
+      <td><form method="post" action="/uploads/restore" data-busy="Restoring and rebuilding your data. This can take a few seconds..."><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="id" value="{{.ID}}"><button class="btn secondary" type="submit">Restore</button></form></td>
     </tr>
   {{end}}
   </tbody>

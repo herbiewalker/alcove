@@ -4,7 +4,7 @@
   <h1>Locked</h1>
   <p class="muted">This server's key is protected by a passphrase. Nothing can be read until it is unlocked.</p>
 </section>
-<form class="card" method="post" action="/unlock" autocomplete="off">
+<form class="card" method="post" action="/unlock" autocomplete="off" data-busy="Unlocking...">
   <input type="hidden" name="csrf" value="{{.CSRF}}">
   <div class="field">
     <label for="passphrase">Key passphrase</label>

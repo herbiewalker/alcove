@@ -554,7 +554,7 @@ func TestJoinAttemptsAreRateLimited(t *testing.T) {
 	}
 }
 
-func TestSpacePagesFitTheShellAndNeedNoScript(t *testing.T) {
+func TestSpacePagesFitTheShellAndUseOnlyTheOneScript(t *testing.T) {
 	e := newEnv(t, netsec.Env{})
 	admin := adminReady(t, e)
 	sam := person(t, e, admin, "sam")
@@ -562,9 +562,10 @@ func TestSpacePagesFitTheShellAndNeedNoScript(t *testing.T) {
 	for _, p := range []string{"/spaces", "/spaces/" + id, "/join"} {
 		w := sam.do("GET", p, nil)
 		body := w.Body.String()
-		if w.Code != 200 || len(scriptRE.FindAllString(body, -1)) != 0 || strings.Contains(body, " style=") {
-			t.Errorf("%s: %d scripts=%d", p, w.Code, len(scriptRE.FindAllString(body, -1)))
+		if w.Code != 200 {
+			t.Errorf("%s: %d", p, w.Code)
 		}
+		oneScript(t, p, body)
 	}
 	if b := admin.do("GET", "/admin/spaces", nil); b.Code != 200 {
 		t.Errorf("admin spaces: %d", b.Code)

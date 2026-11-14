@@ -917,10 +917,13 @@ func TestPagesHaveNoInlineScriptOrStyleAndAreMobileReady(t *testing.T) {
 			t.Errorf("%s: looks empty: %q", p, body)
 			continue
 		}
-		for _, bad := range []string{"<script", " style=", " onclick=", " onload=", "javascript:", "http://", "https://"} {
+		for _, bad := range []string{"<script>", " style=", " onclick=", " onload=", " onsubmit=", "javascript:", "http://", "https://"} {
 			if strings.Contains(body, bad) {
 				t.Errorf("%s contains %q, which the CSP or the no-outbound rule forbids", p, bad)
 			}
+		}
+		if n := len(scriptRE.FindAllString(body, -1)); n != 1 || !strings.Contains(body, `<script src="/static/ui.js" defer></script>`) {
+			t.Errorf("%s: want exactly the one same-origin ui.js, got %d scripts", p, n)
 		}
 		for _, want := range []string{`name="viewport"`, "width=device-width", `<html lang="en"`, `rel="stylesheet" href="/static/app.css"`, "color-scheme"} {
 			if !strings.Contains(body, want) {

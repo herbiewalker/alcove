@@ -140,11 +140,11 @@ func TestCalendarSurvivesOddInput(t *testing.T) {
 	}
 }
 
-func TestCalendarPageNeedsNoScriptAndEscapesNames(t *testing.T) {
+func TestCalendarPageEscapesNames(t *testing.T) {
 	s := calSetup(t)
 	s.sam.post("/profile", "/profile", url.Values{"name": {"<script>x</script>"}})
 	_, body := s.cal(s.kim, "?month=2026-03&day=2026-03-10")
-	if strings.Contains(body, "<script") || !strings.Contains(body, "&lt;script&gt;") {
+	if strings.Contains(body, "<script>x") || !strings.Contains(body, "&lt;script&gt;") {
 		t.Error("a name was not escaped on the calendar")
 	}
 }

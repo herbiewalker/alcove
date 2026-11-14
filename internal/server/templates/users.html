@@ -2,7 +2,7 @@
 <h1>People</h1>
 <p class="muted">Add people, disable them, or remove them. Disabling is instant and can be undone. Deleting starts a grace period of {{.AdminDays}} days, after which everything they stored is removed for good. {{if not .SteppedUp}}Every change here asks for your password again: <a href="/stepup?next=/admin/users">confirm it is you</a>.{{end}}</p>
 
-<form class="card" method="post" action="/admin/users/create" autocomplete="off">
+<form class="card" method="post" action="/admin/users/create" autocomplete="off" data-busy="Creating the account...">
   <h2>Add a person</h2>
   <input type="hidden" name="csrf" value="{{.CSRF}}">
   <div class="field">
@@ -58,8 +58,8 @@
       <td>
         {{if .CanDisable}}<form method="post" action="/admin/users/disable"><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="id" value="{{.ID}}"><button class="btn secondary" type="submit">Disable</button></form>{{end}}
         {{if .CanEnable}}<form method="post" action="/admin/users/enable"><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="id" value="{{.ID}}"><button class="btn secondary" type="submit">Enable</button></form>{{end}}
-        {{if .CanReset}}<form method="post" action="/admin/users/reset"><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="id" value="{{.ID}}"><button class="btn secondary" type="submit">Reset password</button></form>{{end}}
-        {{if .CanDelete}}<form method="post" action="/admin/users/delete"><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="id" value="{{.ID}}"><button class="btn secondary" type="submit">Delete</button></form>{{end}}
+        {{if .CanReset}}<form method="post" action="/admin/users/reset" data-busy="Making a temporary password..."><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="id" value="{{.ID}}"><button class="btn secondary" type="submit">Reset password</button></form>{{end}}
+        {{if .CanDelete}}<form method="post" action="/admin/users/delete" data-busy="Deleting the account..."><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="id" value="{{.ID}}"><button class="btn secondary" type="submit">Delete</button></form>{{end}}
       </td>
     </tr>
   {{end}}

@@ -11,7 +11,7 @@
   {{range .DeletedUploads}}
     <tr>
       <td>@{{.OwnerName}}</td><td>{{.Filename}}</td><td>{{.Entries}}</td><td>{{.Size}}</td><td>{{.DeletedAt}}</td><td>{{.Until}}</td>
-      <td><form method="post" action="/admin/deleted/restore"><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="id" value="{{.RevisionID}}"><button class="btn secondary" type="submit">Restore</button></form></td>
+      <td><form method="post" action="/admin/deleted/restore" data-busy="Restoring..."><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="id" value="{{.RevisionID}}"><button class="btn secondary" type="submit">Restore</button></form></td>
     </tr>
   {{end}}
   </tbody>
@@ -38,7 +38,7 @@
 <p class="muted">No deleted accounts are waiting.</p>
 {{end}}
 
-<form class="card" method="post" action="/admin/deleted/purge">
+<form class="card" method="post" action="/admin/deleted/purge" data-busy="Removing expired items for good...">
   <h2>Purge now</h2>
   <input type="hidden" name="csrf" value="{{.CSRF}}">
   <p class="muted">Removes everything already past its window, right now, instead of waiting for the hourly run. Nothing inside a window is touched.</p>

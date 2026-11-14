@@ -1,7 +1,7 @@
 {{define "content"}}
 <h1>Fill from my latest backup</h1>
 <p class="muted">This is what your latest uploaded backup holds in its profile. Tick what you want to copy into your Alcove profile. Nothing is copied until you press the button, and copying never shares anything: you choose that on your profile.</p>
-<form class="card" method="post" action="/profile/prefill">
+<form class="card" method="post" action="/profile/prefill" data-busy="Copying what you ticked...">
   <input type="hidden" name="csrf" value="{{.CSRF}}">
   {{range .Offers}}
   <label class="check"><input type="checkbox" name="take_{{.Key}}" value="1" {{if .Checked}}checked{{end}}><span><b>{{.Label}}:</b> {{.Value}}</span></label>
