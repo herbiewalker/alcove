@@ -7,6 +7,10 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) · Versioning: 
 
 ## [Unreleased]
 
+## [0.1.2] - 2026-11-15
+
+Upgrading from 0.1.1: the update restarts the container and migrates the database (schema 9 to 10, one new table) by itself; your data and key are untouched and there is nothing else to do. Before your first real export, read the page it opens: export a fresh backup on the phone first, and restore with "Replace my current data with the backup" on.
+
 ### Added
 - Export to Tryst (D-43): My data, Export to Tryst writes your current data, with every edit, addition and deletion, as a new Tryst backup. It shows what changed since your upload, asks you to confirm you exported a fresh backup from your phone first, asks for your password again, and downloads `alcove-<name>-<date>.tryst`. A deleted entry's photos are left out. The file is read back and checked before it is offered. Proven on Tryst 0.6.5 on an emulator with "Replace my current data with the backup" on; never switch that off. Not yet tried on a real phone.
 - Admin editing (D-42 slice 4): the administrator can open, edit, delete and restore any person's entries and rename their partners (People, Data). Every look and every change is written to the admin log with the table, the row and the field names, never the values; changes ask for the password again; the administrator restores a deleted entry for 45 days.
@@ -16,19 +20,15 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) · Versioning: 
 ### Changed
 - Entry times use the Tryst style ("Jan 2, 2026, 3:04 PM"); a birth date from a backup is read in the person's own zone; the profile page can fill the time zone from the device (D-41).
 
+
 ## [0.1.1] - 2026-11-14
 
 Upgrading from 0.1.0: the update restarts the container and migrates the database (schema 6 to 9) by itself; your data and key are untouched. Afterwards, open Admin, Backups and press **Rebuild now** once, so photos from the upload you already have are copied out and appear on your entries.
 
-### Added
-- Editing (D-42): add, delete and restore entries; edit your own entries (time, length, rating, mood, who started it, protection, orgasms, acts, positions, kinks, settings, toys, occasions, note) and rename your partners from My entries. Each save is a new version with a history and an undo; your uploaded backup is never changed, a rebuild keeps your edits, spaces see them at once. Store schema v10.
+### Changed
 - The Unraid template and `.env.example` default the time zone to `America/New_York`. The running container keeps its own setting; change it in the Docker tab.
 - The runbook's key-copy drill command needs `--tmpfs /tmp` (and `--user 0:0` for a root-only copy on the flash drive), and the scripts are marked executable.
 - The `no-outbound` guard now matches calls (`http.Head(`) instead of any use of the `http.Header` type.
-
-### Added
-- Editing (D-42): add, delete and restore entries; edit your own entries (time, length, rating, mood, who started it, protection, orgasms, acts, positions, kinks, settings, toys, occasions, note) and rename your partners from My entries. Each save is a new version with a history and an undo; your uploaded backup is never changed, a rebuild keeps your edits, spaces see them at once. Store schema v10.
-- Entry times use the Tryst style ("Jan 2, 2026, 3:04 PM"); a birth date from a backup is read in the person's own zone; the profile page can fill the time zone from the device (D-41).
 
 ### Added
 - Photos (D-39, M7, F19): the photos of your current upload are copied out of it, encrypted under your data key, so they open instantly; they show on the entry page blurred until tapped, for you and, through the space, for members; a member sees them only where the entry is shown and its owner includes photos, and a caption follows the note choice. A photo's place is hidden unless its owner turns on a new "Show where my photos were taken" choice; the picture file itself is cleaned of EXIF, XMP, comments and thumbnails before anyone else gets it (JPEG and PNG; other formats are never shared), so the place cannot leak through the file. Schema v9.
@@ -39,10 +39,6 @@ Upgrading from 0.1.0: the update restarts the container and migrates the databas
 ## [0.1.0] - 2026-11-14
 
 First release. Everything below is new in it.
-
-### Added
-- Editing (D-42): add, delete and restore entries; edit your own entries (time, length, rating, mood, who started it, protection, orgasms, acts, positions, kinks, settings, toys, occasions, note) and rename your partners from My entries. Each save is a new version with a history and an undo; your uploaded backup is never changed, a rebuild keeps your edits, spaces see them at once. Store schema v10.
-- Entry times use the Tryst style ("Jan 2, 2026, 3:04 PM"); a birth date from a backup is read in the person's own zone; the profile page can fill the time zone from the device (D-41).
 
 ### Added
 - L1 deploy kit: an Unraid template (`deploy/unraid-template.xml`, following `:stable`, least-privilege flags, key mounted read-only, one LAN port), a guard (`unraid-template`) that fails CI if the template ever loosens the container, and RUNBOOK sections for the first live deploy (with the validation ladder and a real-phone check) and for putting HTTPS in front (Caddy, Nginx Proxy Manager, `tailscale serve`, each with a check that Alcove still sees the real client address).
