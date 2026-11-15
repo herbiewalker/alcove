@@ -1,0 +1,13 @@
+{{define "content"}}
+<h1>My partners</h1>
+<p class="muted">The people in your entries, as your backup lists them. You can change a name or add a note. Each change is saved as a new version you can undo, and your uploaded backup is never changed. Nothing here changes your phone until you export and restore a backup.</p>
+<p><a class="btn secondary" href="/entries">My entries</a> <a class="btn secondary" href="/uploads">My data</a></p>
+{{if .PartnerRows}}
+<div class="scroll"><table>
+  <thead><tr><th>Name</th><th></th></tr></thead>
+  <tbody>{{range .PartnerRows}}<tr><td>{{.Name}}</td><td><a class="btn secondary" href="/partners/{{.ID | urlquery}}/edit">Edit</a> <a class="btn secondary" href="/partners/{{.ID | urlquery}}/history">History</a></td></tr>{{end}}</tbody>
+</table></div>
+{{else}}
+<p class="muted">Your backup lists no partners.</p>
+{{end}}
+{{end}}

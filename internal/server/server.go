@@ -157,7 +157,7 @@ func (s *Server) netOptions() netsec.Options {
 }
 
 func (s *Server) parseTemplates() error {
-	pages := []string{"message", "setup", "login", "unlock", "home", "account", "stepup", "admin", "adminlog", "settings", "backup", "uploads", "users", "usercreated", "forcepw", "mydeleted", "admindeleted", "spaces", "space", "join", "joinconsent", "codeshown", "adminspaces", "spaceentries", "myentries", "profile", "prefill", "calendar", "compare", "entry", "search", "gallery", "editentry", "history"}
+	pages := []string{"message", "setup", "login", "unlock", "home", "account", "stepup", "admin", "adminlog", "settings", "backup", "uploads", "users", "usercreated", "forcepw", "mydeleted", "admindeleted", "spaces", "space", "join", "joinconsent", "codeshown", "adminspaces", "spaceentries", "myentries", "profile", "prefill", "calendar", "compare", "entry", "search", "gallery", "editentry", "history", "partners", "editpartner"}
 	for _, p := range pages {
 		t, err := template.ParseFS(assets, "templates/base.html", "templates/"+p+".html")
 		if err != nil {
@@ -492,19 +492,22 @@ type page struct {
 	Compare       *compareView
 	Detail        *share.Detail
 	// search (D-38)
-	SearchScopes         []scopeOption
-	SearchQ              string
-	Tiles                []tile
-	HasEdits             bool
-	EditForm             *editForm
-	HistID, HistRev      string
-	History              []histRow
-	Results              []resultRow
-	Searched, SearchFull bool
-	DetailBack           string
-	DetailBackLabel      string
-	ProfileTZ            string
-	DefaultTZ            string
+	SearchScopes                     []scopeOption
+	SearchQ                          string
+	Tiles                            []tile
+	HasEdits                         bool
+	EditForm                         *editForm
+	PartnerForm                      *partnerForm
+	PartnerRows                      []partnerRow
+	HistBase, HistBack, HistBackHref string
+	HistID, HistRev                  string
+	History                          []histRow
+	Results                          []resultRow
+	Searched, SearchFull             bool
+	DetailBack                       string
+	DetailBackLabel                  string
+	ProfileTZ                        string
+	DefaultTZ                        string
 }
 
 type logRow struct {
@@ -582,6 +585,7 @@ var flashes = map[string]string{
 	"profile":         "Profile saved.",
 	"entry-saved":     "Saved as a new version. Your uploaded backup is unchanged.",
 	"entry-reverted":  "Undone. The change was added to the history.",
+	"partner-saved":   "Saved as a new version. Your uploaded backup is unchanged.",
 	"profile-filled":  "Imported what you ticked. Nothing is shared until you tick Share on a field.",
 	"deleted-nocache": "Moved to Recently deleted. Your current data could not be rebuilt because no backup password is remembered, so it is empty until you upload again.",
 }
@@ -713,6 +717,11 @@ func (s *Server) routes_() {
 	s.handle("POST /entries/{id}/edit", user, s.postEditEntry)
 	s.handle("GET /entries/{id}/history", user, s.getEntryHistory)
 	s.handle("POST /entries/{id}/revert", user, s.postRevertEntry)
+	s.handle("GET /partners", user, s.getPartners)
+	s.handle("GET /partners/{id}/edit", user, s.getEditPartner)
+	s.handle("POST /partners/{id}/edit", user, s.postEditPartner)
+	s.handle("GET /partners/{id}/history", user, s.getPartnerHistory)
+	s.handle("POST /partners/{id}/revert", user, s.postRevertPartner)
 	s.handle("GET /spaces/{id}/gallery", user, s.getSpaceGallery)
 	s.handle("POST /entries/private", user, s.postEntryPrivate)
 	s.handle("GET /spaces/{id}", user, s.getSpace)

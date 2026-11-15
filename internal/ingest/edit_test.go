@@ -381,3 +381,202 @@ func TestEditsFollowTheirUploadThroughDeleteRestoreAndANewUpload(t *testing.T) {
 		t.Errorf("%d change rows kept", n)
 	}
 }
+
+func (r *rig) ids(table string) []string {
+	r.t.Helper()
+	rows, err := r.svc.CacheRows(context.Background(), owner, table)
+	if err != nil {
+		r.t.Fatal(err)
+	}
+	var out []string
+	for _, row := range rows {
+		var m map[string]json.RawMessage
+		_ = json.Unmarshal([]byte(row), &m)
+		var id string
+		_ = json.Unmarshal(m["id"], &id)
+		out = append(out, id)
+	}
+	return out
+}
+
+func (r *rig) partnerEdit(id string, in map[string]string) error {
+	r.t.Helper()
+	base := r.head()
+	editAt = time.Now().UTC()
+	return r.st.Update(context.Background(), true, func(tx *sql.Tx) error {
+		_, _, e := edit.PartnerApply(tx, editAt, owner, owner, id, base, in)
+		return e
+	})
+}
+
+func (r *rig) partnerRow(id string) map[string]json.RawMessage {
+	r.t.Helper()
+	var data string
+	if err := r.st.View(context.Background(), func(tx *sql.Tx) error {
+		return tx.QueryRow(`SELECT data FROM cache_row WHERE owner_id = ? AND tbl = 'partners' AND rid = ?`, owner, id).Scan(&data)
+	}); err != nil {
+		r.t.Fatal(err)
+	}
+	var m map[string]json.RawMessage
+	_ = json.Unmarshal([]byte(data), &m)
+	return m
+}
+
+func TestSetsComeOnlyFromTheOwnersCatalogAndPlaces(t *testing.T) {
+	r := newRig(t)
+	if _, err := r.upload(build(t, synth.Options{Seed: 71, Encounters: 8}), true); err != nil {
+		t.Fatal(err)
+	}
+	entry := r.firstEntry()
+	acts, positions := r.ids("acts"), r.ids("positions")
+	if len(acts) < 2 || len(positions) < 1 {
+		t.Fatalf("the synthetic catalogs are too small: %v %v", acts, positions)
+	}
+	if err := r.st.Update(context.Background(), true, func(tx *sql.Tx) error {
+		_, e := tx.Exec(`UPDATE cache_row SET data = json_set(data, '$.positions', NULL, '$.practicesPerformed', NULL, '$.contexts', NULL) WHERE owner_id = ? AND tbl = 'encounters' AND rid = ?`, owner, entry)
+		return e
+	}); err != nil {
+		t.Fatal(err)
+	}
+	good := map[string]string{
+		"practicesPerformed": "custom:" + acts[0] + ",custom:" + acts[1] + ",custom:" + acts[0],
+		"positions":          "custom:" + positions[0],
+		"contexts":           "BEDROOM,HOT_TUB",
+	}
+	if _, names, err := r.doEdit(entry, good); err != nil {
+		t.Fatal(err)
+	} else if strings.Join(names, ",") != "practicesPerformed,positions,contexts" {
+		t.Errorf("changed: %v", names)
+	}
+	row := r.entryRow(entry)
+	if string(row["practicesPerformed"]) != `"custom:`+acts[0]+`,custom:`+acts[1]+`"` || string(row["contexts"]) != `"BEDROOM,HOT_TUB"` {
+		t.Errorf("stored: %s %s", row["practicesPerformed"], row["contexts"])
+	}
+	// Another person's catalog row is not in mine.
+	if err := r.st.Update(context.Background(), true, func(tx *sql.Tx) error {
+		_, e := tx.Exec(`INSERT INTO cache_row(owner_id, tbl, rid, pos, data) VALUES ('ubob', 'kinks', 'bobkink', 0, '{"id":"bobkink","label":"BOBS"}')`)
+		return e
+	}); err != nil {
+		t.Fatal(err)
+	}
+	snap := r.snapshot()
+	for name, in := range map[string]map[string]string{
+		"a made-up catalog id":      {"kinks": "custom:does-not-exist"},
+		"another person's item":     {"kinks": "custom:bobkink"},
+		"a plain word":              {"toys": "handcuffs"},
+		"another table's id":        {"positions": "custom:" + acts[0]},
+		"a place that is not Tryst": {"contexts": "MOON_BASE"},
+		"lowercase place":           {"contexts": "home"},
+		"too many choices":          {"practicesReceived": strings.Repeat("custom:"+acts[0]+",", 1) + strings.Repeat("custom:x,", 70)},
+	} {
+		if _, _, err := r.doEdit(entry, in); err == nil {
+			t.Errorf("%s: accepted", name)
+		}
+	}
+	if r.snapshot() != snap {
+		t.Error("a refused edit changed something")
+	}
+	// An item already on the entry stays valid even if it is no longer in the catalog (an
+	// unrelated edit does not force it off), and clearing a set stores null.
+	if err := r.st.Update(context.Background(), true, func(tx *sql.Tx) error {
+		_, e := tx.Exec(`UPDATE cache_row SET data = json_set(data, '$.toys', 'custom:gone') WHERE owner_id = ? AND tbl = 'encounters' AND rid = ?`, owner, entry)
+		return e
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := r.doEdit(entry, map[string]string{"toys": "custom:gone", "satisfactionRating": "2"}); err != nil {
+		t.Errorf("keeping a removed item: %v", err)
+	}
+	if _, _, err := r.doEdit(entry, map[string]string{"toys": "", "contexts": ""}); err != nil {
+		t.Fatal(err)
+	}
+	row = r.entryRow(entry)
+	if string(row["toys"]) != "null" || string(row["contexts"]) != "null" {
+		t.Errorf("cleared sets: %s %s", row["toys"], row["contexts"])
+	}
+	want := r.snapshot()
+	if err := r.svc.Rebuild(context.Background(), owner); err != nil {
+		t.Fatal(err)
+	}
+	if r.snapshot() != want {
+		t.Error("set edits do not survive a rebuild")
+	}
+}
+
+func TestAPartnerCanBeRenamedAndStaysConsistent(t *testing.T) {
+	r := newRig(t)
+	if _, err := r.upload(build(t, synth.Options{Seed: 72, Encounters: 8, Partners: 3}), true); err != nil {
+		t.Fatal(err)
+	}
+	ids := r.ids("partners")
+	p := ids[0]
+	before := r.partnerRow(p)
+	if err := r.partnerEdit(p, map[string]string{"displayName": "  Renamed Person ", "note": "a note"}); err != nil {
+		t.Fatal(err)
+	}
+	row := r.partnerRow(p)
+	if string(row["displayName"]) != `"Renamed Person"` || string(row["isAnonymous"]) != "0" || string(row["note"]) != `"a note"` {
+		t.Errorf("renamed: %s %s %s", row["displayName"], row["isAnonymous"], row["note"])
+	}
+	for k, v := range before {
+		switch k {
+		case "displayName", "isAnonymous", "note", "updatedAt":
+		default:
+			if string(row[k]) != string(v) {
+				t.Errorf("partner column %s changed", k)
+			}
+		}
+	}
+	if n := r.count(`SELECT COUNT(*) FROM search WHERE owner_id = ? AND kind = 'partner' AND ref = ? AND body = ?`, owner, p, "Renamed Person\na note"); n != 1 {
+		t.Errorf("search rows for the renamed partner: %d", n)
+	}
+	// Clearing the name makes the partner anonymous again, as in Tryst.
+	if err := r.partnerEdit(p, map[string]string{"displayName": ""}); err != nil {
+		t.Fatal(err)
+	}
+	row = r.partnerRow(p)
+	if string(row["displayName"]) != "null" || string(row["isAnonymous"]) != "1" {
+		t.Errorf("cleared: %s %s", row["displayName"], row["isAnonymous"])
+	}
+	for name, in := range map[string]map[string]string{
+		"a name that is too long":   {"displayName": strings.Repeat("x", 81)},
+		"a control character":       {"displayName": "bad\x07name"},
+		"the anonymous flag":        {"isAnonymous": "0"},
+		"a column that is not ours": {"relationshipType": "SPOUSE"},
+	} {
+		if err := r.partnerEdit(p, in); err == nil {
+			t.Errorf("%s: accepted", name)
+		}
+	}
+	// Survives a rebuild exactly, and a partner id that is not there is not found.
+	want := r.snapshot()
+	if err := r.svc.Rebuild(context.Background(), owner); err != nil {
+		t.Fatal(err)
+	}
+	if r.snapshot() != want {
+		t.Error("partner edits do not survive a rebuild")
+	}
+	if err := r.partnerEdit("no-such-partner", map[string]string{"displayName": "x"}); !errors.Is(err, edit.ErrNoEntry) {
+		t.Errorf("a missing partner: %v", err)
+	}
+	// The entry editor cannot be used on a partner id or the other way round.
+	if _, _, err := r.doEdit(p, map[string]string{"note": "x"}); !errors.Is(err, edit.ErrNoEntry) {
+		t.Errorf("an entry edit on a partner id: %v", err)
+	}
+	// Partner history and undo.
+	var hist []edit.Revision
+	_ = r.st.View(context.Background(), func(tx *sql.Tx) (err error) { hist, err = edit.PartnerHistory(tx, owner, p); return })
+	if len(hist) != 2 || hist[1].Changes[0].Field != "displayName" {
+		t.Fatalf("partner history: %+v", hist)
+	}
+	base := r.head()
+	if err := r.st.Update(context.Background(), true, func(tx *sql.Tx) error {
+		_, _, e := edit.PartnerRevert(tx, time.Now().UTC(), owner, owner, p, base, hist[0].ID)
+		return e
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if string(r.partnerRow(p)["displayName"]) != `"Renamed Person"` {
+		t.Errorf("undo of the clearing: %s", r.partnerRow(p)["displayName"])
+	}
+}

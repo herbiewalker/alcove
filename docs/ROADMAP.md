@@ -115,7 +115,7 @@
 
 ## M5 — Editing
 
-- [ ] Editing scope per D-19, including adding new entries; change-sets, revisions, history and diff in the browser (F14). **Slice 1 done (D-42): own-entry fields, history, undo.** To do: slice 2 set fields and partner names, slice 3 add, delete and restore entries
+- [ ] Editing scope per D-19, including adding new entries; change-sets, revisions, history and diff in the browser (F14). **Slices 1 and 2 done (D-42): own-entry fields, set fields from the catalog, partner names, history, undo.** To do: slice 3 add, delete and restore entries
 - [ ] Admin edit of anyone's data, logged; recovery from any revision
 - **Exit:** edits never alter an upload; the admin log records every edit without content.
 

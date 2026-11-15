@@ -268,7 +268,13 @@ curl -fsS -b "$JAR" "$URL/entries/$eid/history" | grep -q "SMOKE-EDIT-NOTE" || d
 [ "$(curl -s -o /dev/null -w '%{http_code}' -b "$J3" "$URL/entries/$eid/edit")" = "404" ] || die "another person opened the edit form"
 [ "$(curl -s -o /dev/null -w '%{http_code}' "$URL/entries/$eid/edit")" != "200" ] || die "a signed-out visitor opened the edit form"
 [ "$(post "/entries/$eid/edit" "/entries/$eid/edit" -d "rev=$erev" -d "when=$ewhen" --data-urlencode "note=STALE")" = "400" ] || die "a stale save was accepted"
-ok "editing: saved as a new version, refused when bad or stale, closed to everyone but the owner"
+pid=$(curl -fsS -b "$JAR" "$URL/partners" | sed -n 's/.*href="\/partners\/\([^"\/]*\)\/edit".*/\1/p' | head -1)
+[ -n "$pid" ] || die "the owner has no partner to rename"
+[ "$(curl -s -o /dev/null -w '%{http_code}' -b "$J3" "$URL/partners/$pid/edit")" = "404" ] || die "another person opened a partner form"
+prev=$(curl -fsS -b "$JAR" "$URL/partners/$pid/edit" | sed -n 's/.*name="rev" value="\([^"]*\)".*/\1/p' | head -1)
+[ "$(post "/partners/$pid/edit" "/partners/$pid/edit" -d "rev=$prev" --data-urlencode "name=Smoke Partner")" = "303" ] || die "a partner was not renamed"
+curl -fsS -b "$JAR" "$URL/partners" | grep -q "Smoke Partner" || die "the new partner name is not shown"
+ok "editing: saved as a new version, refused when bad or stale, closed to everyone but the owner; a partner can be renamed"
 
 # 4h. The shared calendar: a member sees the grid and the owner's day, an outsider does not.
 cal=$(curl -fsS -b "$J3" "$URL/spaces/$spid/calendar")

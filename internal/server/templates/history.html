@@ -1,7 +1,7 @@
 {{define "content"}}
-<h1>Entry history</h1>
+<h1>History</h1>
 <p class="muted">Each save is kept as its own version, newest first. Undoing one puts its fields back as they were before it, and is itself added here, so nothing is ever lost. Your uploaded backup is never changed.</p>
-<p><a class="btn secondary" href="/entries/{{.HistID | urlquery}}">Back to the entry</a> <a class="btn secondary" href="/entries/{{.HistID | urlquery}}/edit">Edit</a></p>
+<p><a class="btn secondary" href="{{.HistBackHref}}">{{.HistBack}}</a> <a class="btn secondary" href="{{.HistBase}}/edit">Edit</a></p>
 {{if .History}}
 {{range .History}}
 <section class="card">
@@ -10,7 +10,7 @@
     <thead><tr><th>Field</th><th>Was</th><th>Now</th></tr></thead>
     <tbody>{{range .Changes}}<tr><td>{{.Label}}</td><td>{{if .Old}}{{.Old}}{{else}}<span class="muted">(empty)</span>{{end}}</td><td>{{if .New}}{{.New}}{{else}}<span class="muted">(empty)</span>{{end}}</td></tr>{{end}}</tbody>
   </table></div>
-  <form method="post" action="/entries/{{$.HistID | urlquery}}/revert">
+  <form method="post" action="{{$.HistBase}}/revert">
     <input type="hidden" name="csrf" value="{{$.CSRF}}">
     <input type="hidden" name="rev" value="{{$.HistRev}}">
     <input type="hidden" name="revision" value="{{.ID}}">
@@ -19,6 +19,6 @@
 </section>
 {{end}}
 {{else}}
-<p class="muted">This entry has not been edited here.</p>
+<p class="muted">Nothing has been edited here yet.</p>
 {{end}}
 {{end}}

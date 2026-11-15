@@ -32,6 +32,13 @@
     <legend>Protection</legend>
     <ul class="chips">{{range .Protections}}<li><label><input type="checkbox" name="protect" value="{{.Value}}"{{if .On}} checked{{end}}> {{.Label}}</label></li>{{end}}</ul>
   </fieldset>
+  {{range .Groups}}{{$g := .Name}}
+  <fieldset class="field">
+    <legend>{{.Label}}</legend>
+    <input type="hidden" name="has" value="{{$g}}">
+    <ul class="chips">{{range .Items}}<li><label><input type="checkbox" name="set_{{$g}}" value="{{.Value}}"{{if .On}} checked{{end}}> {{.Label}}</label></li>{{end}}</ul>
+  </fieldset>
+  {{end}}
   <div class="field">
     <label for="orgasms">Orgasms (yours)</label>
     <input id="orgasms" name="orgasms" type="number" inputmode="numeric" min="0" max="99" value="{{.Orgasms}}">

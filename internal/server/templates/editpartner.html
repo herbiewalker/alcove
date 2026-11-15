@@ -1,0 +1,19 @@
+{{define "content"}}
+{{with .PartnerForm}}
+<h1>Edit partner</h1>
+<p class="muted">Leave the name empty to make this partner anonymous. Other people in your spaces only ever see partner names if you have turned that on for the space.</p>
+<form class="card" method="post" action="/partners/{{.ID | urlquery}}/edit" autocomplete="off">
+  <input type="hidden" name="csrf" value="{{$.CSRF}}">
+  <input type="hidden" name="rev" value="{{.Rev}}">
+  <div class="field">
+    <label for="name">Name</label>
+    <input id="name" name="name" type="text" maxlength="80" value="{{.Name}}">
+  </div>
+  <div class="field">
+    <label for="note">Note</label>
+    <textarea id="note" name="note" rows="4" maxlength="20000">{{.Note}}</textarea>
+  </div>
+  <div class="actions"><button class="btn" type="submit" data-busy="Saving...">Save</button> <a class="btn secondary" href="/partners">Cancel</a></div>
+</form>
+{{end}}
+{{end}}

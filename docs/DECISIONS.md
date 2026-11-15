@@ -743,7 +743,7 @@ is a recurring check, not a one-off.
 - **Not matched, on purpose:** "Today/Yesterday" headings (the server would need to know each viewer's today and they change under a cached page); the phone's locale (Alcove has no locale setting yet).
 
 ## D-42 — Editing: change records over an upload, replayed on rebuild (M5)
-- **Status:** Accepted 2026-11-15. Slice 1 built (see the addendum below); slices 2 to 4 still to do.
+- **Status:** Accepted 2026-11-15. Slices 1 and 2 built (see the addenda below); slices 3 and 4 still to do.
 - **Context:** D-19 fixed what may be edited. Today the row cache is derived from the head upload only, so an edit stored only in the cache would be lost by "Rebuild now". Uploads must never change (constraint 1), every admin action is logged without content (6), deletes are soft with 10 and 45 day windows (7), and every shared view reads the cache through the one gate.
 - **Decision:**
   1. **An edit is a revision of kind `edit`** (the column already exists): its parent is the head, its `upload_id` is the same base upload, `created_by` is the person or the admin. Its content is rows in a new table `change` (schema v10, additive): revision, owner, table, row id, field, old value, new value, op (`set`, `add`, `delete`, `restore`). Values are JSON, so they are sealed with everything else, and a purge deletes them with the revision.
@@ -765,3 +765,8 @@ is a recurring check, not a one-off.
 - **Fields:** start time, length, rating, mood, initiator, protection, orgasm count (yours) and note, each checked against Tryst's own values and ranges. An untouched time keeps its stored seconds. Error messages name the field and the rule, never the value.
 - **Pages:** `/entries/{id}/edit`, `/entries/{id}/history` (with undo). Owner only; anyone else gets the not-found page. The uploads page warns, when the current upload has edits, that a new upload does not carry them over.
 - **Open:** a partner, set fields, new and deleted entries and admin editing are slices 2 to 4. Whether an edited note should re-share to a space someone already left is covered by the existing gate (it reads the cache).
+
+### D-42 addendum: slice 2 as built
+- **Set fields:** acts done, acts received, positions, kinks, settings (places), toys and occasions. A catalog set may only hold the person's own catalog rows (`custom:<id>`, checked against their own cache rows, never another person's) or an item the entry already holds, so an item removed from the catalog is not forced off by an unrelated edit. Settings use Tryst's own list of places. Clearing a set stores null. A group is saved only if the form showed it, so a person with an empty catalog never has a set cleared by accident.
+- **Partners:** a name and a note, at `/partners`, with history and undo like entries. Naming a partner clears the anonymous flag and clearing the name sets it, written as its own change so a rebuild gives the same row. The flag cannot be edited directly.
+- **Shape:** `internal/edit` now works on two tables (encounters, partners) through one apply and replay path; each change record names its table and row, and the search text of a renamed partner is refreshed the way an edited note is.

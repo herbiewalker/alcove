@@ -205,3 +205,105 @@ func TestTheUploadPageWarnsOnlyWhenThereAreEdits(t *testing.T) {
 		t.Error("another person's edit warns someone else")
 	}
 }
+
+// samCatalog returns the id and label of sam's first catalog row in a table.
+func samCatalog(t *testing.T, s *sharing, table string) (id, label string) {
+	t.Helper()
+	var ids, labels []string
+	if err := queryStrings(s.e, `SELECT rid, json_extract(data, '$.label') FROM cache_row WHERE owner_id = ? AND tbl = '`+table+`' ORDER BY pos LIMIT 1`, s.e.idOf("sam"), &ids, &labels); err != nil || len(ids) != 1 {
+		t.Fatalf("catalog %s: %v %v", table, ids, err)
+	}
+	return ids[0], labels[0]
+}
+
+func TestSetsAreChosenFromTheCatalogAndShownOnTheEntry(t *testing.T) {
+	s := newSharing(t)
+	id, _ := samEntry(t, s)
+	actID, actLabel := samCatalog(t, s, "acts")
+	edit := "/entries/" + url.PathEscape(id) + "/edit"
+	form := s.sam.do("GET", edit, nil).Body.String()
+	if !strings.Contains(form, `name="has" value="practicesPerformed"`) || !strings.Contains(form, `value="custom:`+actID+`"`) || !strings.Contains(form, actLabel) || !strings.Contains(form, `value="BEDROOM"`) {
+		t.Fatalf("the form does not offer the catalog and places: %.600s", form)
+	}
+	rev, when := formRev(t, form), extractWhen(t, form)
+	// A made-up catalog id is refused and the typed choices come back.
+	bad := s.sam.post(edit, edit, url.Values{"rev": {rev}, "when": {when}, "has": {"toys"}, "set_toys": {"custom:not-mine"}})
+	if bad.Code != 400 || !strings.Contains(bad.Body.String(), "Toys is not one of the choices.") {
+		t.Fatalf("a foreign id: %d %.300s", bad.Code, bad.Body.String())
+	}
+	good := s.sam.post(edit, edit, url.Values{"rev": {rev}, "when": {when}, "has": {"practicesPerformed", "contexts"},
+		"set_practicesPerformed": {"custom:" + actID}, "set_contexts": {"BEDROOM", "SHOWER"}})
+	if good.Code != 303 {
+		t.Fatalf("save: %d %.300s", good.Code, good.Body.String())
+	}
+	page := s.sam.do("GET", "/entries/"+url.PathEscape(id), nil).Body.String()
+	for _, want := range []string{actLabel, "Bedroom", "Shower"} {
+		if !strings.Contains(page, want) {
+			t.Errorf("the entry page lacks %q", want)
+		}
+	}
+	// A save that did not show a group leaves it alone: this one shows only the note.
+	form = s.sam.do("GET", edit, nil).Body.String()
+	if w := s.sam.post(edit, edit, url.Values{"rev": {formRev(t, form)}, "when": {extractWhen(t, form)}, "note": {"only a note"}}); w.Code != 303 {
+		t.Fatalf("note save: %d", w.Code)
+	}
+	if got := cacheValue(t, s, id, "$.contexts"); got != "BEDROOM,SHOWER" {
+		t.Errorf("a group that was not shown was changed: %s", got)
+	}
+	// The history reads the catalog label, not the raw id.
+	hist := s.sam.do("GET", "/entries/"+url.PathEscape(id)+"/history", nil).Body.String()
+	if !strings.Contains(hist, actLabel) || strings.Contains(hist, "custom:"+actID) {
+		t.Errorf("history does not show labels: %.600s", hist)
+	}
+}
+
+func TestPartnersCanBeRenamedOnlyByTheirOwner(t *testing.T) {
+	s := newSharing(t)
+	var ids, names []string
+	if err := queryStrings(s.e, `SELECT rid, COALESCE(json_extract(data, '$.displayName'), '') FROM cache_row WHERE owner_id = ? AND tbl = 'partners' ORDER BY pos LIMIT 1`, s.e.idOf("sam"), &ids, &names); err != nil || len(ids) != 1 {
+		t.Fatalf("a partner: %v %v", ids, err)
+	}
+	pid := ids[0]
+	list := s.sam.do("GET", "/partners", nil)
+	if list.Code != 200 || !strings.Contains(list.Body.String(), `/partners/`+pid+`/edit`) {
+		t.Fatalf("partner list: %d %.300s", list.Code, list.Body.String())
+	}
+	if strings.Contains(s.kim.do("GET", "/partners", nil).Body.String(), `/partners/`+pid+`/edit`) {
+		t.Error("another person's partner is in my list")
+	}
+	edit := "/partners/" + url.PathEscape(pid) + "/edit"
+	form := s.sam.do("GET", edit, nil).Body.String()
+	rev := formRev(t, form)
+	for name, c := range map[string]*client{"another member": s.kim, "an outsider": s.lou} {
+		if w := c.do("GET", edit, nil); w.Code != 404 {
+			t.Errorf("%s opened the partner form: %d", name, w.Code)
+		}
+		if w := c.post("/partners", edit, url.Values{"rev": {rev}, "name": {"HIJACK"}}); w.Code != 404 {
+			t.Errorf("%s renamed a partner: %d", name, w.Code)
+		}
+		if w := c.do("GET", "/partners/"+url.PathEscape(pid)+"/history", nil); w.Code != 404 {
+			t.Errorf("%s read a partner history: %d", name, w.Code)
+		}
+	}
+	if w := s.sam.post(edit, edit, url.Values{"rev": {rev}, "name": {strings.Repeat("x", 81)}}); w.Code != 400 || !strings.Contains(w.Body.String(), "Name is too long or not text.") {
+		t.Errorf("a long name: %d", w.Code)
+	}
+	if w := s.sam.post(edit, edit, url.Values{"rev": {rev}, "name": {"Renamed Partner"}, "note": {"remember"}}); w.Code != 303 || w.Header().Get("Location") != "/partners" {
+		t.Fatalf("rename: %d %s", w.Code, w.Header().Get("Location"))
+	}
+	if !strings.Contains(s.sam.do("GET", "/partners", nil).Body.String(), "Renamed Partner") {
+		t.Error("the list does not show the new name")
+	}
+	// Sam's entry shows the new name to sam, and a space member sees it only if names are shown.
+	hist := "/partners/" + url.PathEscape(pid) + "/history"
+	page := s.sam.do("GET", hist, nil).Body.String()
+	if !strings.Contains(page, "Renamed Partner") || !strings.Contains(page, `action="/partners/`+pid+`/revert"`) {
+		t.Fatalf("partner history: %.600s", page)
+	}
+	if w := s.sam.post(hist, "/partners/"+url.PathEscape(pid)+"/revert", url.Values{"rev": {between(t, page, `name="rev" value="`)}, "revision": {between(t, page, `name="revision" value="`)}}); w.Code != 303 {
+		t.Fatalf("undo: %d", w.Code)
+	}
+	if strings.Contains(s.sam.do("GET", "/partners", nil).Body.String(), "Renamed Partner") {
+		t.Error("undo left the new name")
+	}
+}

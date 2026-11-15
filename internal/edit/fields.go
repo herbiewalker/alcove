@@ -9,6 +9,7 @@ import (
 	"errors"
 	"strconv"
 	"strings"
+	"unicode"
 	"unicode/utf8"
 )
 
@@ -25,28 +26,47 @@ type BadField struct{ Field, Rule string }
 
 func (e *BadField) Error() string { return "edit: " + e.Field + " " + e.Rule }
 
-// Field is one editable column of an entry (D-19).
+// Field is one editable column (D-19). Kind is one of time, int, enum, tokens, text, places, or
+// "set:<catalog table>" for a set chosen from the person's own catalog. Hidden fields are written
+// only by Alcove itself (a partner's anonymous flag follows their name).
 type Field struct {
-	Name  string
-	Label string
-	Kind  string // time, int, enum, tokens, text
+	Name   string
+	Label  string
+	Kind   string
+	Max    int // text: the longest accepted, in bytes
+	Hidden bool
 }
 
 // Fields are the encounter columns a person may change, in display order. Everything else in a
 // row, and every other table, passes through untouched.
 var Fields = []Field{
-	{"startAt", "When", "time"},
-	{"durationMin", "Length (minutes)", "int"},
-	{"satisfactionRating", "Rating", "int"},
-	{"mood", "Mood", "enum"},
-	{"initiator", "Who started it", "enum"},
-	{"protectionUsed", "Protection", "tokens"},
-	{"orgasmCountSelf", "Orgasms (yours)", "int"},
-	{"note", "Note", "text"},
+	{Name: "startAt", Label: "When", Kind: "time"},
+	{Name: "durationMin", Label: "Length (minutes)", Kind: "int"},
+	{Name: "satisfactionRating", Label: "Rating", Kind: "int"},
+	{Name: "mood", Label: "Mood", Kind: "enum"},
+	{Name: "initiator", Label: "Who started it", Kind: "enum"},
+	{Name: "protectionUsed", Label: "Protection", Kind: "tokens"},
+	{Name: "orgasmCountSelf", Label: "Orgasms (yours)", Kind: "int"},
+	{Name: "practicesPerformed", Label: "Acts done", Kind: "set:acts"},
+	{Name: "practicesReceived", Label: "Acts received", Kind: "set:acts"},
+	{Name: "positions", Label: "Positions", Kind: "set:positions"},
+	{Name: "kinks", Label: "Kinks", Kind: "set:kinks"},
+	{Name: "contexts", Label: "Settings", Kind: "places"},
+	{Name: "toys", Label: "Toys", Kind: "set:toys"},
+	{Name: "occasions", Label: "Occasions", Kind: "set:occasions"},
+	{Name: "note", Label: "Note", Kind: "text", Max: maxNote},
 }
 
-// Moods, Initiators and Protections are Tryst's own values. Tryst rejects any other spelling, so
-// Alcove offers nothing else. Copied from Tryst's Enums.kt; a new Tryst value is added here.
+// PartnerFields are the partner columns a person may change: a name and a note. Naming a partner
+// also clears the anonymous flag, and clearing the name sets it, as Tryst does.
+var PartnerFields = []Field{
+	{Name: "displayName", Label: "Name", Kind: "text", Max: maxName},
+	{Name: "note", Label: "Note", Kind: "text", Max: maxNote},
+	{Name: "isAnonymous", Label: "Anonymous", Kind: "bool", Hidden: true},
+}
+
+// Moods, Initiators, Protections and Places are Tryst's own values. Tryst rejects any other
+// spelling, so Alcove offers nothing else. Copied from Tryst's Enums.kt; a new Tryst value is added here.
 var (
 	Moods = []string{"AMAZING", "EUPHORIC", "PASSIONATE", "HORNY", "SENSUAL", "WILD", "ADVENTUROUS", "KINKY", "NAUGHTY", "PLAYFUL",
 		"ROMANTIC", "INTIMATE", "TENDER", "CONNECTED", "LOVED", "DESIRED", "CONFIDENT", "SAFE", "VULNERABLE", "EMOTIONAL", "CURIOUS",
@@ -56,18 +76,23 @@ var (
 	Protections = []string{"NONE", "CONDOM", "INTERNAL_CONDOM", "DENTAL_DAM", "PILL", "IUD", "IMPLANT", "PATCH", "VAGINAL_RING",
 		"INJECTION", "DIAPHRAGM", "CERVICAL_CAP", "SPERMICIDE", "SPONGE", "FERTILITY_AWARENESS", "WITHDRAWAL", "VASECTOMY",
 		"TUBAL_LIGATION", "PREP", "PEP", "DOXY_PEP", "EMERGENCY_CONTRACEPTION", "OTHER"}
+	Places = []string{"HOME", "BEDROOM", "LIVING_ROOM", "KITCHEN", "BATHROOM", "SHOWER", "BATH", "BALCONY", "BACKYARD", "ROOFTOP", "CAR",
+		"HOTEL", "AIRBNB", "FRIENDS_FAMILY", "VACATION", "OUTDOORS", "NATURE", "BEACH", "CAMPING", "BOAT", "POOL", "HOT_TUB", "GYM",
+		"OFFICE", "CINEMA", "CHANGING_ROOM", "PUBLIC_RESTROOM", "PARKING_LOT", "ELEVATOR", "BAR_CLUB"}
 )
 
 const (
 	maxNote   = 20000
+	maxName   = 80
 	minStart  = int64(0)             // 1970
 	maxStart  = int64(4102444800000) // 2100-01-01
 	maxLength = 7 * 24 * 60          // minutes
 	maxCount  = 99
+	maxTokens = 60
 )
 
-func lookup(name string) (Field, bool) {
-	for _, f := range Fields {
+func lookup(fields []Field, name string) (Field, bool) {
+	for _, f := range fields {
 		if f.Name == name {
 			return f, true
 		}
@@ -84,23 +109,36 @@ func in(list []string, v string) bool {
 	return false
 }
 
-// Clean turns what a person typed into the raw JSON Tryst stores for that column. Empty means
+// CatalogTable names the catalog a "set:" field draws from ("" for any other field).
+func CatalogTable(f Field) string {
+	if strings.HasPrefix(f.Kind, "set:") {
+		return strings.TrimPrefix(f.Kind, "set:")
+	}
+	return ""
+}
+
+// Clean turns what a person typed into the raw JSON Tryst stores for an entry column. Empty means
 // "not set" (null; an empty string for protection, as Tryst writes it), except the start time.
+// A catalog set is only checked for shape here; Apply checks it against the person's own catalog.
 func Clean(name, input string) (json.RawMessage, error) {
-	f, ok := lookup(name)
-	if !ok {
+	return clean(Fields, name, input)
+}
+
+func clean(fields []Field, name, input string) (json.RawMessage, error) {
+	f, ok := lookup(fields, name)
+	if !ok || f.Hidden {
 		return nil, &BadField{name, "cannot be edited"}
 	}
 	s := strings.TrimSpace(input)
 	null := json.RawMessage("null")
-	switch f.Name {
-	case "startAt":
+	switch f.Kind {
+	case "time":
 		n, err := strconv.ParseInt(s, 10, 64)
 		if err != nil || n < minStart || n >= maxStart {
 			return nil, &BadField{name, "must be a real date and time"}
 		}
 		return json.RawMessage(strconv.FormatInt(n, 10)), nil
-	case "durationMin", "satisfactionRating", "orgasmCountSelf":
+	case "int":
 		if s == "" {
 			return null, nil
 		}
@@ -116,7 +154,7 @@ func Clean(name, input string) (json.RawMessage, error) {
 			return nil, &BadField{name, rule}
 		}
 		return json.RawMessage(strconv.Itoa(n)), nil
-	case "mood", "initiator":
+	case "enum":
 		if s == "" {
 			return null, nil
 		}
@@ -128,29 +166,63 @@ func Clean(name, input string) (json.RawMessage, error) {
 			return nil, &BadField{name, "is not one of the choices"}
 		}
 		return quote(s), nil
-	case "protectionUsed":
-		var keep []string
-		for _, t := range strings.Split(s, ",") {
-			if t = strings.TrimSpace(t); t == "" {
-				continue
-			}
-			if !in(Protections, t) {
-				return nil, &BadField{name, "is not one of the choices"}
-			}
-			if !in(keep, t) {
-				keep = append(keep, t)
-			}
+	case "tokens", "places":
+		list, empty := Protections, true
+		if f.Kind == "places" {
+			list, empty = Places, false
+		}
+		keep, err := tokens(name, s, func(t string) bool { return in(list, t) })
+		if err != nil {
+			return nil, err
+		}
+		if len(keep) == 0 && !empty {
+			return null, nil
 		}
 		return quote(strings.Join(keep, ",")), nil
-	default: // note
+	case "bool":
+		return nil, &BadField{name, "cannot be edited"}
+	default: // text
 		if s == "" {
 			return null, nil
 		}
-		if !utf8.ValidString(input) || len(input) > maxNote {
+		if !utf8.ValidString(input) || len(input) > f.Max || hasControl(strings.TrimRight(input, " \t\r\n")) {
 			return nil, &BadField{name, "is too long or not text"}
+		}
+		if f.Max == maxName { // a name has no leading or trailing blanks
+			return quote(s), nil
 		}
 		return quote(strings.TrimRight(input, " \t\r\n")), nil
 	}
+}
+
+// hasControl reports a control character other than a line break or a tab.
+func hasControl(s string) bool {
+	for _, r := range s {
+		if unicode.IsControl(r) && r != '\n' && r != '\t' && r != '\r' {
+			return true
+		}
+	}
+	return false
+}
+
+// tokens splits a comma list, drops blanks and repeats, and checks each token.
+func tokens(name, s string, ok func(string) bool) ([]string, error) {
+	var keep []string
+	for _, t := range strings.Split(s, ",") {
+		if t = strings.TrimSpace(t); t == "" {
+			continue
+		}
+		if !ok(t) {
+			return nil, &BadField{name, "is not one of the choices"}
+		}
+		if !in(keep, t) {
+			keep = append(keep, t)
+		}
+	}
+	if len(keep) > maxTokens {
+		return nil, &BadField{name, "has too many choices"}
+	}
+	return keep, nil
 }
 
 func quote(s string) json.RawMessage {

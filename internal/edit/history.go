@@ -25,6 +25,15 @@ type Revision struct {
 // History lists the edits of one entry, newest first, from live revisions only. It reads only the
 // owner's rows.
 func History(tx *sql.Tx, owner, entryID string) ([]Revision, error) {
+	return historyOf(tx, owner, "encounters", entryID)
+}
+
+// PartnerHistory is History for one of the owner's partners.
+func PartnerHistory(tx *sql.Tx, owner, partnerID string) ([]Revision, error) {
+	return historyOf(tx, owner, "partners", partnerID)
+}
+
+func historyOf(tx *sql.Tx, owner, table, entryID string) ([]Revision, error) {
 	rows, err := tx.Query(`SELECT r.id, r.created_at, r.created_by, c.field, c.old_value, c.new_value
 		FROM change c JOIN revision r ON r.id = c.revision_id
 		WHERE c.owner_id = ? AND c.tbl = ? AND c.rid = ? AND r.deleted_at IS NULL
@@ -52,9 +61,18 @@ func History(tx *sql.Tx, owner, entryID string) ([]Revision, error) {
 // Revert sets back what one earlier edit of this entry changed. It is an ordinary new edit, so
 // history keeps both. The edit being reverted must belong to this owner and entry.
 func Revert(tx *sql.Tx, now time.Time, actor, owner, entryID, baseRev, revisionID string) (string, []string, error) {
+	return revertOf(tx, now, actor, owner, encounters, entryID, baseRev, revisionID)
+}
+
+// PartnerRevert is Revert for one of the owner's partners.
+func PartnerRevert(tx *sql.Tx, now time.Time, actor, owner, partnerID, baseRev, revisionID string) (string, []string, error) {
+	return revertOf(tx, now, actor, owner, partners, partnerID, baseRev, revisionID)
+}
+
+func revertOf(tx *sql.Tx, now time.Time, actor, owner string, k kind, entryID, baseRev, revisionID string) (string, []string, error) {
 	rows, err := tx.Query(`SELECT c.field, c.old_value FROM change c JOIN revision r ON r.id = c.revision_id
 		WHERE c.revision_id = ? AND c.owner_id = ? AND c.tbl = ? AND c.rid = ? AND r.deleted_at IS NULL ORDER BY c.id`,
-		revisionID, owner, table, entryID)
+		revisionID, owner, k.table, entryID)
 	if err != nil {
 		return "", nil, err
 	}
@@ -73,7 +91,7 @@ func Revert(tx *sql.Tx, now time.Time, actor, owner, entryID, baseRev, revisionI
 	if len(vals) == 0 {
 		return "", nil, ErrNoEntry
 	}
-	return applyRaw(tx, now, actor, owner, entryID, baseRev, vals)
+	return applyRaw(tx, now, actor, owner, k, entryID, baseRev, vals)
 }
 
 // Describe turns a raw stored value into text for a person: nothing for null, the text of a
