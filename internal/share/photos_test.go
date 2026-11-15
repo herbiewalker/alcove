@@ -176,3 +176,18 @@ func TestAPhotoOpensOnlyWhereItsEntryDoes(t *testing.T) {
 		t.Errorf("viewer on older wording: %v", err)
 	}
 }
+
+func TestAPhotoOfADeletedEntryIsNotServedToItsOwnerEither(t *testing.T) {
+	r := newRig(t, "ann")
+	r.withPhotos("ann")
+	own := func() error {
+		return r.st.View(context.Background(), func(tx *sql.Tx) error { _, e := OwnPhoto(tx, "uann", "m1"); return e })
+	}
+	if err := own(); err != nil {
+		t.Fatalf("setup: %v", err)
+	}
+	r.exec(`DELETE FROM cache_row WHERE owner_id = 'uann' AND tbl = 'encounters' AND rid = 'e1'`)
+	if err := own(); !errors.Is(err, ErrNoEntry) {
+		t.Errorf("a photo of a deleted entry: %v", err)
+	}
+}

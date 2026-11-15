@@ -308,3 +308,4 @@ figure.photo figcaption { margin-top: 4px; overflow-wrap: anywhere; }
 @media (prefers-reduced-motion: reduce) { figure.photo img { transition: none; } }
 .photos.gallery { grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); }
 .photos.gallery figure.photo img { aspect-ratio: 1; object-fit: cover; }
+.btn.danger { background: transparent; color: var(--bad); border-color: var(--bad); }

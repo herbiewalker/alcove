@@ -274,7 +274,19 @@ pid=$(curl -fsS -b "$JAR" "$URL/partners" | sed -n 's/.*href="\/partners\/\([^"\
 prev=$(curl -fsS -b "$JAR" "$URL/partners/$pid/edit" | sed -n 's/.*name="rev" value="\([^"]*\)".*/\1/p' | head -1)
 [ "$(post "/partners/$pid/edit" "/partners/$pid/edit" -d "rev=$prev" --data-urlencode "name=Smoke Partner")" = "303" ] || die "a partner was not renamed"
 curl -fsS -b "$JAR" "$URL/partners" | grep -q "Smoke Partner" || die "the new partner name is not shown"
-ok "editing: saved as a new version, refused when bad or stale, closed to everyone but the owner; a partner can be renamed"
+nform=$(curl -fsS -b "$JAR" "$URL/entries/new")
+nrev=$(echo "$nform" | sed -n 's/.*name="rev" value="\([^"]*\)".*/\1/p' | head -1)
+nwhen=$(echo "$nform" | sed -n 's/.*name="when" type="datetime-local" value="\([^"]*\)".*/\1/p' | head -1)
+newloc=$(curl -s -o /dev/null -w '%{redirect_url}' -c "$JAR" -b "$JAR" --data-urlencode "csrf=$(token /entries/new)" -d "rev=$nrev" -d "when=$nwhen" --data-urlencode "note=SMOKE-NEW-ENTRY" "$URL/entries/new")
+nid="${newloc##*/}"
+[ -n "$nid" ] && curl -fsS -b "$JAR" "$URL/entries/$nid" | grep -q "SMOKE-NEW-ENTRY" || die "a new entry was not added: $newloc"
+drev=$(curl -fsS -b "$JAR" "$URL/entries/$nid/delete" | sed -n 's/.*name="rev" value="\([^"]*\)".*/\1/p' | head -1)
+[ "$(post "/entries/$nid/delete" "/entries/$nid/delete" -d "rev=$drev")" = "303" ] || die "the entry was not deleted"
+[ "$(curl -s -o /dev/null -w '%{http_code}' -b "$JAR" "$URL/entries/$nid")" = "404" ] || die "a deleted entry still opens"
+lrev=$(curl -fsS -b "$JAR" "$URL/entries/deleted" | sed -n 's/.*name="rev" value="\([^"]*\)".*/\1/p' | head -1)
+[ "$(post "/entries/deleted" "/entries/$nid/restore" -d "rev=$lrev")" = "303" ] || die "the entry was not restored"
+curl -fsS -b "$JAR" "$URL/entries/$nid" | grep -q "SMOKE-NEW-ENTRY" || die "the restored entry does not open"
+ok "editing: saved as a new version, refused when bad or stale, closed to everyone but the owner; a partner can be renamed; an entry can be added, deleted and restored"
 
 # 4h. The shared calendar: a member sees the grid and the owner's day, an outsider does not.
 cal=$(curl -fsS -b "$J3" "$URL/spaces/$spid/calendar")

@@ -1,0 +1,12 @@
+{{define "content"}}
+<h1>Delete this entry?</h1>
+<section class="card">
+  <p>The entry from <b>{{.DeleteWhen}}</b> will be removed from your data, with its partner links and photo rows. It will not show in your spaces, search or calendar any more.</p>
+  <p class="muted">You can restore it from Recently deleted entries for {{.UserDays}} days. After that the administrator can still restore it for a while longer, and then its content is wiped for good. Your uploaded backup is never changed, and nothing changes on your phone until you export and restore a backup.</p>
+  <form method="post" action="/entries/{{.DeleteID | urlquery}}/delete">
+    <input type="hidden" name="csrf" value="{{.CSRF}}">
+    <input type="hidden" name="rev" value="{{.HistRev}}">
+    <div class="actions"><button class="btn danger" type="submit" data-busy="Deleting...">Delete the entry</button> <a class="btn secondary" href="/entries/{{.DeleteID | urlquery}}">Keep it</a></div>
+  </form>
+</section>
+{{end}}

@@ -335,7 +335,8 @@ func addPhotos(tx *sql.Tx, d *Detail, owner, entryID string, opt options) error 
 // OwnPhoto says what kind of picture one of the person's own photos is. It reads only their rows.
 func OwnPhoto(tx *sql.Tx, owner, mediaID string) (photo.Kind, error) {
 	var k int
-	err := tx.QueryRow(`SELECT kind FROM media_blob WHERE owner_id = ? AND media_id = ?`, owner, mediaID).Scan(&k)
+	err := tx.QueryRow(`SELECT b.kind FROM media_blob b WHERE b.owner_id = ? AND b.media_id = ?
+		AND EXISTS (SELECT 1 FROM cache_row c WHERE c.owner_id = b.owner_id AND c.tbl = 'encounters' AND c.rid = b.entry_id)`, owner, mediaID).Scan(&k)
 	if errors.Is(err, sql.ErrNoRows) {
 		return photo.Unknown, ErrNoEntry
 	}

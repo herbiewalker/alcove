@@ -31,6 +31,7 @@ type setGroup struct {
 
 // editForm is what the edit page shows: the current values, as text.
 type editForm struct {
+	New                                            bool
 	ID, Rev, When, Duration, Rating, Orgasms, Note string
 	Moods, Initiators, Protections                 []choice
 	Groups                                         []setGroup
@@ -257,34 +258,8 @@ func (s *Server) postEditEntry(q *rq) {
 		q.serverError("read entry for edit", err)
 		return
 	}
-	in := map[string]string{
-		"durationMin":        f.Get("duration"),
-		"satisfactionRating": f.Get("rating"),
-		"mood":               f.Get("mood"),
-		"initiator":          f.Get("initiator"),
-		"protectionUsed":     strings.Join(f["protect"], ","),
-		"orgasmCountSelf":    f.Get("orgasms"),
-		"note":               strings.ReplaceAll(f.Get("note"), "\r\n", "\n"),
-	}
-	// A set is saved only if the form showed it, so a group with nothing to choose is never cleared.
-	shown := map[string]bool{}
-	for _, name := range f["has"] {
-		shown[name] = true
-	}
-	for _, fd := range edit.Fields {
-		if (fd.Kind == "places" || edit.CatalogTable(fd) != "") && shown[fd.Name] {
-			in[fd.Name] = strings.Join(f["set_"+fd.Name], ",")
-		}
-	}
-	// A time left as it was keeps its stored seconds.
 	oldMs, _ := strconv.ParseInt(edit.Describe(cur["startAt"]), 10, 64)
-	if w := strings.TrimSpace(f.Get("when")); w == time.UnixMilli(oldMs).In(loc).Format(whenLayout) {
-		in["startAt"] = strconv.FormatInt(oldMs, 10)
-	} else if t, err := time.ParseInLocation(whenLayout, w, loc); err == nil {
-		in["startAt"] = strconv.FormatInt(t.UnixMilli(), 10)
-	} else {
-		in["startAt"] = "" // refused below by the same rule as any other bad value
-	}
+	in, shown := entryInput(f, loc, oldMs)
 	baseRev := f.Get("rev")
 	err := q.st.Update(q.r.Context(), true, func(tx *sql.Tx) error {
 		_, _, e := edit.Apply(tx, s.now(), q.id.user.ID, q.id.user.ID, id, baseRev, in)
@@ -504,3 +479,35 @@ func (s *Server) postEditPartner(q *rq) {
 
 func (s *Server) getPartnerHistory(q *rq) { s.showHistory(q, partnKind) }
 func (s *Server) postRevertPartner(q *rq) { s.revertEdit(q, partnKind) }
+
+// entryInput turns the entry form into what edit.Apply and edit.Add take. A set is saved only if
+// the form showed it, so a group with nothing to choose is never cleared. A time left as it was
+// keeps its stored seconds (oldMs; 0 for a new entry).
+func entryInput(f url.Values, loc *time.Location, oldMs int64) (map[string]string, map[string]bool) {
+	in := map[string]string{
+		"durationMin":        f.Get("duration"),
+		"satisfactionRating": f.Get("rating"),
+		"mood":               f.Get("mood"),
+		"initiator":          f.Get("initiator"),
+		"protectionUsed":     strings.Join(f["protect"], ","),
+		"orgasmCountSelf":    f.Get("orgasms"),
+		"note":               strings.ReplaceAll(f.Get("note"), "\r\n", "\n"),
+	}
+	shown := map[string]bool{}
+	for _, name := range f["has"] {
+		shown[name] = true
+	}
+	for _, fd := range edit.Fields {
+		if (fd.Kind == "places" || edit.CatalogTable(fd) != "") && shown[fd.Name] {
+			in[fd.Name] = strings.Join(f["set_"+fd.Name], ",")
+		}
+	}
+	if w := strings.TrimSpace(f.Get("when")); oldMs != 0 && w == time.UnixMilli(oldMs).In(loc).Format(whenLayout) {
+		in["startAt"] = strconv.FormatInt(oldMs, 10)
+	} else if t, err := time.ParseInLocation(whenLayout, w, loc); err == nil {
+		in["startAt"] = strconv.FormatInt(t.UnixMilli(), 10)
+	} else {
+		in["startAt"] = "" // refused by the same rule as any other bad value
+	}
+	return in, shown
+}

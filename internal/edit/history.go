@@ -19,6 +19,7 @@ type Revision struct {
 	At      time.Time
 	ByID    string // who made it
 	ByOwner bool
+	Kind    string // "" for a change of fields; "add", "delete" or "restore" for a whole entry
 	Changes []Change
 }
 
@@ -34,7 +35,7 @@ func PartnerHistory(tx *sql.Tx, owner, partnerID string) ([]Revision, error) {
 }
 
 func historyOf(tx *sql.Tx, owner, table, entryID string) ([]Revision, error) {
-	rows, err := tx.Query(`SELECT r.id, r.created_at, r.created_by, c.field, c.old_value, c.new_value
+	rows, err := tx.Query(`SELECT r.id, r.created_at, r.created_by, c.field, c.old_value, c.new_value, c.op
 		FROM change c JOIN revision r ON r.id = c.revision_id
 		WHERE c.owner_id = ? AND c.tbl = ? AND c.rid = ? AND r.deleted_at IS NULL
 		ORDER BY r.created_at DESC, r.rowid DESC, c.id`, owner, table, entryID)
@@ -44,15 +45,19 @@ func historyOf(tx *sql.Tx, owner, table, entryID string) ([]Revision, error) {
 	defer rows.Close()
 	var out []Revision
 	for rows.Next() {
-		var id, by, field, o, n string
+		var id, by, field, o, n, op string
 		var at int64
-		if err := rows.Scan(&id, &at, &by, &field, &o, &n); err != nil {
+		if err := rows.Scan(&id, &at, &by, &field, &o, &n, &op); err != nil {
 			return nil, err
 		}
 		if len(out) == 0 || out[len(out)-1].ID != id {
 			out = append(out, Revision{ID: id, At: time.Unix(at, 0).UTC(), ByID: by, ByOwner: by == owner})
 		}
 		last := &out[len(out)-1]
+		if op != "set" {
+			last.Kind = op
+			continue
+		}
 		last.Changes = append(last.Changes, Change{field, json.RawMessage(o), json.RawMessage(n)})
 	}
 	return out, rows.Err()
@@ -71,7 +76,7 @@ func PartnerRevert(tx *sql.Tx, now time.Time, actor, owner, partnerID, baseRev, 
 
 func revertOf(tx *sql.Tx, now time.Time, actor, owner string, k kind, entryID, baseRev, revisionID string) (string, []string, error) {
 	rows, err := tx.Query(`SELECT c.field, c.old_value FROM change c JOIN revision r ON r.id = c.revision_id
-		WHERE c.revision_id = ? AND c.owner_id = ? AND c.tbl = ? AND c.rid = ? AND r.deleted_at IS NULL ORDER BY c.id`,
+		WHERE c.revision_id = ? AND c.owner_id = ? AND c.tbl = ? AND c.rid = ? AND c.op = 'set' AND r.deleted_at IS NULL ORDER BY c.id`,
 		revisionID, owner, k.table, entryID)
 	if err != nil {
 		return "", nil, err

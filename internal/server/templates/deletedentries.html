@@ -1,0 +1,15 @@
+{{define "content"}}
+<h1>Recently deleted entries</h1>
+<p class="muted">Entries you deleted. You can restore one for {{.UserDays}} days after you deleted it. Restoring brings back the entry with its partner links and photo rows.</p>
+<p><a class="btn secondary" href="/entries">My entries</a></p>
+{{if .DeletedRows}}
+<div class="scroll"><table>
+  <thead><tr><th>Entry</th><th>Deleted</th><th></th></tr></thead>
+  <tbody>{{range .DeletedRows}}<tr><td>{{if .Started}}{{.Started}}{{else}}An entry{{end}}</td><td>{{.Deleted}}</td><td>
+    {{if .Restorable}}<form method="post" action="/entries/{{.ID | urlquery}}/restore"><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="rev" value="{{$.HistRev}}"><button class="btn secondary" type="submit" data-busy="Restoring...">Restore</button></form>
+    {{else}}<span class="muted small">Past your {{$.UserDays}} days. Ask the administrator.</span>{{end}}</td></tr>{{end}}</tbody>
+</table></div>
+{{else}}
+<p class="muted">Nothing deleted lately.</p>
+{{end}}
+{{end}}

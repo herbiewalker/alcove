@@ -340,6 +340,11 @@ func store(tx *sql.Tx, owner string, k kind, id string, r *row, at int64, change
 	if _, err := tx.Exec(`UPDATE cache_row SET data = ? WHERE owner_id = ? AND tbl = ? AND rid = ?`, r.String(), owner, k.table, id); err != nil {
 		return err
 	}
+	return reindex(tx, owner, k, id, *r, changed)
+}
+
+// reindex refreshes the search text of one row if any of the named columns is one the table indexes.
+func reindex(tx *sql.Tx, owner string, k kind, id string, r row, changed []string) error {
 	touched := false
 	for _, c := range changed {
 		for _, sc := range k.searchCols {
@@ -396,15 +401,15 @@ func Replay(tx *sql.Tx, owner, uploadID string) error {
 		return err
 	}
 	for _, v := range list {
-		cs, err := tx.Query(`SELECT tbl, rid, field, new_value, op FROM change WHERE revision_id = ? ORDER BY id`, v.id)
+		cs, err := tx.Query(`SELECT tbl, rid, field, old_value, new_value, op FROM change WHERE revision_id = ? ORDER BY id`, v.id)
 		if err != nil {
 			return err
 		}
-		type ch struct{ tbl, rid, field, val, op string }
+		type ch struct{ tbl, rid, field, old, val, op string }
 		var cl []ch
 		for cs.Next() {
 			var c ch
-			if err := cs.Scan(&c.tbl, &c.rid, &c.field, &c.val, &c.op); err != nil {
+			if err := cs.Scan(&c.tbl, &c.rid, &c.field, &c.old, &c.val, &c.op); err != nil {
 				_ = cs.Close()
 				return err
 			}
@@ -417,9 +422,27 @@ func Replay(tx *sql.Tx, owner, uploadID string) error {
 		touched := map[target]*row{}
 		fields := map[target][]string{}
 		var order []target
+		flush := func() error {
+			for _, t := range order {
+				if err := store(tx, owner, kinds[t.tbl], t.rid, touched[t], v.at, fields[t]); err != nil {
+					return err
+				}
+			}
+			touched, fields, order = map[target]*row{}, map[target][]string{}, nil
+			return nil
+		}
 		for _, c := range cl {
+			if c.op != "set" {
+				if err := flush(); err != nil {
+					return err
+				}
+				if err := replayWhole(tx, owner, c.tbl, c.rid, c.old, c.val, c.op); err != nil {
+					return err
+				}
+				continue
+			}
 			k, known := kinds[c.tbl]
-			if !known || c.op != "set" {
+			if !known {
 				continue
 			}
 			t := target{c.tbl, c.rid}
@@ -439,11 +462,30 @@ func Replay(tx *sql.Tx, owner, uploadID string) error {
 			r.set(c.field, json.RawMessage(c.val))
 			fields[t] = append(fields[t], c.field)
 		}
-		for _, t := range order {
-			if err := store(tx, owner, kinds[t.tbl], t.rid, touched[t], v.at, fields[t]); err != nil {
-				return err
-			}
+		if err := flush(); err != nil {
+			return err
 		}
+	}
+	return nil
+}
+
+// replayWhole applies one whole-row change (add, delete, restore) to the rebuilt cache, exactly as
+// Add, Delete and Restore did.
+func replayWhole(tx *sql.Tx, owner, tbl, rid, old, val, op string) error {
+	switch op {
+	case "add":
+		if k, ok := kinds[tbl]; ok {
+			return insertRow(tx, owner, k, rid, val, -1)
+		}
+	case "delete":
+		return removeRow(tx, owner, tbl, rid)
+	case "restore":
+		pos, _ := strconv.Atoi(old)
+		if k, ok := kinds[tbl]; ok {
+			return insertRow(tx, owner, k, rid, val, pos)
+		}
+		_, err := tx.Exec(`INSERT OR REPLACE INTO cache_row(owner_id, tbl, rid, pos, data) VALUES (?,?,?,?,?)`, owner, tbl, rid, pos, val)
+		return err
 	}
 	return nil
 }

@@ -665,3 +665,51 @@ func TestEditsFollowTheirUploadThroughDeleteRestoreAndPurge(t *testing.T) {
 		t.Error("the purge left the edit behind")
 	}
 }
+
+// A deleted entry can be restored until the administrator's window ends; then its stored values are
+// wiped (D-42). The purge reports it in the log as a count, nothing else.
+func TestPurgeWipesDeletedEntriesAfterTheAdminWindow(t *testing.T) {
+	r := newRig(t)
+	ctx := context.Background()
+	r.upload("ualice", 41, 5, true)
+	rows, _ := r.ing.CacheRows(ctx, "ualice", "encounters")
+	var first map[string]json.RawMessage
+	_ = json.Unmarshal([]byte(rows[0]), &first)
+	var entry string
+	_ = json.Unmarshal(first["id"], &entry)
+	r.clock = r.clock.Add(time.Minute)
+	var head string
+	_ = r.st.View(ctx, func(tx *sql.Tx) (err error) { head, _, err = edit.Head(tx, "ualice"); return })
+	if err := r.st.Update(ctx, true, func(tx *sql.Tx) error {
+		_, e := edit.Delete(tx, r.clock, "ualice", "ualice", entry, head)
+		return e
+	}); err != nil {
+		t.Fatal(err)
+	}
+	deletedAt := r.clock
+	r.clock = deletedAt.Add(44 * day)
+	if res, err := r.svc.Purge(ctx); err != nil || res.Any() {
+		t.Fatalf("a purge on day 44 must remove nothing: %+v %v", res, err)
+	}
+	r.clock = deletedAt.Add(46 * day)
+	res, err := r.svc.Purge(ctx)
+	if err != nil || res.Entries != 1 || res.Uploads != 0 {
+		t.Fatalf("purge: %+v %v", res, err)
+	}
+	if r.count(`SELECT COUNT(*) FROM change WHERE op = 'delete' AND old_value <> ''`) != 0 {
+		t.Error("the deleted entry's values were not wiped")
+	}
+	if r.count(`SELECT COUNT(*) FROM change WHERE op = 'delete'`) == 0 {
+		t.Error("the fact of the deletion was removed")
+	}
+	var fields string
+	_ = r.st.View(ctx, func(tx *sql.Tx) error {
+		return tx.QueryRow(`SELECT fields FROM admin_log ORDER BY seq DESC LIMIT 1`).Scan(&fields)
+	})
+	if fields != "uploads:0,accounts:0,spaces:0,orphans:0,entries:1" {
+		t.Errorf("log fields: %s", fields)
+	}
+	if res, _ := r.svc.Purge(ctx); res.Any() {
+		t.Errorf("a second purge removed %+v", res)
+	}
+}

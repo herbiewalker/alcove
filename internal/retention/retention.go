@@ -20,6 +20,7 @@ import (
 
 	"github.com/herbiewalker/alcove/internal/adminlog"
 	"github.com/herbiewalker/alcove/internal/blobstore"
+	"github.com/herbiewalker/alcove/internal/edit"
 	"github.com/herbiewalker/alcove/internal/ingest"
 	"github.com/herbiewalker/alcove/internal/store"
 )
@@ -215,14 +216,19 @@ func (s *Service) ListDeleted(ctx context.Context, owner string, admin bool) ([]
 // Result counts what a purge removed.
 type Result struct {
 	Uploads, Accounts, Spaces, Orphans int
+	Entries                            int // deleted entries whose stored values were wiped (D-42)
 }
 
 // Any reports whether anything was removed.
-func (r Result) Any() bool { return r.Uploads+r.Accounts+r.Spaces+r.Orphans > 0 }
+func (r Result) Any() bool { return r.Uploads+r.Accounts+r.Spaces+r.Orphans+r.Entries > 0 }
 
 // Fields renders the counts for the admin log (identifier characters only).
 func (r Result) Fields() string {
-	return fmt.Sprintf("uploads:%d,accounts:%d,spaces:%d,orphans:%d", r.Uploads, r.Accounts, r.Spaces, r.Orphans)
+	s := fmt.Sprintf("uploads:%d,accounts:%d,spaces:%d,orphans:%d", r.Uploads, r.Accounts, r.Spaces, r.Orphans)
+	if r.Entries > 0 {
+		s += fmt.Sprintf(",entries:%d", r.Entries)
+	}
+	return s
 }
 
 // Purge really deletes everything past the admin window, then sweeps crash leftovers. It is safe
@@ -274,6 +280,15 @@ func (s *Service) Purge(ctx context.Context) (Result, error) {
 		}
 	}
 	res.Uploads = len(uploads)
+
+	// 1b. Deleted entries past the administrator window: wipe the stored values, keep the fact.
+	if err := s.St.Update(ctx, true, func(tx *sql.Tx) error {
+		n, e := edit.PurgeDeleted(tx, cutoff)
+		res.Entries = n
+		return e
+	}); err != nil {
+		return res, err
+	}
 
 	// 2. Deleted accounts past the window: everything they own, then the account.
 	var gone []string

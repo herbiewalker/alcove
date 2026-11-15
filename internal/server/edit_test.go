@@ -5,6 +5,7 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 )
 
 // samEntry returns one of sam's own entry ids and its current start time in milliseconds.
@@ -305,5 +306,91 @@ func TestPartnersCanBeRenamedOnlyByTheirOwner(t *testing.T) {
 	}
 	if strings.Contains(s.sam.do("GET", "/partners", nil).Body.String(), "Renamed Partner") {
 		t.Error("undo left the new name")
+	}
+}
+
+func TestAnEntryCanBeAddedDeletedAndRestored(t *testing.T) {
+	s := newSharing(t)
+	// Add.
+	form := s.sam.do("GET", "/entries/new", nil)
+	if form.Code != 200 || !strings.Contains(form.Body.String(), `action="/entries/new"`) {
+		t.Fatalf("new form: %d %.300s", form.Code, form.Body.String())
+	}
+	body := form.Body.String()
+	rev, when := formRev(t, body), extractWhen(t, body)
+	if w := s.sam.post("/entries/new", "/entries/new", url.Values{"rev": {rev}, "when": {"nonsense"}}); w.Code != 400 || !strings.Contains(w.Body.String(), "When must be a real date and time.") {
+		t.Errorf("a bad time: %d", w.Code)
+	}
+	w := s.sam.post("/entries/new", "/entries/new", url.Values{"rev": {rev}, "when": {when}, "rating": {"3"}, "note": {"ADDED-IN-BROWSER"}})
+	if w.Code != 303 || !strings.HasPrefix(w.Header().Get("Location"), "/entries/") {
+		t.Fatalf("add: %d %s %.300s", w.Code, w.Header().Get("Location"), w.Body.String())
+	}
+	id := strings.TrimPrefix(w.Header().Get("Location"), "/entries/")
+	if p := s.sam.do("GET", "/entries/"+id, nil).Body.String(); !strings.Contains(p, "ADDED-IN-BROWSER") {
+		t.Fatalf("the new entry does not open: %.300s", p)
+	}
+	if !strings.Contains(s.kim.do("GET", "/spaces/"+s.space+"/entries", nil).Body.String(), "Person sam") {
+		t.Error("the space list broke")
+	}
+	if !strings.Contains(s.kim.do("GET", "/spaces/"+s.space+"/entry/"+s.e.idOf("sam")+"/"+id, nil).Body.String(), "ADDED-IN-BROWSER") {
+		t.Error("a member does not see the new entry")
+	}
+	// Delete needs a confirmation page, and only the owner reaches it.
+	del := "/entries/" + id + "/delete"
+	page := s.sam.do("GET", del, nil)
+	if page.Code != 200 || !strings.Contains(page.Body.String(), "Delete this entry?") {
+		t.Fatalf("confirm page: %d", page.Code)
+	}
+	if w := s.kim.do("GET", del, nil); w.Code != 404 {
+		t.Errorf("another member opened the delete page: %d", w.Code)
+	}
+	if w := s.kim.post("/entries", del, url.Values{"rev": {formRev(t, page.Body.String())}}); w.Code != 404 {
+		t.Errorf("another member deleted: %d", w.Code)
+	}
+	if w := s.sam.post(del, del, url.Values{"rev": {formRev(t, page.Body.String())}}); w.Code != 303 || w.Header().Get("Location") != "/entries/deleted" {
+		t.Fatalf("delete: %d %s", w.Code, w.Header().Get("Location"))
+	}
+	if w := s.sam.do("GET", "/entries/"+id, nil); w.Code != 404 {
+		t.Errorf("a deleted entry still opens: %d", w.Code)
+	}
+	if w := s.kim.do("GET", "/spaces/"+s.space+"/entry/"+s.e.idOf("sam")+"/"+id, nil); w.Code != 404 {
+		t.Errorf("a member still sees the deleted entry: %d", w.Code)
+	}
+	list := s.sam.do("GET", "/entries/deleted", nil)
+	if !strings.Contains(list.Body.String(), `action="/entries/`+id+`/restore"`) {
+		t.Fatalf("the deleted list has no restore: %.500s", list.Body.String())
+	}
+	if strings.Contains(s.kim.do("GET", "/entries/deleted", nil).Body.String(), id) {
+		t.Error("another person's deleted entry is listed")
+	}
+	// Another member cannot restore it; the owner can.
+	rest := "/entries/" + id + "/restore"
+	if w := s.kim.post("/entries", rest, url.Values{"rev": {formRev(t, list.Body.String())}}); w.Code != 404 {
+		t.Errorf("another member restored: %d", w.Code)
+	}
+	if w := s.sam.post("/entries/deleted", rest, url.Values{"rev": {between(t, list.Body.String(), `name="rev" value="`)}}); w.Code != 303 {
+		t.Fatalf("restore: %d %.300s", w.Code, w.Body.String())
+	}
+	if p := s.sam.do("GET", "/entries/"+id, nil).Body.String(); !strings.Contains(p, "ADDED-IN-BROWSER") {
+		t.Error("the restored entry does not open")
+	}
+}
+
+func TestARestoreIsRefusedPastThePersonsWindow(t *testing.T) {
+	s := newSharing(t)
+	id, _ := samEntry(t, s)
+	page := s.sam.do("GET", "/entries/"+url.PathEscape(id)+"/delete", nil).Body.String()
+	if w := s.sam.post("/entries", "/entries/"+url.PathEscape(id)+"/delete", url.Values{"rev": {between(t, page, `name="rev" value="`)}}); w.Code != 303 {
+		t.Fatalf("delete: %d", w.Code)
+	}
+	s.e.clock = s.e.clock.Add(11 * 24 * time.Hour)
+	sam := s.e.reLogin("sam")
+	list := sam.do("GET", "/entries/deleted", nil).Body.String()
+	if strings.Contains(list, `/restore"`) || !strings.Contains(list, "Ask the administrator") {
+		t.Errorf("a restore button past the window: %.500s", list)
+	}
+	rev := between(t, sam.do("GET", "/entries/new", nil).Body.String(), `name="rev" value="`)
+	if w := sam.post("/entries/new", "/entries/"+url.PathEscape(id)+"/restore", url.Values{"rev": {rev}}); w.Code != 409 || !strings.Contains(w.Body.String(), "can no longer be restored") {
+		t.Errorf("a forced restore: %d %.300s", w.Code, w.Body.String())
 	}
 }

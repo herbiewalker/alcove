@@ -157,7 +157,7 @@ func (s *Server) netOptions() netsec.Options {
 }
 
 func (s *Server) parseTemplates() error {
-	pages := []string{"message", "setup", "login", "unlock", "home", "account", "stepup", "admin", "adminlog", "settings", "backup", "uploads", "users", "usercreated", "forcepw", "mydeleted", "admindeleted", "spaces", "space", "join", "joinconsent", "codeshown", "adminspaces", "spaceentries", "myentries", "profile", "prefill", "calendar", "compare", "entry", "search", "gallery", "editentry", "history", "partners", "editpartner"}
+	pages := []string{"message", "setup", "login", "unlock", "home", "account", "stepup", "admin", "adminlog", "settings", "backup", "uploads", "users", "usercreated", "forcepw", "mydeleted", "admindeleted", "spaces", "space", "join", "joinconsent", "codeshown", "adminspaces", "spaceentries", "myentries", "profile", "prefill", "calendar", "compare", "entry", "search", "gallery", "editentry", "history", "partners", "editpartner", "deleteentry", "deletedentries"}
 	for _, p := range pages {
 		t, err := template.ParseFS(assets, "templates/base.html", "templates/"+p+".html")
 		if err != nil {
@@ -498,6 +498,8 @@ type page struct {
 	HasEdits                         bool
 	EditForm                         *editForm
 	PartnerForm                      *partnerForm
+	DeleteID, DeleteWhen             string
+	DeletedRows                      []deletedRow
 	PartnerRows                      []partnerRow
 	HistBase, HistBack, HistBackHref string
 	HistID, HistRev                  string
@@ -585,6 +587,9 @@ var flashes = map[string]string{
 	"profile":         "Profile saved.",
 	"entry-saved":     "Saved as a new version. Your uploaded backup is unchanged.",
 	"entry-reverted":  "Undone. The change was added to the history.",
+	"entry-added":     "The entry was added. Your uploaded backup is unchanged.",
+	"entry-deleted":   "The entry was deleted. You can restore it from this page for a while.",
+	"entry-restored":  "The entry is back.",
 	"partner-saved":   "Saved as a new version. Your uploaded backup is unchanged.",
 	"profile-filled":  "Imported what you ticked. Nothing is shared until you tick Share on a field.",
 	"deleted-nocache": "Moved to Recently deleted. Your current data could not be rebuilt because no backup password is remembered, so it is empty until you upload again.",
@@ -713,6 +718,12 @@ func (s *Server) routes_() {
 	s.handle("GET /entries/{id}", user, s.getMyEntry)
 	s.handle("GET /photos/{id}", user, s.getMyPhoto)
 	s.handle("GET /gallery", user, s.getMyGallery)
+	s.handle("GET /entries/new", user, s.getNewEntry)
+	s.handle("POST /entries/new", user, s.postNewEntry)
+	s.handle("GET /entries/deleted", user, s.getDeletedEntries)
+	s.handle("GET /entries/{id}/delete", user, s.getDeleteEntry)
+	s.handle("POST /entries/{id}/delete", user, s.postDeleteEntry)
+	s.handle("POST /entries/{id}/restore", user, s.postRestoreEntry)
 	s.handle("GET /entries/{id}/edit", user, s.getEditEntry)
 	s.handle("POST /entries/{id}/edit", user, s.postEditEntry)
 	s.handle("GET /entries/{id}/history", user, s.getEntryHistory)

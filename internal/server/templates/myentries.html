@@ -1,6 +1,7 @@
 {{define "content"}}
 <h1>My entries</h1>
 <p class="muted">{{.EntryTotal}} from your latest upload, newest first. Every entry is shown in your spaces unless you make it private here. A private entry stays on this server for you but is never shown to anyone in a space. Times are in your time zone (set on your profile).</p>
+<p><a class="btn" href="/entries/new">Add an entry</a> <a class="btn secondary" href="/entries/deleted">Recently deleted</a> <a class="btn secondary" href="/partners">My partners</a></p>
 {{if .Shared}}
 <div class="scroll">
 <table>

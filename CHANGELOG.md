@@ -8,7 +8,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) · Versioning: 
 ## [Unreleased]
 
 ### Added
-- Editing (D-42): edit your own entries (time, length, rating, mood, who started it, protection, orgasms, acts, positions, kinks, settings, toys, occasions, note) and rename your partners from My entries. Each save is a new version with a history and an undo; your uploaded backup is never changed, a rebuild keeps your edits, spaces see them at once. Store schema v10.
+- Editing (D-42): add, delete and restore entries; edit your own entries (time, length, rating, mood, who started it, protection, orgasms, acts, positions, kinks, settings, toys, occasions, note) and rename your partners from My entries. Each save is a new version with a history and an undo; your uploaded backup is never changed, a rebuild keeps your edits, spaces see them at once. Store schema v10.
 - Photo galleries (D-40): My photos under My data, and Photos on each space page. Blurred until tapped, lazy loaded, 24 to a page, through the same gates as shared entries.
 
 ### Changed
@@ -19,13 +19,13 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) · Versioning: 
 Upgrading from 0.1.0: the update restarts the container and migrates the database (schema 6 to 9) by itself; your data and key are untouched. Afterwards, open Admin, Backups and press **Rebuild now** once, so photos from the upload you already have are copied out and appear on your entries.
 
 ### Added
-- Editing (D-42): edit your own entries (time, length, rating, mood, who started it, protection, orgasms, acts, positions, kinks, settings, toys, occasions, note) and rename your partners from My entries. Each save is a new version with a history and an undo; your uploaded backup is never changed, a rebuild keeps your edits, spaces see them at once. Store schema v10.
+- Editing (D-42): add, delete and restore entries; edit your own entries (time, length, rating, mood, who started it, protection, orgasms, acts, positions, kinks, settings, toys, occasions, note) and rename your partners from My entries. Each save is a new version with a history and an undo; your uploaded backup is never changed, a rebuild keeps your edits, spaces see them at once. Store schema v10.
 - The Unraid template and `.env.example` default the time zone to `America/New_York`. The running container keeps its own setting; change it in the Docker tab.
 - The runbook's key-copy drill command needs `--tmpfs /tmp` (and `--user 0:0` for a root-only copy on the flash drive), and the scripts are marked executable.
 - The `no-outbound` guard now matches calls (`http.Head(`) instead of any use of the `http.Header` type.
 
 ### Added
-- Editing (D-42): edit your own entries (time, length, rating, mood, who started it, protection, orgasms, acts, positions, kinks, settings, toys, occasions, note) and rename your partners from My entries. Each save is a new version with a history and an undo; your uploaded backup is never changed, a rebuild keeps your edits, spaces see them at once. Store schema v10.
+- Editing (D-42): add, delete and restore entries; edit your own entries (time, length, rating, mood, who started it, protection, orgasms, acts, positions, kinks, settings, toys, occasions, note) and rename your partners from My entries. Each save is a new version with a history and an undo; your uploaded backup is never changed, a rebuild keeps your edits, spaces see them at once. Store schema v10.
 - Entry times use the Tryst style ("Jan 2, 2026, 3:04 PM"); a birth date from a backup is read in the person's own zone; the profile page can fill the time zone from the device (D-41).
 
 ### Added
@@ -39,7 +39,7 @@ Upgrading from 0.1.0: the update restarts the container and migrates the databas
 First release. Everything below is new in it.
 
 ### Added
-- Editing (D-42): edit your own entries (time, length, rating, mood, who started it, protection, orgasms, acts, positions, kinks, settings, toys, occasions, note) and rename your partners from My entries. Each save is a new version with a history and an undo; your uploaded backup is never changed, a rebuild keeps your edits, spaces see them at once. Store schema v10.
+- Editing (D-42): add, delete and restore entries; edit your own entries (time, length, rating, mood, who started it, protection, orgasms, acts, positions, kinks, settings, toys, occasions, note) and rename your partners from My entries. Each save is a new version with a history and an undo; your uploaded backup is never changed, a rebuild keeps your edits, spaces see them at once. Store schema v10.
 - Entry times use the Tryst style ("Jan 2, 2026, 3:04 PM"); a birth date from a backup is read in the person's own zone; the profile page can fill the time zone from the device (D-41).
 
 ### Added
