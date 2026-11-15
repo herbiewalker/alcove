@@ -214,7 +214,7 @@ echo "$card" | grep -q "1990-04-23" && die "the exact birth date is on the membe
 ok "profile: shared fields reach the card, private ones and the birth date itself do not, a child is refused"
 
 # 4j. Open one entry: your own in full, someone else's through the space, a made-up one refused.
-myid=$(curl -fsS -b "$JAR" "$URL/entries" | sed -n 's/.*href="\/entries\/\([^"]*\)".*/\1/p' | head -1)
+myid=$(curl -fsS -b "$JAR" "$URL/entries" | sed -n 's/.*href="\/entries\/\([^"]*\)".*/\1/p' | grep -Ev "^(new|deleted)$" | head -1)
 [ -n "$myid" ] || die "My entries has no link to an entry"
 curl -fsS -b "$JAR" "$URL/entries/$myid" | grep -q "Your entry" || die "the owner cannot open their own entry"
 [ "$(curl -s -o /dev/null -w '%{http_code}' -b "$JAR" "$URL/entries/does-not-exist")" = "404" ] || die "a made-up entry id was not refused"
@@ -255,7 +255,7 @@ done
 ok "photos: stored encrypted, served to the owner, shown to a member through the space, refused to others"
 
 # 4m. Editing (D-42): the owner edits an entry, a member sees it through the space, a stranger cannot edit it.
-eid=$(curl -fsS -b "$JAR" "$URL/entries" | sed -n 's/.*href="\/entries\/\([^"\/]*\)".*/\1/p' | head -1)
+eid=$(curl -fsS -b "$JAR" "$URL/entries" | sed -n 's/.*href="\/entries\/\([^"\/]*\)".*/\1/p' | grep -Ev "^(new|deleted)$" | head -1)
 [ -n "$eid" ] || die "the owner has no entry to edit"
 eform=$(curl -fsS -b "$JAR" "$URL/entries/$eid/edit")
 erev=$(echo "$eform" | sed -n 's/.*name="rev" value="\([^"]*\)".*/\1/p' | head -1)
