@@ -170,6 +170,21 @@
     if (fig) { e.preventDefault(); fig.classList.remove("blurred"); }
   });
 
+  // 5. Profile page: offer this device's own time zone, so the person can match their phone. It only
+  // fills the field; nothing is sent until they save the form (D-41).
+  var tz = document.getElementById("tz");
+  if (tz && window.Intl && Intl.DateTimeFormat) {
+    var dev = "";
+    try { dev = Intl.DateTimeFormat().resolvedOptions().timeZone || ""; } catch (err) { dev = ""; }
+    if (dev && tz.value !== dev) {
+      var hint = el("button", "btn secondary");
+      hint.type = "button";
+      hint.textContent = "Use this device's zone (" + dev + ")";
+      hint.addEventListener("click", function () { tz.value = dev; tz.focus(); });
+      tz.parentNode.insertBefore(hint, tz.nextSibling);
+    }
+  }
+
   // A page restored from the back/forward cache must not still say "Working...".
   window.addEventListener("pageshow", function (ev) { if (ev.persisted) { hideBusy(); } });
 

@@ -185,7 +185,7 @@ const NameKey = "name"
 
 // Offers reads the profile row in the owner's cache (the head revision) and lists what could be
 // imported. It never imports anything.
-func Offers(tx *sql.Tx, owner string, now time.Time) ([]Offer, error) {
+func Offers(tx *sql.Tx, owner string, now time.Time, loc *time.Location) ([]Offer, error) {
 	var data string
 	err := tx.QueryRow(`SELECT data FROM cache_row WHERE owner_id = ? AND tbl = 'profile' ORDER BY pos LIMIT 1`, owner).Scan(&data)
 	if errors.Is(err, sql.ErrNoRows) {
@@ -216,9 +216,9 @@ func Offers(tx *sql.Tx, owner string, now time.Time) ([]Offer, error) {
 	for _, f := range Fields {
 		v := text(f.Tryst)
 		if f.Key == Birth && v != "" {
-			// Tryst keeps a date; accept epoch milliseconds or an ISO date.
+			// Tryst keeps a birth date as noon in the phone's zone, so it is read back in the person's zone (D-41). An ISO date is also accepted.
 			if ms, err := strconv.ParseInt(v, 10, 64); err == nil {
-				v = time.UnixMilli(ms).UTC().Format("2006-01-02")
+				v = time.UnixMilli(ms).In(loc).Format("2006-01-02")
 			} else if len(v) > 10 {
 				v = v[:10]
 			}

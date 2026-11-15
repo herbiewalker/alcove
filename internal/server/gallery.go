@@ -19,7 +19,7 @@ type tile struct {
 }
 
 func tileOf(spaceID string, it share.GalleryItem) tile {
-	t := tile{Who: it.OwnerName, When: it.When.Format(timeFmt), Caption: it.Caption, Mine: it.Mine}
+	t := tile{Who: it.OwnerName, When: it.When.Format(entryFmt), Caption: it.Caption, Mine: it.Mine}
 	if spaceID == "" {
 		t.Src = "/photos/" + urlSeg(it.MediaID)
 		t.Entry = "/entries/" + urlSeg(it.EntryID)

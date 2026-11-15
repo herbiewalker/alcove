@@ -85,3 +85,8 @@ func (z zones) get(name string) *time.Location {
 	z[name] = l
 	return l
 }
+
+// LocationOf is the zone a person's times are shown in: their own choice, or the server's default.
+func LocationOf(tx *sql.Tx, userID string) *time.Location {
+	return zones{}.get(ZoneName(tx, userID))
+}

@@ -92,7 +92,7 @@ func (s *Server) postSearch(q *rq) {
 		return
 	}
 	for _, f := range found {
-		r := resultRow{Who: f.OwnerName, When: f.Local.Format(timeFmt), Segs: f.Segs, Partner: f.Partner, Mine: f.Mine}
+		r := resultRow{Who: f.OwnerName, When: f.Local.Format(entryFmt), Segs: f.Segs, Partner: f.Partner, Mine: f.Mine}
 		if scope == "me" {
 			r.Link = "/entries/" + urlSeg(f.EntryID)
 		} else {

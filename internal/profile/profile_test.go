@@ -157,7 +157,7 @@ func TestOffersComeFromTheBackupAndImportNothing(t *testing.T) {
 		t.Fatal(err)
 	}
 	var offers []Offer
-	err := st.View(context.Background(), func(tx *sql.Tx) (err error) { offers, err = Offers(tx, "ua", now); return })
+	err := st.View(context.Background(), func(tx *sql.Tx) (err error) { offers, err = Offers(tx, "ua", now, time.UTC); return })
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -183,7 +183,7 @@ func TestOffersComeFromTheBackupAndImportNothing(t *testing.T) {
 		t.Error("looking at the offers imported something")
 	}
 	// Nobody else's profile, and a backup with nothing in it.
-	err = st.View(context.Background(), func(tx *sql.Tx) (err error) { _, err = Offers(tx, "ub", now); return })
+	err = st.View(context.Background(), func(tx *sql.Tx) (err error) { _, err = Offers(tx, "ub", now, time.UTC); return })
 	if !errors.Is(err, ErrNoProfile) {
 		t.Errorf("another person: %v", err)
 	}
@@ -192,7 +192,7 @@ func TestOffersComeFromTheBackupAndImportNothing(t *testing.T) {
 		_, err := tx.Exec(`UPDATE cache_row SET data = ? WHERE owner_id = 'ua'`, `{"id":"self","birthDate":"2015-01-01","sex":"F"}`)
 		return err
 	})
-	_ = st.View(context.Background(), func(tx *sql.Tx) (err error) { offers, err = Offers(tx, "ua", now); return })
+	_ = st.View(context.Background(), func(tx *sql.Tx) (err error) { offers, err = Offers(tx, "ua", now, time.UTC); return })
 	for _, o := range offers {
 		if o.Key == Birth {
 			t.Error("an underage birth date was offered")
@@ -208,7 +208,7 @@ func TestOffersAcceptsAnEpochBirthDate(t *testing.T) {
 		return err
 	})
 	var offers []Offer
-	_ = st.View(context.Background(), func(tx *sql.Tx) (err error) { offers, err = Offers(tx, "ua", now); return })
+	_ = st.View(context.Background(), func(tx *sql.Tx) (err error) { offers, err = Offers(tx, "ua", now, time.UTC); return })
 	if len(offers) != 1 || offers[0].Value != "1990-04-23" {
 		t.Fatalf("offers: %+v", offers)
 	}
@@ -224,4 +224,26 @@ func itoa(n int64) string {
 		n /= 10
 	}
 	return string(b)
+}
+
+// Tryst stores a birth date as noon in the phone's zone. Read back in that zone it is the date the
+// person picked, even where noon is the day before in UTC.
+func TestOffersReadsTrystsLocalNoonBirthDateInThePersonsZone(t *testing.T) {
+	loc, err := time.LoadLocation("Pacific/Kiritimati")
+	if err != nil {
+		t.Skip("no zone data")
+	}
+	st := newStore(t)
+	ms := time.Date(1996, 4, 23, 12, 0, 0, 0, loc).UnixMilli()
+	_ = upd(t, st, func(tx *sql.Tx) error {
+		_, err := tx.Exec(`INSERT INTO cache_row(owner_id, tbl, rid, pos, data) VALUES ('ua','profile','self',0,?)`, `{"id":"self","birthDate":`+itoa(ms)+`}`)
+		return err
+	})
+	for zone, want := range map[*time.Location]string{loc: "1996-04-23", time.UTC: "1996-04-22"} {
+		var offers []Offer
+		_ = st.View(context.Background(), func(tx *sql.Tx) (err error) { offers, err = Offers(tx, "ua", now, zone); return })
+		if len(offers) != 1 || offers[0].Value != want {
+			t.Errorf("%v: %+v, want %s", zone, offers, want)
+		}
+	}
 }

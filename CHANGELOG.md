@@ -7,6 +7,9 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) · Versioning: 
 
 ## [Unreleased]
 
+### Changed
+- Entry times use the Tryst style ("Jan 2, 2026, 3:04 PM"); a birth date from a backup is read in the person's own zone; the profile page can fill the time zone from the device (D-41).
+
 ### Added
 - Photo galleries (D-40): My photos under My data, and Photos on each space page. Blurred until tapped, lazy loaded, 24 to a page, through the same gates as shared entries.
 
@@ -19,6 +22,9 @@ Upgrading from 0.1.0: the update restarts the container and migrates the databas
 - The runbook's key-copy drill command needs `--tmpfs /tmp` (and `--user 0:0` for a root-only copy on the flash drive), and the scripts are marked executable.
 - The `no-outbound` guard now matches calls (`http.Head(`) instead of any use of the `http.Header` type.
 
+### Changed
+- Entry times use the Tryst style ("Jan 2, 2026, 3:04 PM"); a birth date from a backup is read in the person's own zone; the profile page can fill the time zone from the device (D-41).
+
 ### Added
 - Photos (D-39, M7, F19): the photos of your current upload are copied out of it, encrypted under your data key, so they open instantly; they show on the entry page blurred until tapped, for you and, through the space, for members; a member sees them only where the entry is shown and its owner includes photos, and a caption follows the note choice. A photo's place is hidden unless its owner turns on a new "Show where my photos were taken" choice; the picture file itself is cleaned of EXIF, XMP, comments and thumbnails before anyone else gets it (JPEG and PNG; other formats are never shared), so the place cannot leak through the file. Schema v9.
 - Search (D-38): a Search page with two scopes, your own entries (notes, and your partners' names) and the notes a space shows you. It goes through the same gate as every other shared view, honours each owner's choice to keep notes out, never searches partner names in a space, and is a POST so what you look for stays out of addresses, history and logs. Words are quoted for the engine so nothing typed can act as an operator. Results link to the entry page, newest first.
@@ -28,6 +34,9 @@ Upgrading from 0.1.0: the update restarts the container and migrates the databas
 ## [0.1.0] - 2026-11-14
 
 First release. Everything below is new in it.
+
+### Changed
+- Entry times use the Tryst style ("Jan 2, 2026, 3:04 PM"); a birth date from a backup is read in the person's own zone; the profile page can fill the time zone from the device (D-41).
 
 ### Added
 - L1 deploy kit: an Unraid template (`deploy/unraid-template.xml`, following `:stable`, least-privilege flags, key mounted read-only, one LAN port), a guard (`unraid-template`) that fails CI if the template ever loosens the container, and RUNBOOK sections for the first live deploy (with the validation ladder and a real-phone check) and for putting HTTPS in front (Caddy, Nginx Proxy Manager, `tailscale serve`, each with a check that Alcove still sees the real client address).

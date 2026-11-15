@@ -1,7 +1,7 @@
 {{define "content"}}
 {{with .Detail}}
-<h1>{{.Local.Format "Monday 2 January 2006"}}</h1>
-<p class="muted">{{.Local.Format "15:04"}} in {{if .Mine}}your{{else}}{{.OwnerName}}'s{{end}} time zone. {{if .Mine}}Your entry.{{else}}Shared by {{.OwnerName}}.{{end}}
+<h1>{{.Local.Format "Monday, Jan 2, 2006"}}</h1>
+<p class="muted">{{.Local.Format "3:04 PM"}} in {{if .Mine}}your{{else}}{{.OwnerName}}'s{{end}} time zone. {{if .Mine}}Your entry.{{else}}Shared by {{.OwnerName}}.{{end}}
 {{if .Private}} <b>Private:</b> nobody else can see it.{{end}}</p>
 
 <section class="card">

@@ -144,7 +144,7 @@ func TestTimeZoneMovesAnEntryToItsOwnersDay(t *testing.T) {
 		}
 	}
 	_, body = s.cal(s.kim, "?month=2026-03&day=2026-03-11")
-	if !strings.Contains(body, "2026-03-11 01:00:00") || !strings.Contains(body, "note-s10") {
+	if !strings.Contains(body, "Mar 11, 2026, 1:00 AM") || !strings.Contains(body, "note-s10") {
 		t.Error("the 11th should list sam's entry at his local time")
 	}
 	_, body = s.cal(s.kim, "?month=2026-03&day=2026-03-10")
@@ -152,7 +152,7 @@ func TestTimeZoneMovesAnEntryToItsOwnersDay(t *testing.T) {
 		t.Error("the 10th should list only kim's entry now")
 	}
 	// His own list shows his local time too.
-	if !strings.Contains(s.sam.do("GET", "/entries", nil).Body.String(), "2026-03-11 01:00:00") {
+	if !strings.Contains(s.sam.do("GET", "/entries", nil).Body.String(), "Mar 11, 2026, 1:00 AM") {
 		t.Error("My entries does not use the person's own zone")
 	}
 	// A bad zone is refused and nothing changes; an empty one goes back to the default.

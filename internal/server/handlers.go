@@ -18,6 +18,9 @@ import (
 
 const timeFmt = "2006-01-02 15:04:05"
 
+// entryFmt shows an entry time the way the Tryst app does (en-US medium date, short time).
+const entryFmt = "Jan 2, 2006, 3:04 PM"
+
 // tlsGate refuses sign-in pages over plain HTTP when require-TLS is on (N17). It reports true when
 // it wrote the refusal.
 func (q *rq) tlsGate() bool {

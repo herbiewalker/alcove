@@ -111,7 +111,7 @@ func (s *Server) postProfile(q *rq) {
 func (s *Server) offersPage(q *rq) (*page, error) {
 	var offers []profile.Offer
 	err := q.st.View(q.r.Context(), func(tx *sql.Tx) (err error) {
-		offers, err = profile.Offers(tx, q.id.user.ID, s.now())
+		offers, err = profile.Offers(tx, q.id.user.ID, s.now(), share.LocationOf(tx, q.id.user.ID))
 		return
 	})
 	if err != nil {
@@ -142,7 +142,7 @@ func (s *Server) getPrefill(q *rq) {
 func (s *Server) postPrefill(q *rq) {
 	f := q.r.PostForm
 	err := q.st.Update(q.r.Context(), true, func(tx *sql.Tx) error {
-		offers, err := profile.Offers(tx, q.id.user.ID, s.now())
+		offers, err := profile.Offers(tx, q.id.user.ID, s.now(), share.LocationOf(tx, q.id.user.ID))
 		if err != nil {
 			return err
 		}
