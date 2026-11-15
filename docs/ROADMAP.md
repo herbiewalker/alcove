@@ -121,7 +121,7 @@
 
 ## M6 — Backup writer and export *(the riskiest milestone; S1 has already de-risked the concept)*
 
-> Design accepted in D-43 (2026-11-15). Slices: (1) the writer and read-back (**done**), (2) the export pages, (3) the emulator round trip.
+> Design accepted in D-43 (2026-11-15). Slices: (1) the writer and read-back (**done**), (2) the export pages (**done**), (3) the emulator round trip.
 
 - [ ] Writer: materialize a revision, re-encrypt as a fresh `TRYSTBK1` (all entries DEFLATED, `data.json` first); base-revision warning and diff (F15)
 - [ ] Guided restore procedure: wipe first only, merge warned against, plus the "fresh phone backup first" confirmation (F29, D-15 addendum)

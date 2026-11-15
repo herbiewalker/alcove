@@ -288,6 +288,21 @@ lrev=$(curl -fsS -b "$JAR" "$URL/entries/deleted" | sed -n 's/.*name="rev" value
 curl -fsS -b "$JAR" "$URL/entries/$nid" | grep -q "SMOKE-NEW-ENTRY" || die "the restored entry does not open"
 ok "editing: saved as a new version, refused when bad or stale, closed to everyone but the owner; a partner can be renamed; an entry can be added, deleted and restored"
 
+# 4n. Export (D-43): the guided page, the confirmation, and a file that really is a Tryst backup.
+curl -fsS -b "$JAR" "$URL/export" | grep -q "Replace my current data with the backup" || die "the export page does not give the restore steps"
+[ "$(stepup /export "$PW")" = "303" ] || die "step-up for export failed"
+xcode=$(curl -s -o /dev/null -w '%{http_code}' -c "$JAR" -b "$JAR" --data-urlencode "csrf=$(token /export)" -d use=same "$URL/export")
+[ "$xcode" = "400" ] || die "an export without the fresh-backup confirmation was not refused ($xcode)"
+xcode=$(curl -s -o "$WORK/export.tryst" -D "$WORK/export.hdr" -w '%{http_code}' -c "$JAR" -b "$JAR" --data-urlencode "csrf=$(token /export)" -d fresh=1 -d use=same "$URL/export")
+[ "$xcode" = "200" ] || die "the export did not download ($xcode)"
+[ "$(head -c 8 "$WORK/export.tryst")" = "TRYSTBK1" ] || die "the download is not a Tryst backup"
+grep -qi 'filename="alcove-owner-[0-9]*\.tryst"' "$WORK/export.hdr" || die "the download has no clear file name"
+grep -qi 'cache-control: no-store' "$WORK/export.hdr" || die "the download can be cached"
+[ "$(stat -c %s "$WORK/export.tryst")" -gt 200 ] || die "the download is empty"
+rm -f "$WORK/export.tryst" "$WORK/export.hdr"
+curl -fsS -b "$JAR" "$URL/admin/log" | grep -q "export.create" || die "the export is not in the admin log"
+ok "export: guided page, refused without the confirmation, downloads a Tryst backup with a clear name, and is logged"
+
 # 4h. The shared calendar: a member sees the grid and the owner's day, an outsider does not.
 cal=$(curl -fsS -b "$J3" "$URL/spaces/$spid/calendar")
 echo "$cal" | grep -q 'class="cal"' || die "the calendar has no grid"

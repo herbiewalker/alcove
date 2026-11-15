@@ -8,7 +8,9 @@ import (
 	"errors"
 	"reflect"
 	"testing"
+	"time"
 
+	"github.com/herbiewalker/alcove/internal/edit"
 	"github.com/herbiewalker/alcove/internal/trystbk"
 	"github.com/herbiewalker/alcove/internal/trystbk/synth"
 )
@@ -162,5 +164,64 @@ func TestExportNeedsTheUploadPasswordAndAFreshCache(t *testing.T) {
 	r.exec(t, `DELETE FROM cache_head WHERE owner_id = ?`, owner)
 	if _, err := r.svc.Export(ctx, owner, res.Password, exportPW); !errors.Is(err, ErrCacheStale) {
 		t.Errorf("a missing cache: %v", err)
+	}
+}
+
+func (r *rig) summary() edit.Summary {
+	r.t.Helper()
+	var s edit.Summary
+	if err := r.st.View(context.Background(), func(tx *sql.Tx) (err error) { s, err = edit.Summarize(tx, owner); return }); err != nil {
+		r.t.Fatal(err)
+	}
+	return s
+}
+
+func TestTheSummaryCountsEntriesAndPartnersByTheirNetEffect(t *testing.T) {
+	r := newRig(t)
+	if _, err := r.upload(build(t, synth.Options{Seed: 92, Encounters: 6, Partners: 2}), true); err != nil {
+		t.Fatal(err)
+	}
+	if s := r.summary(); !reflect.DeepEqual(s, edit.Summary{}) {
+		t.Fatalf("an untouched upload: %+v", s)
+	}
+	ids := r.ids("encounters")
+	// An edit (and an edit of the same entry again) counts the entry once.
+	if _, _, err := r.doEdit(ids[0], map[string]string{"note": "one"}); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := r.doEdit(ids[0], map[string]string{"note": "two"}); err != nil {
+		t.Fatal(err)
+	}
+	// An entry added and then deleted again leaves nothing; one added and kept counts as added.
+	gone, err := r.addEntry(map[string]string{"startAt": "1700000000000"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := r.deleteEntry(gone); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := r.addEntry(map[string]string{"startAt": "1700000100000"}); err != nil {
+		t.Fatal(err)
+	}
+	// An uploaded entry deleted counts once, however many rows hang on it.
+	if err := r.deleteEntry(ids[1]); err != nil {
+		t.Fatal(err)
+	}
+	if err := r.partnerEdit(r.ids("partners")[0], map[string]string{"displayName": "New Name", "note": ""}); err != nil {
+		t.Fatal(err)
+	}
+	s := r.summary()
+	if s.Edited != 1 || s.Added != 1 || s.Deleted != 1 || s.PartnersEdited != 1 || s.Edits != 7 {
+		t.Errorf("summary: %+v", s)
+	}
+	if len(s.Fields) == 0 || s.Fields[0] > s.Fields[len(s.Fields)-1] {
+		t.Errorf("fields: %v", s.Fields)
+	}
+	// Restoring the deleted one takes it out of the count.
+	if err := r.restoreEntry(ids[1], time.Now().UTC(), win); err != nil {
+		t.Fatal(err)
+	}
+	if s := r.summary(); s.Deleted != 0 {
+		t.Errorf("after a restore: %+v", s)
 	}
 }

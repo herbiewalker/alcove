@@ -1,0 +1,59 @@
+{{define "content"}}
+{{with .Export}}
+<h1>Export to Tryst</h1>
+<p class="muted">This writes your current data, with every change you made here, as a new Tryst backup that you restore on your phone. Your uploaded backup is never changed, and nothing reaches your phone until you restore the file there yourself.</p>
+
+<section class="card">
+  <h2>What it is based on</h2>
+  <p>Your upload of <b>{{.Based}}</b>{{if gt .AgeDays 0}} ({{.AgeDays}} day{{if ne .AgeDays 1}}s{{end}} ago){{end}}, <span class="muted">{{.Filename}}</span>.</p>
+  {{if .HasEdits}}
+  <p>Changes made here since then, in {{.Saves}} save{{if ne .Saves 1}}s{{end}}:</p>
+  <ul>
+    <li>{{.Edited}} entr{{if eq .Edited 1}}y{{else}}ies{{end}} changed</li>
+    <li>{{.Added}} entr{{if eq .Added 1}}y{{else}}ies{{end}} added</li>
+    <li>{{.Deleted}} entr{{if eq .Deleted 1}}y{{else}}ies{{end}} deleted</li>
+    <li>{{.PartnersEdited}} partner{{if ne .PartnersEdited 1}}s{{end}} changed</li>
+  </ul>
+  {{if .Fields}}<p class="muted small">Fields touched: {{range $i, $f := .Fields}}{{if $i}}, {{end}}{{$f}}{{end}}.</p>{{end}}
+  {{else}}
+  <p class="muted">You have not changed anything here yet, so the file holds exactly what you uploaded.</p>
+  {{end}}
+  <p class="muted small">After restoring, Tryst's own screen should say about <b>{{.Trysts}}</b> trysts, <b>{{.Partners}}</b> partners and <b>{{.Photos}}</b> photos.</p>
+</section>
+
+<section class="card">
+  <h2>Before you start</h2>
+  <ol>
+    <li><b>Export a fresh backup on your phone first.</b> In Tryst, open Settings, Backup &amp; restore, Export encrypted backup. Restoring replaces what is on the phone, so anything you added there after your last upload would be lost without it.</li>
+    <li>Come back here, tick the box below and download the file.</li>
+    <li>On the phone, open the file from your Downloads in Tryst (Settings, Backup &amp; restore, Import backup), enter the password, and leave <b>Replace my current data with the backup (recommended)</b> switched on. Do not switch it off: merging keeps entries you deleted here and removes the partner links of the others.</li>
+  </ol>
+</section>
+
+{{if .Newer}}
+<p class="notice warn">This backup comes from a newer Tryst than this server understands, so it cannot be exported safely yet.</p>
+{{else}}
+{{if not $.SteppedUp}}<p class="notice warn">Exporting asks for your password again. <a href="/stepup?next=/export">Confirm it is you</a> first.</p>{{end}}
+<form class="card" method="post" action="/export" autocomplete="off" data-download data-busy="Building your backup. This can take a minute...">
+  <input type="hidden" name="csrf" value="{{$.CSRF}}">
+  <label class="check"><input type="checkbox" name="fresh" value="1"> I exported a fresh backup from my phone first.</label>
+  {{if not .Remembered}}
+  <div class="field">
+    <label for="upw">The password of the backup you uploaded</label>
+    <input id="upw" name="upw" type="password" autocomplete="off" required>
+    <p class="muted small">Alcove does not keep it, so it is needed once to open your upload. It is not saved.</p>
+  </div>
+  {{end}}
+  <fieldset class="field">
+    <legend>Password for the new file</legend>
+    <label class="check"><input type="radio" name="use" value="same" checked> The same as my backup password</label>
+    <label class="check"><input type="radio" name="use" value="new"> A new one</label>
+    <div class="field"><label for="pw">New password</label><input id="pw" name="pw" type="password" autocomplete="new-password" minlength="8"></div>
+    <div class="field"><label for="pw2">Type it again</label><input id="pw2" name="pw2" type="password" autocomplete="new-password" minlength="8"></div>
+    <p class="muted small">Tryst asks for this password when you restore, and there is no way to recover a lost one.</p>
+  </fieldset>
+  <div class="actions"><button class="btn" type="submit">Download the backup</button> <a class="btn secondary" href="/uploads">Back to My data</a></div>
+</form>
+{{end}}
+{{end}}
+{{end}}

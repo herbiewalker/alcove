@@ -157,7 +157,7 @@ func (s *Server) netOptions() netsec.Options {
 }
 
 func (s *Server) parseTemplates() error {
-	pages := []string{"message", "setup", "login", "unlock", "home", "account", "stepup", "admin", "adminlog", "settings", "backup", "uploads", "users", "usercreated", "forcepw", "mydeleted", "admindeleted", "spaces", "space", "join", "joinconsent", "codeshown", "adminspaces", "spaceentries", "myentries", "profile", "prefill", "calendar", "compare", "entry", "search", "gallery", "editentry", "history", "partners", "editpartner", "deleteentry", "deletedentries", "persondata"}
+	pages := []string{"message", "setup", "login", "unlock", "home", "account", "stepup", "admin", "adminlog", "settings", "backup", "uploads", "users", "usercreated", "forcepw", "mydeleted", "admindeleted", "spaces", "space", "join", "joinconsent", "codeshown", "adminspaces", "spaceentries", "myentries", "profile", "prefill", "calendar", "compare", "entry", "search", "gallery", "editentry", "history", "partners", "editpartner", "deleteentry", "deletedentries", "persondata", "export"}
 	for _, p := range pages {
 		t, err := template.ParseFS(assets, "templates/base.html", "templates/"+p+".html")
 		if err != nil {
@@ -503,6 +503,7 @@ type page struct {
 	PartnerRows                      []partnerRow
 	HistBase, HistBack, HistBackHref string
 	Prefix, PersonName               string // the administrator working on a person's data
+	Export                           *exportInfo
 	HistID, HistRev                  string
 	History                          []histRow
 	Results                          []resultRow
@@ -520,7 +521,7 @@ type logRow struct {
 }
 
 var knownPaths = map[string]bool{"/": true, "/login": true, "/setup": true, "/unlock": true, "/account": true,
-	"/admin": true, "/admin/log": true, "/admin/settings": true, "/admin/backup": true, "/uploads": true, "/admin/users": true, "/admin/deleted": true, "/uploads/deleted": true, "/account/password": true, "/spaces": true, "/join": true, "/admin/spaces": true, "/profile": true}
+	"/admin": true, "/admin/log": true, "/admin/settings": true, "/admin/backup": true, "/uploads": true, "/admin/users": true, "/admin/deleted": true, "/uploads/deleted": true, "/account/password": true, "/spaces": true, "/join": true, "/admin/spaces": true, "/profile": true, "/export": true}
 
 // render writes a page with a status code. It builds the whole page first so a template error
 // never leaves half a page on the wire.
@@ -729,6 +730,8 @@ func (s *Server) routes_() {
 	s.handle("POST /entries/{id}/edit", user, forOwn(s.postEditEntry))
 	s.handle("GET /entries/{id}/history", user, forOwn(s.getEntryHistory))
 	s.handle("POST /entries/{id}/revert", user, forOwn(s.postRevertEntry))
+	s.handle("GET /export", user, s.getExport)
+	s.handle("POST /export", user, s.postExport)
 	s.handle("GET /partners", user, forOwn(s.getPartners))
 	s.handle("GET /partners/{id}/edit", user, forOwn(s.getEditPartner))
 	s.handle("POST /partners/{id}/edit", user, forOwn(s.postEditPartner))
