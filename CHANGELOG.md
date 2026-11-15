@@ -7,6 +7,9 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) · Versioning: 
 
 ## [Unreleased]
 
+### Added
+- Photo galleries (D-40): My photos under My data, and Photos on each space page. Blurred until tapped, lazy loaded, 24 to a page, through the same gates as shared entries.
+
 ## [0.1.1] - 2026-11-14
 
 Upgrading from 0.1.0: the update restarts the container and migrates the database (schema 6 to 9) by itself; your data and key are untouched. Afterwards, open Admin, Backups and press **Rebuild now** once, so photos from the upload you already have are copied out and appear on your entries.

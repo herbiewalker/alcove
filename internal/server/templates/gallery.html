@@ -1,0 +1,21 @@
+{{define "content"}}
+<h1>{{if .SpaceID}}{{.SpaceName}}: photos{{else}}My photos{{end}}</h1>
+<p class="muted">{{if .SpaceID}}Pictures the members of this space show each other, newest entry first. {{else}}Your own pictures, newest entry first. {{end}}{{.EntryTotal}} in all. They are blurred until you tap them; tap again to see one full size.{{if .SpaceID}} Pictures from private or paused entries, or from members who keep photos out, are not here.{{end}}</p>
+<p>{{if .SpaceID}}<a class="btn secondary" href="/spaces/{{.SpaceID}}">Back to the space</a> <a class="btn secondary" href="/spaces/{{.SpaceID}}/entries">Shared entries</a>{{else}}<a class="btn secondary" href="/entries">My entries</a> <a class="btn secondary" href="/uploads">My data</a>{{end}}</p>
+{{if .Tiles}}
+<div class="photos gallery">
+  {{range .Tiles}}
+  <figure class="photo blurred">
+    <a class="photolink" href="{{.Src}}"><img src="{{.Src}}" alt="A photo from {{.When}}" loading="lazy" decoding="async"></a>
+    <figcaption class="small"><a href="{{.Entry}}">{{.When}}</a>{{if .Who}}{{if not .Mine}} <span class="muted">{{.Who}}</span>{{end}}{{end}}{{if .Caption}}<br>{{.Caption}}{{end}}</figcaption>
+  </figure>
+  {{end}}
+</div>
+<div class="pager">
+  {{if .Newer}}<a class="btn secondary" href="{{if .SpaceID}}/spaces/{{.SpaceID}}/gallery{{else}}/gallery{{end}}?page={{.Newer}}">Newer</a>{{else}}<span></span>{{end}}
+  {{if .Older}}<a class="btn secondary" href="{{if .SpaceID}}/spaces/{{.SpaceID}}/gallery{{else}}/gallery{{end}}?page={{.Older}}">Older</a>{{end}}
+</div>
+{{else}}
+<p class="muted">No pictures yet. They appear once a backup with photos is uploaded.</p>
+{{end}}
+{{end}}

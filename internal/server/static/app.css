@@ -306,3 +306,5 @@ figure.photo.blurred::after { content: "Tap to show"; position: absolute; left: 
   font-weight: 600; color: #fff; text-shadow: 0 1px 4px rgba(0, 0, 0, .8); pointer-events: none; }
 figure.photo figcaption { margin-top: 4px; overflow-wrap: anywhere; }
 @media (prefers-reduced-motion: reduce) { figure.photo img { transition: none; } }
+.photos.gallery { grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); }
+.photos.gallery figure.photo img { aspect-ratio: 1; object-fit: cover; }

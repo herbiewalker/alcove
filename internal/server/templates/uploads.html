@@ -46,7 +46,7 @@
   <form method="post" action="/uploads/download" data-download data-busy="Preparing your download. A large history can take a minute...">
     <input type="hidden" name="csrf" value="{{.CSRF}}">
     <p class="muted">Download a zip of every backup you have uploaded here, exactly as you uploaded it. They stay encrypted with your own backup password. Asks for your password again.</p>
-    <div class="actions"><button class="btn secondary" type="submit">Download all my data</button> <a class="btn secondary" href="/entries">My entries</a> <a class="btn secondary" href="/uploads/deleted">Recently deleted</a></div>
+    <div class="actions"><button class="btn secondary" type="submit">Download all my data</button> <a class="btn secondary" href="/entries">My entries</a> <a class="btn secondary" href="/gallery">My photos</a> <a class="btn secondary" href="/uploads/deleted">Recently deleted</a></div>
   </form>
 </section>
 {{end}}
