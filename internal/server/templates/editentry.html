@@ -1,0 +1,46 @@
+{{define "content"}}
+{{with .EditForm}}
+<h1>Edit entry</h1>
+<p class="muted">Your changes are saved as a new version. Your uploaded backup is never changed, and every change can be undone from the history. Times are in your time zone ({{.Zone}}). Nothing here changes your phone until you export and restore a backup.</p>
+<form class="card" method="post" action="/entries/{{.ID | urlquery}}/edit" autocomplete="off">
+  <input type="hidden" name="csrf" value="{{$.CSRF}}">
+  <input type="hidden" name="rev" value="{{.Rev}}">
+  <div class="field">
+    <label for="when">When</label>
+    <input id="when" name="when" type="datetime-local" value="{{.When}}" required>
+  </div>
+  <div class="field">
+    <label for="duration">Length (minutes)</label>
+    <input id="duration" name="duration" type="number" inputmode="numeric" min="0" max="10080" value="{{.Duration}}">
+  </div>
+  <div class="field">
+    <label for="rating">Rating</label>
+    <select id="rating" name="rating">
+      <option value="">Not rated</option>
+      <option value="1"{{if eq .Rating "1"}} selected{{end}}>1 of 5</option><option value="2"{{if eq .Rating "2"}} selected{{end}}>2 of 5</option><option value="3"{{if eq .Rating "3"}} selected{{end}}>3 of 5</option><option value="4"{{if eq .Rating "4"}} selected{{end}}>4 of 5</option><option value="5"{{if eq .Rating "5"}} selected{{end}}>5 of 5</option>
+    </select>
+  </div>
+  <div class="field">
+    <label for="mood">Mood</label>
+    <select id="mood" name="mood"><option value="">None</option>{{range .Moods}}<option value="{{.Value}}"{{if .On}} selected{{end}}>{{.Label}}</option>{{end}}</select>
+  </div>
+  <div class="field">
+    <label for="initiator">Who started it</label>
+    <select id="initiator" name="initiator"><option value="">Not set</option>{{range .Initiators}}<option value="{{.Value}}"{{if .On}} selected{{end}}>{{.Label}}</option>{{end}}</select>
+  </div>
+  <fieldset class="field">
+    <legend>Protection</legend>
+    <ul class="chips">{{range .Protections}}<li><label><input type="checkbox" name="protect" value="{{.Value}}"{{if .On}} checked{{end}}> {{.Label}}</label></li>{{end}}</ul>
+  </fieldset>
+  <div class="field">
+    <label for="orgasms">Orgasms (yours)</label>
+    <input id="orgasms" name="orgasms" type="number" inputmode="numeric" min="0" max="99" value="{{.Orgasms}}">
+  </div>
+  <div class="field">
+    <label for="note">Note</label>
+    <textarea id="note" name="note" rows="6" maxlength="20000">{{.Note}}</textarea>
+  </div>
+  <div class="actions"><button class="btn" type="submit" data-busy="Saving...">Save</button> <a class="btn secondary" href="/entries/{{.ID | urlquery}}">Cancel</a></div>
+</form>
+{{end}}
+{{end}}

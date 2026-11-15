@@ -51,7 +51,7 @@ func (s *Server) userRows(q *rq) ([]userRow, []userRow, error) {
 		if list, err = auth.List(tx); err != nil {
 			return err
 		}
-		rows, err := tx.Query(`SELECT owner_id, COUNT(*) FROM revision WHERE deleted_at IS NULL GROUP BY owner_id`)
+		rows, err := tx.Query(`SELECT owner_id, COUNT(*) FROM revision WHERE deleted_at IS NULL AND kind = 'upload' GROUP BY owner_id`)
 		if err != nil {
 			return err
 		}

@@ -1,6 +1,7 @@
 package server
 
 import (
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -71,7 +72,13 @@ func (s *Server) getUploads(q *rq) {
 		return
 	}
 	userDays, _ := s.days()
-	q.render(http.StatusOK, "uploads", &page{Title: "My data", Active: "uploads", Uploads: uploadRows(list),
+	var edits int
+	_ = q.st.View(q.r.Context(), func(tx *sql.Tx) error {
+		return tx.QueryRow(`SELECT COUNT(*) FROM revision e WHERE e.owner_id = ? AND e.kind = 'edit' AND e.deleted_at IS NULL
+			AND e.upload_id = (SELECT upload_id FROM revision WHERE owner_id = ? AND deleted_at IS NULL ORDER BY created_at DESC, rowid DESC LIMIT 1)`,
+			q.id.user.ID, q.id.user.ID).Scan(&edits)
+	})
+	q.render(http.StatusOK, "uploads", &page{Title: "My data", Active: "uploads", Uploads: uploadRows(list), HasEdits: edits > 0,
 		HasPassword: svc.HasStoredPassword(q.r.Context(), q.id.user.ID), MaxMB: int(s.maxUpload() >> 20), UserDays: userDays})
 }
 

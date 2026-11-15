@@ -1,0 +1,24 @@
+{{define "content"}}
+<h1>Entry history</h1>
+<p class="muted">Each save is kept as its own version, newest first. Undoing one puts its fields back as they were before it, and is itself added here, so nothing is ever lost. Your uploaded backup is never changed.</p>
+<p><a class="btn secondary" href="/entries/{{.HistID | urlquery}}">Back to the entry</a> <a class="btn secondary" href="/entries/{{.HistID | urlquery}}/edit">Edit</a></p>
+{{if .History}}
+{{range .History}}
+<section class="card">
+  <h2>{{.When}} <span class="muted small">{{.By}}</span></h2>
+  <div class="scroll"><table>
+    <thead><tr><th>Field</th><th>Was</th><th>Now</th></tr></thead>
+    <tbody>{{range .Changes}}<tr><td>{{.Label}}</td><td>{{if .Old}}{{.Old}}{{else}}<span class="muted">(empty)</span>{{end}}</td><td>{{if .New}}{{.New}}{{else}}<span class="muted">(empty)</span>{{end}}</td></tr>{{end}}</tbody>
+  </table></div>
+  <form method="post" action="/entries/{{$.HistID | urlquery}}/revert">
+    <input type="hidden" name="csrf" value="{{$.CSRF}}">
+    <input type="hidden" name="rev" value="{{$.HistRev}}">
+    <input type="hidden" name="revision" value="{{.ID}}">
+    <button class="btn secondary" type="submit" data-busy="Undoing...">Undo this change</button>
+  </form>
+</section>
+{{end}}
+{{else}}
+<p class="muted">This entry has not been edited here.</p>
+{{end}}
+{{end}}

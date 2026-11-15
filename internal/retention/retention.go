@@ -92,12 +92,14 @@ type Deleted struct {
 func (s *Service) DeleteUpload(ctx context.Context, owner, revisionID string) (Outcome, error) {
 	now := s.Now()
 	err := s.St.Update(ctx, true, func(tx *sql.Tx) error {
-		var o string
+		var o, kind string
 		var del sql.NullInt64
-		if e := tx.QueryRow(`SELECT owner_id, deleted_at FROM revision WHERE id = ?`, revisionID).Scan(&o, &del); errors.Is(e, sql.ErrNoRows) {
+		if e := tx.QueryRow(`SELECT owner_id, deleted_at, kind FROM revision WHERE id = ?`, revisionID).Scan(&o, &del, &kind); errors.Is(e, sql.ErrNoRows) {
 			return ErrNotFound
 		} else if e != nil {
 			return e
+		} else if kind != "upload" {
+			return ErrNotFound
 		}
 		if o != owner {
 			return ErrNotYours
@@ -105,7 +107,8 @@ func (s *Service) DeleteUpload(ctx context.Context, owner, revisionID string) (O
 		if del.Valid {
 			return nil // already deleted: idempotent
 		}
-		_, e := tx.Exec(`UPDATE revision SET deleted_at = ? WHERE id = ?`, now.Unix(), revisionID)
+		// The edits made on this upload go with it (D-42).
+		_, e := tx.Exec(`UPDATE revision SET deleted_at = ? WHERE upload_id = (SELECT upload_id FROM revision WHERE id = ?) AND deleted_at IS NULL`, now.Unix(), revisionID)
 		return e
 	})
 	if err != nil {
@@ -122,7 +125,7 @@ func (s *Service) refresh(ctx context.Context, owner string) (Outcome, error) {
 	out := Outcome{CacheRebuilt: rebuilt}
 	err = s.St.View(ctx, func(tx *sql.Tx) error {
 		var n int
-		if e := tx.QueryRow(`SELECT COUNT(*) FROM revision WHERE owner_id = ? AND deleted_at IS NULL`, owner).Scan(&n); e != nil {
+		if e := tx.QueryRow(`SELECT COUNT(*) FROM revision WHERE owner_id = ? AND deleted_at IS NULL AND kind = 'upload'`, owner).Scan(&n); e != nil {
 			return e
 		}
 		out.NowEmpty = n == 0
@@ -136,12 +139,14 @@ func (s *Service) refresh(ctx context.Context, owner string) (Outcome, error) {
 func (s *Service) RestoreUpload(ctx context.Context, owner, revisionID string, byAdmin bool) (Outcome, error) {
 	now, w := s.Now(), s.windows()
 	err := s.St.Update(ctx, true, func(tx *sql.Tx) error {
-		var o string
+		var o, kind string
 		var del sql.NullInt64
-		if e := tx.QueryRow(`SELECT owner_id, deleted_at FROM revision WHERE id = ?`, revisionID).Scan(&o, &del); errors.Is(e, sql.ErrNoRows) {
+		if e := tx.QueryRow(`SELECT owner_id, deleted_at, kind FROM revision WHERE id = ?`, revisionID).Scan(&o, &del, &kind); errors.Is(e, sql.ErrNoRows) {
 			return ErrNotFound
 		} else if e != nil {
 			return e
+		} else if kind != "upload" {
+			return ErrNotFound
 		}
 		if !byAdmin && o != owner {
 			return ErrNotYours
@@ -157,7 +162,7 @@ func (s *Service) RestoreUpload(ctx context.Context, owner, revisionID string, b
 			return ErrExpired
 		}
 		owner = o
-		_, e := tx.Exec(`UPDATE revision SET deleted_at = NULL WHERE id = ?`, revisionID)
+		_, e := tx.Exec(`UPDATE revision SET deleted_at = NULL WHERE upload_id = (SELECT upload_id FROM revision WHERE id = ?) AND deleted_at = ?`, revisionID, del.Int64)
 		return e
 	})
 	if err != nil {
@@ -177,7 +182,7 @@ func (s *Service) ListDeleted(ctx context.Context, owner string, admin bool) ([]
 	var out []Deleted
 	err := s.St.View(ctx, func(tx *sql.Tx) error {
 		q := `SELECT r.owner_id, r.id, u.id, u.filename, u.size, u.encounters, r.deleted_at
-			FROM revision r JOIN upload u ON u.id = r.upload_id WHERE r.deleted_at IS NOT NULL`
+			FROM revision r JOIN upload u ON u.id = r.upload_id WHERE r.deleted_at IS NOT NULL AND r.kind = 'upload'`
 		var args []any
 		if !admin || owner != "" {
 			q += ` AND r.owner_id = ?`
@@ -249,6 +254,9 @@ func (s *Service) Purge(ctx context.Context) (Result, error) {
 			return err
 		}
 		for _, v := range uploads {
+			if _, err := tx.Exec(`DELETE FROM change WHERE revision_id IN (SELECT id FROM revision WHERE upload_id = ?)`, v.uploadID); err != nil {
+				return err
+			}
 			if _, err := tx.Exec(`DELETE FROM revision WHERE upload_id = ?`, v.uploadID); err != nil {
 				return err
 			}
@@ -328,7 +336,7 @@ func (s *Service) purgeOwner(ctx context.Context, owner string) error {
 			`DELETE FROM cache_row WHERE owner_id = ?`, `DELETE FROM cache_head WHERE owner_id = ?`,
 			`DELETE FROM search WHERE owner_id = ?`, `DELETE FROM backup_password WHERE owner_id = ?`,
 			`DELETE FROM entry_flag WHERE owner_id = ?`, `DELETE FROM media_blob WHERE owner_id = ?`, `DELETE FROM profile WHERE owner_id = ?`, `DELETE FROM user_tz WHERE user_id = ?`,
-			`DELETE FROM revision WHERE owner_id = ?`, `DELETE FROM upload WHERE owner_id = ?`,
+			`DELETE FROM change WHERE owner_id = ?`, `DELETE FROM revision WHERE owner_id = ?`, `DELETE FROM upload WHERE owner_id = ?`,
 			`DELETE FROM user WHERE id = ?`,
 		} {
 			if _, err := tx.Exec(q, owner); err != nil {

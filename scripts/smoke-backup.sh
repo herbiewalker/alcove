@@ -254,6 +254,22 @@ done
 [ "$(curl -s -o /dev/null -w '%{http_code}' -b "$J3" "$URL$shared")" = "200" ] || die "a member could not open a shared photo"
 ok "photos: stored encrypted, served to the owner, shown to a member through the space, refused to others"
 
+# 4m. Editing (D-42): the owner edits an entry, a member sees it through the space, a stranger cannot edit it.
+eid=$(curl -fsS -b "$JAR" "$URL/entries" | sed -n 's/.*href="\/entries\/\([^"\/]*\)".*/\1/p' | head -1)
+[ -n "$eid" ] || die "the owner has no entry to edit"
+eform=$(curl -fsS -b "$JAR" "$URL/entries/$eid/edit")
+erev=$(echo "$eform" | sed -n 's/.*name="rev" value="\([^"]*\)".*/\1/p' | head -1)
+ewhen=$(echo "$eform" | sed -n 's/.*name="when" type="datetime-local" value="\([^"]*\)".*/\1/p' | head -1)
+[ -n "$erev" ] && [ -n "$ewhen" ] || die "the edit form has no revision or time"
+[ "$(post "/entries/$eid/edit" "/entries/$eid/edit" -d "rev=$erev" -d "when=$ewhen" -d rating=9)" = "400" ] || die "a rating of 9 was accepted"
+[ "$(post "/entries/$eid/edit" "/entries/$eid/edit" -d "rev=$erev" -d "when=$ewhen" -d rating=4 --data-urlencode "note=SMOKE-EDIT-NOTE")" = "303" ] || die "the edit was not saved"
+curl -fsS -b "$JAR" "$URL/entries/$eid" | grep -q "SMOKE-EDIT-NOTE" || die "the owner does not see the edit"
+curl -fsS -b "$JAR" "$URL/entries/$eid/history" | grep -q "SMOKE-EDIT-NOTE" || die "the history does not show the edit"
+[ "$(curl -s -o /dev/null -w '%{http_code}' -b "$J3" "$URL/entries/$eid/edit")" = "404" ] || die "another person opened the edit form"
+[ "$(curl -s -o /dev/null -w '%{http_code}' "$URL/entries/$eid/edit")" != "200" ] || die "a signed-out visitor opened the edit form"
+[ "$(post "/entries/$eid/edit" "/entries/$eid/edit" -d "rev=$erev" -d "when=$ewhen" --data-urlencode "note=STALE")" = "400" ] || die "a stale save was accepted"
+ok "editing: saved as a new version, refused when bad or stale, closed to everyone but the owner"
+
 # 4h. The shared calendar: a member sees the grid and the owner's day, an outsider does not.
 cal=$(curl -fsS -b "$J3" "$URL/spaces/$spid/calendar")
 echo "$cal" | grep -q 'class="cal"' || die "the calendar has no grid"

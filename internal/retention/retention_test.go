@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"io/fs"
 	"os"
@@ -15,6 +16,7 @@ import (
 	"github.com/herbiewalker/alcove/internal/adminlog"
 	"github.com/herbiewalker/alcove/internal/auth"
 	"github.com/herbiewalker/alcove/internal/blobstore"
+	"github.com/herbiewalker/alcove/internal/edit"
 	"github.com/herbiewalker/alcove/internal/ingest"
 	"github.com/herbiewalker/alcove/internal/keyfile"
 	"github.com/herbiewalker/alcove/internal/spaces"
@@ -591,5 +593,75 @@ func TestPurgingAnAccountRemovesItFromSpacesAndHandsOnOwnership(t *testing.T) {
 	// Dave's space is untouched and has simply lost a member.
 	if role, ok := r.gate(daves.ID, "udave"); !ok || role != spaces.RoleOwner {
 		t.Error("another person's space was disturbed")
+	}
+}
+
+// An edit lives with its upload (D-42): it comes back when its upload is the head again, goes with
+// the upload when that is deleted, returns on restore, and is purged with it.
+func TestEditsFollowTheirUploadThroughDeleteRestoreAndPurge(t *testing.T) {
+	r := newRig(t)
+	ctx := context.Background()
+	a := r.upload("ualice", 31, 5, true)
+	rows, _ := r.ing.CacheRows(ctx, "ualice", "encounters")
+	var first map[string]json.RawMessage
+	_ = json.Unmarshal([]byte(rows[0]), &first)
+	var entry string
+	_ = json.Unmarshal(first["id"], &entry)
+	edited := func() bool {
+		return r.count(`SELECT COUNT(*) FROM cache_row WHERE owner_id = 'ualice' AND data LIKE '%EDIT-MARK%'`) == 1
+	}
+	r.clock = r.clock.Add(time.Minute)
+	var head string
+	_ = r.st.View(ctx, func(tx *sql.Tx) (err error) { head, _, err = edit.Head(tx, "ualice"); return })
+	if err := r.st.Update(ctx, true, func(tx *sql.Tx) error {
+		_, _, e := edit.Apply(tx, r.clock, "ualice", "ualice", entry, head, map[string]string{"note": "EDIT-MARK"})
+		return e
+	}); err != nil || !edited() {
+		t.Fatalf("setup: %v", err)
+	}
+	// A newer upload hides the edit (a new chain); deleting it brings the older chain, edit included, back.
+	r.clock = r.clock.Add(time.Hour)
+	b := r.upload("ualice", 32, 8, true)
+	if edited() {
+		t.Fatal("the edit shows in a newer upload")
+	}
+	if _, err := r.svc.DeleteUpload(ctx, "ualice", b.RevisionID); err != nil || !edited() {
+		t.Fatalf("after deleting the newer upload the edit should be back: %v", err)
+	}
+	// Deleting the upload the edit sits on removes the edit's effect too, and restoring brings it back.
+	if _, err := r.svc.DeleteUpload(ctx, "ualice", a.RevisionID); err != nil {
+		t.Fatal(err)
+	}
+	if edited() || r.count(`SELECT COUNT(*) FROM revision WHERE owner_id = 'ualice' AND kind = 'edit' AND deleted_at IS NULL`) != 0 {
+		t.Fatal("an edit stayed live after its upload was deleted")
+	}
+	list, _ := r.ing.List(ctx, "ualice")
+	if len(list) != 2 {
+		t.Errorf("the upload list shows %d rows, want the 2 uploads", len(list))
+	}
+	if deleted, _ := r.svc.ListDeleted(ctx, "ualice", false); len(deleted) != 2 {
+		t.Errorf("recently deleted shows %d, want the 2 uploads", len(deleted))
+	}
+	if _, err := r.svc.RestoreUpload(ctx, "ualice", a.RevisionID, false); err != nil || !edited() {
+		t.Fatalf("restoring the upload should bring its edit back: %v", err)
+	}
+	// An edit's revision id is not an upload: it cannot be deleted or restored as one.
+	var editRev string
+	_ = r.st.View(ctx, func(tx *sql.Tx) error {
+		return tx.QueryRow(`SELECT id FROM revision WHERE owner_id = 'ualice' AND kind = 'edit'`).Scan(&editRev)
+	})
+	if _, err := r.svc.DeleteUpload(ctx, "ualice", editRev); !errors.Is(err, ErrNotFound) {
+		t.Errorf("deleting an edit as an upload: %v", err)
+	}
+	// Purge removes the change rows with the upload.
+	if _, err := r.svc.DeleteUpload(ctx, "ualice", a.RevisionID); err != nil {
+		t.Fatal(err)
+	}
+	r.clock = r.clock.Add(46 * day)
+	if res, err := r.svc.Purge(ctx); err != nil || res.Uploads < 1 {
+		t.Fatalf("purge: %+v %v", res, err)
+	}
+	if r.count(`SELECT COUNT(*) FROM change`) != 0 || r.count(`SELECT COUNT(*) FROM revision WHERE kind = 'edit'`) != 0 {
+		t.Error("the purge left the edit behind")
 	}
 }

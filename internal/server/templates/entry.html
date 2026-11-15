@@ -52,5 +52,5 @@
 <p class="muted">{{.OwnerName}} keeps notes out of this space.</p>
 {{end}}
 {{end}}
-<p><a class="btn secondary" href="{{.DetailBack}}">Back to {{.DetailBackLabel}}</a>{{if .Detail.Mine}} <a class="btn secondary" href="/entries">Private or shared</a>{{end}}</p>
+<p><a class="btn secondary" href="{{.DetailBack}}">Back to {{.DetailBackLabel}}</a>{{if .Detail.Mine}} <a class="btn secondary" href="/entries">Private or shared</a>{{if not .SpaceID}} <a class="btn" href="/entries/{{.Detail.ID | urlquery}}/edit">Edit</a> <a class="btn secondary" href="/entries/{{.Detail.ID | urlquery}}/history">History</a>{{end}}{{end}}</p>
 {{end}}

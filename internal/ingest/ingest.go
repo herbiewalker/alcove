@@ -30,6 +30,7 @@ import (
 	"unicode"
 
 	"github.com/herbiewalker/alcove/internal/blobstore"
+	"github.com/herbiewalker/alcove/internal/edit"
 	"github.com/herbiewalker/alcove/internal/store"
 	"github.com/herbiewalker/alcove/internal/trystbk"
 )
@@ -170,7 +171,7 @@ func (s *Service) Upload(ctx context.Context, p Params, body io.Reader) (UploadI
 	var dup DuplicateError
 	var dupAt int64
 	err = s.St.View(ctx, func(tx *sql.Tx) error {
-		e := tx.QueryRow(`SELECT u.id, u.uploaded_at, COALESCE(r.deleted_at IS NOT NULL, 0) FROM upload u LEFT JOIN revision r ON r.upload_id = u.id WHERE u.owner_id = ? AND u.sha256 = ?`, p.Owner, sum).Scan(&dup.ExistingID, &dupAt, &dup.Deleted)
+		e := tx.QueryRow(`SELECT u.id, u.uploaded_at, COALESCE(r.deleted_at IS NOT NULL, 0) FROM upload u LEFT JOIN revision r ON r.upload_id = u.id AND r.kind = 'upload' WHERE u.owner_id = ? AND u.sha256 = ?`, p.Owner, sum).Scan(&dup.ExistingID, &dupAt, &dup.Deleted)
 		if errors.Is(e, sql.ErrNoRows) {
 			dup.ExistingID = ""
 			return nil
@@ -482,7 +483,12 @@ func (s *Service) Rebuild(ctx context.Context, owner string) error {
 	}
 	defer bk.Close()
 	now := s.Now()
-	if err := s.St.Update(ctx, true, func(tx *sql.Tx) error { return fillCache(tx, owner, revID, bk, now) }); err != nil {
+	if err := s.St.Update(ctx, true, func(tx *sql.Tx) error {
+		if err := fillCache(tx, owner, revID, bk, now); err != nil {
+			return err
+		}
+		return edit.Replay(tx, owner, uploadID) // D-42: the upload plus every live edit
+	}); err != nil {
 		return err
 	}
 	_, err = s.storePhotos(ctx, owner, bk)
@@ -525,7 +531,7 @@ func (s *Service) List(ctx context.Context, owner string) ([]UploadInfo, error) 
 	err := s.St.View(ctx, func(tx *sql.Tx) error {
 		rows, err := tx.Query(`SELECT u.id, r.id, u.filename, u.sha256, u.size, u.tryst_schema, u.schema_status, u.rows_total, u.encounters,
 			u.media_count, u.uploaded_at, r.deleted_at IS NOT NULL
-			FROM revision r JOIN upload u ON u.id = r.upload_id WHERE r.owner_id = ? ORDER BY r.created_at DESC, r.rowid DESC`, owner)
+			FROM revision r JOIN upload u ON u.id = r.upload_id WHERE r.owner_id = ? AND r.kind = 'upload' ORDER BY r.created_at DESC, r.rowid DESC`, owner)
 		if err != nil {
 			return err
 		}

@@ -2,6 +2,7 @@
 <h1>My data</h1>
 <p class="muted">In Tryst on your phone, export a backup, then upload the file here from the same browser. The file is kept exactly as Tryst wrote it, and the server opens it with your backup password to read it. Nothing leaves your network.</p>
 
+{{if .HasEdits}}<p class="notice">You have edited entries in your current backup. A new upload starts from the phone's data and does not carry those edits over. They stay in each entry's history, and you can still export first.</p>{{end}}
 <form id="upform" class="card" method="post" action="/uploads" enctype="multipart/form-data" autocomplete="off">
   <input type="hidden" name="csrf" value="{{.CSRF}}">
   <div class="field">

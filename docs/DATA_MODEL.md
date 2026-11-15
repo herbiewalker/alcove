@@ -153,3 +153,7 @@ notes, photos, partner names, pause) and `invite` (id, the hash of the code, kin
 `used` or `revoked`, who used it and when, a short note for the creator). Codes themselves are never stored. A space has exactly one active owner.
 `spaces.Role` is the only code that decides visibility: it passes only an **active** member of a **live** space whose account is **active and
 not deleted**. From M4 a member's entries are shown only if `consent_version` is the current one and `paused` is off.
+
+## Implemented in M5 slice 1 (store schema v10)
+
+`change` (id, revision, owner, table, row id, field, old value, new value as JSON text, op `set`, `add`, `delete` or `restore`; only `set` is written so far). An edit is a `revision` of kind `edit` that shares its upload's `upload_id`; `cache_row` is the upload's rows plus every live edit replayed oldest first, and `cache_head.revision_id` names the head. Deleting an upload gives its edit revisions the same `deleted_at`; restoring clears exactly those. See D-42.
