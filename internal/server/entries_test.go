@@ -18,6 +18,7 @@ var entryIDRE = regexp.MustCompile(`name="id" value="([^"]+)"`)
 // sharing sets up sam (7 entries), kim (5 entries) and lou (4 entries, outside), with sam and kim in one space.
 type sharing struct {
 	e              *env
+	admin          *client
 	sam, kim, lou  *client
 	space, otherSp string
 }
@@ -39,7 +40,7 @@ func newSharing(t *testing.T) *sharing {
 	t.Helper()
 	e := newEnv(t, netsec.Env{})
 	admin := adminReady(t, e)
-	s := &sharing{e: e, sam: person(t, e, admin, "sam"), kim: person(t, e, admin, "kim"), lou: person(t, e, admin, "lou")}
+	s := &sharing{e: e, admin: admin, sam: person(t, e, admin, "sam"), kim: person(t, e, admin, "kim"), lou: person(t, e, admin, "lou")}
 	for i, p := range []struct {
 		c *client
 		n int

@@ -157,7 +157,7 @@ func (s *Server) netOptions() netsec.Options {
 }
 
 func (s *Server) parseTemplates() error {
-	pages := []string{"message", "setup", "login", "unlock", "home", "account", "stepup", "admin", "adminlog", "settings", "backup", "uploads", "users", "usercreated", "forcepw", "mydeleted", "admindeleted", "spaces", "space", "join", "joinconsent", "codeshown", "adminspaces", "spaceentries", "myentries", "profile", "prefill", "calendar", "compare", "entry", "search", "gallery", "editentry", "history", "partners", "editpartner", "deleteentry", "deletedentries"}
+	pages := []string{"message", "setup", "login", "unlock", "home", "account", "stepup", "admin", "adminlog", "settings", "backup", "uploads", "users", "usercreated", "forcepw", "mydeleted", "admindeleted", "spaces", "space", "join", "joinconsent", "codeshown", "adminspaces", "spaceentries", "myentries", "profile", "prefill", "calendar", "compare", "entry", "search", "gallery", "editentry", "history", "partners", "editpartner", "deleteentry", "deletedentries", "persondata"}
 	for _, p := range pages {
 		t, err := template.ParseFS(assets, "templates/base.html", "templates/"+p+".html")
 		if err != nil {
@@ -502,6 +502,7 @@ type page struct {
 	DeletedRows                      []deletedRow
 	PartnerRows                      []partnerRow
 	HistBase, HistBack, HistBackHref string
+	Prefix, PersonName               string // the administrator working on a person's data
 	HistID, HistRev                  string
 	History                          []histRow
 	Results                          []resultRow
@@ -718,21 +719,36 @@ func (s *Server) routes_() {
 	s.handle("GET /entries/{id}", user, s.getMyEntry)
 	s.handle("GET /photos/{id}", user, s.getMyPhoto)
 	s.handle("GET /gallery", user, s.getMyGallery)
-	s.handle("GET /entries/new", user, s.getNewEntry)
-	s.handle("POST /entries/new", user, s.postNewEntry)
-	s.handle("GET /entries/deleted", user, s.getDeletedEntries)
-	s.handle("GET /entries/{id}/delete", user, s.getDeleteEntry)
-	s.handle("POST /entries/{id}/delete", user, s.postDeleteEntry)
-	s.handle("POST /entries/{id}/restore", user, s.postRestoreEntry)
-	s.handle("GET /entries/{id}/edit", user, s.getEditEntry)
-	s.handle("POST /entries/{id}/edit", user, s.postEditEntry)
-	s.handle("GET /entries/{id}/history", user, s.getEntryHistory)
-	s.handle("POST /entries/{id}/revert", user, s.postRevertEntry)
-	s.handle("GET /partners", user, s.getPartners)
-	s.handle("GET /partners/{id}/edit", user, s.getEditPartner)
-	s.handle("POST /partners/{id}/edit", user, s.postEditPartner)
-	s.handle("GET /partners/{id}/history", user, s.getPartnerHistory)
-	s.handle("POST /partners/{id}/revert", user, s.postRevertPartner)
+	s.handle("GET /entries/new", user, forOwn(s.getNewEntry))
+	s.handle("POST /entries/new", user, forOwn(s.postNewEntry))
+	s.handle("GET /entries/deleted", user, forOwn(s.getDeletedEntries))
+	s.handle("GET /entries/{id}/delete", user, forOwn(s.getDeleteEntry))
+	s.handle("POST /entries/{id}/delete", user, forOwn(s.postDeleteEntry))
+	s.handle("POST /entries/{id}/restore", user, forOwn(s.postRestoreEntry))
+	s.handle("GET /entries/{id}/edit", user, forOwn(s.getEditEntry))
+	s.handle("POST /entries/{id}/edit", user, forOwn(s.postEditEntry))
+	s.handle("GET /entries/{id}/history", user, forOwn(s.getEntryHistory))
+	s.handle("POST /entries/{id}/revert", user, forOwn(s.postRevertEntry))
+	s.handle("GET /partners", user, forOwn(s.getPartners))
+	s.handle("GET /partners/{id}/edit", user, forOwn(s.getEditPartner))
+	s.handle("POST /partners/{id}/edit", user, forOwn(s.postEditPartner))
+	s.handle("GET /partners/{id}/history", user, forOwn(s.getPartnerHistory))
+	s.handle("POST /partners/{id}/revert", user, forOwn(s.postRevertPartner))
+	s.handle("GET /admin/people/{user}", admin, forPerson(s.getPerson))
+	s.handle("GET /admin/people/{user}/entries/deleted", admin, forPerson(s.getDeletedEntries))
+	s.handle("GET /admin/people/{user}/entries/{id}", admin, forPerson(s.getPersonEntry))
+	s.handle("GET /admin/people/{user}/entries/{id}/edit", admin, forPerson(s.getEditEntry))
+	s.handle("POST /admin/people/{user}/entries/{id}/edit", admin, forPerson(s.postEditEntry))
+	s.handle("GET /admin/people/{user}/entries/{id}/delete", admin, forPerson(s.getDeleteEntry))
+	s.handle("POST /admin/people/{user}/entries/{id}/delete", admin, forPerson(s.postDeleteEntry))
+	s.handle("POST /admin/people/{user}/entries/{id}/restore", admin, forPerson(s.postRestoreEntry))
+	s.handle("GET /admin/people/{user}/entries/{id}/history", admin, forPerson(s.getEntryHistory))
+	s.handle("POST /admin/people/{user}/entries/{id}/revert", admin, forPerson(s.postRevertEntry))
+	s.handle("GET /admin/people/{user}/partners", admin, forPerson(s.getPartners))
+	s.handle("GET /admin/people/{user}/partners/{id}/edit", admin, forPerson(s.getEditPartner))
+	s.handle("POST /admin/people/{user}/partners/{id}/edit", admin, forPerson(s.postEditPartner))
+	s.handle("GET /admin/people/{user}/partners/{id}/history", admin, forPerson(s.getPartnerHistory))
+	s.handle("POST /admin/people/{user}/partners/{id}/revert", admin, forPerson(s.postRevertPartner))
 	s.handle("GET /spaces/{id}/gallery", user, s.getSpaceGallery)
 	s.handle("POST /entries/private", user, s.postEntryPrivate)
 	s.handle("GET /spaces/{id}", user, s.getSpace)

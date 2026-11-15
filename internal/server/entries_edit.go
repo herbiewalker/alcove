@@ -19,10 +19,19 @@ type deletedRow struct {
 	Restorable                  bool
 }
 
-// userWindow is how long a person may restore their own deletion (the retention setting).
-func (s *Server) userWindow() time.Duration {
-	d, _ := s.days()
-	return time.Duration(d) * 24 * time.Hour
+// windowFor is how long this person's deletions can be restored by whoever is acting: the retention
+// setting for the person themself, the longer administrator window for the administrator.
+func (s *Server) windowFor(w who) time.Duration {
+	return time.Duration(s.daysFor(w)) * 24 * time.Hour
+}
+
+// daysFor is windowFor in whole days.
+func (s *Server) daysFor(w who) int {
+	u, a := s.days()
+	if w.admin {
+		return a
+	}
+	return u
 }
 
 // entryMessage says why a whole-entry action was refused, without any content.
@@ -39,16 +48,16 @@ func entryMessage(err error, days int) string {
 }
 
 // getNewEntry shows an empty entry form, with the time set to now in the person's zone.
-func (s *Server) getNewEntry(q *rq) {
+func (s *Server) getNewEntry(q *rq, w who) {
 	var rev string
 	var loc *time.Location
 	var groups []setGroup
 	err := q.st.View(q.r.Context(), func(tx *sql.Tx) (err error) {
-		if rev, _, err = edit.Head(tx, q.id.user.ID); err != nil {
+		if rev, _, err = edit.Head(tx, w.owner); err != nil {
 			return err
 		}
-		loc = share.LocationOf(tx, q.id.user.ID)
-		groups, err = groupsFor(tx, q.id.user.ID, func(string) map[string]bool { return nil })
+		loc = share.LocationOf(tx, w.owner)
+		groups, err = groupsFor(tx, w.owner, func(string) map[string]bool { return nil })
 		return
 	})
 	switch {
@@ -62,26 +71,26 @@ func (s *Server) getNewEntry(q *rq) {
 	form := formOf("", rev, nil, loc, groups)
 	form.New = true
 	form.When = s.now().In(loc).Format(whenLayout)
-	q.render(http.StatusOK, "editentry", &page{Title: "Add entry", Active: "uploads", EditForm: form})
+	q.render(http.StatusOK, "editentry", w.pg(&page{Title: "Add entry", Active: "uploads", EditForm: form}))
 }
 
 // postNewEntry adds an entry to the signed-in person's own data. Every value is checked first.
-func (s *Server) postNewEntry(q *rq) {
+func (s *Server) postNewEntry(q *rq, w who) {
 	f := q.r.PostForm
 	var loc *time.Location
-	_ = q.st.View(q.r.Context(), func(tx *sql.Tx) error { loc = share.LocationOf(tx, q.id.user.ID); return nil })
+	_ = q.st.View(q.r.Context(), func(tx *sql.Tx) error { loc = share.LocationOf(tx, w.owner); return nil })
 	in, shown := entryInput(f, loc, 0)
 	baseRev := f.Get("rev")
 	var id string
 	err := q.st.Update(q.r.Context(), true, func(tx *sql.Tx) (e error) {
-		_, id, e = edit.Add(tx, s.now(), q.id.user.ID, q.id.user.ID, baseRev, in)
+		_, id, e = edit.Add(tx, s.now(), q.id.user.ID, w.owner, baseRev, in)
 		return
 	})
 	if errors.Is(err, edit.ErrNoHead) {
 		q.notFound()
 		return
 	}
-	days, _ := s.days()
+	days := s.daysFor(w)
 	msg := formMessage(edit.Fields, err)
 	if msg == "" {
 		msg = entryMessage(err, days)
@@ -91,7 +100,7 @@ func (s *Server) postNewEntry(q *rq) {
 			Orgasms: f.Get("orgasms"), Note: f.Get("note"), Zone: loc.String()}
 		form.fill(f.Get("mood"), f.Get("initiator"), strings.Join(f["protect"], ","))
 		_ = q.st.View(q.r.Context(), func(tx *sql.Tx) (e error) {
-			form.Groups, e = groupsFor(tx, q.id.user.ID, func(name string) map[string]bool {
+			form.Groups, e = groupsFor(tx, w.owner, func(name string) map[string]bool {
 				on := map[string]bool{}
 				if shown[name] {
 					for _, t := range f["set_"+name] {
@@ -102,7 +111,7 @@ func (s *Server) postNewEntry(q *rq) {
 			})
 			return
 		})
-		q.render(http.StatusBadRequest, "editentry", &page{Title: "Add entry", Active: "uploads", Error: msg, EditForm: form})
+		q.render(http.StatusBadRequest, "editentry", w.pg(&page{Title: "Add entry", Active: "uploads", Error: msg, EditForm: form}))
 		return
 	}
 	if err != nil {
@@ -114,17 +123,17 @@ func (s *Server) postNewEntry(q *rq) {
 }
 
 // getDeleteEntry asks before deleting one of the person's own entries.
-func (s *Server) getDeleteEntry(q *rq) {
+func (s *Server) getDeleteEntry(q *rq, w who) {
 	id := pathID(q)
 	var rev string
 	var startAt int64
 	var loc *time.Location
 	err := q.st.View(q.r.Context(), func(tx *sql.Tx) (err error) {
-		cur, head, err := edit.Current(tx, q.id.user.ID, id)
+		cur, head, err := edit.Current(tx, w.owner, id)
 		if err != nil {
 			return err
 		}
-		rev, loc = head, share.LocationOf(tx, q.id.user.ID)
+		rev, loc = head, share.LocationOf(tx, w.owner)
 		startAt, _ = strconv.ParseInt(edit.Describe(cur["startAt"]), 10, 64)
 		return nil
 	})
@@ -136,46 +145,52 @@ func (s *Server) getDeleteEntry(q *rq) {
 		q.serverError("open delete page", err)
 		return
 	}
-	days, _ := s.days()
-	q.render(http.StatusOK, "deleteentry", &page{Title: "Delete entry", Active: "uploads", DeleteID: id, HistRev: rev,
-		DeleteWhen: time.UnixMilli(startAt).In(loc).Format(entryFmt), UserDays: days})
+	if !s.auditView(q, w, "delete", "encounters", id) {
+		return
+	}
+	userDays, adminDays := s.days()
+	q.render(http.StatusOK, "deleteentry", w.pg(&page{Title: "Delete entry", Active: "uploads", DeleteID: id, HistRev: rev,
+		DeleteWhen: time.UnixMilli(startAt).In(loc).Format(entryFmt), UserDays: userDays, AdminDays: adminDays}))
 }
 
 // postDeleteEntry deletes one of the person's own entries. It can be restored for the retention window.
-func (s *Server) postDeleteEntry(q *rq) {
+func (s *Server) postDeleteEntry(q *rq, w who) {
 	id := pathID(q)
 	err := q.st.Update(q.r.Context(), true, func(tx *sql.Tx) error {
-		_, e := edit.Delete(tx, s.now(), q.id.user.ID, q.id.user.ID, id, q.r.PostForm.Get("rev"))
-		return e
+		_, e := edit.Delete(tx, s.now(), q.id.user.ID, w.owner, id, q.r.PostForm.Get("rev"))
+		if e != nil {
+			return e
+		}
+		return s.audit(tx, q, w, "data.delete", "encounters", id, nil)
 	})
 	switch {
 	case errors.Is(err, edit.ErrNoEntry), errors.Is(err, edit.ErrNoHead):
 		q.notFound()
 		return
 	case errors.Is(err, edit.ErrStale):
-		q.message(http.StatusConflict, "Nothing was deleted", formMessage(edit.Fields, err), "/entries")
+		q.message(http.StatusConflict, "Nothing was deleted", formMessage(edit.Fields, err), w.home())
 		return
 	case err != nil:
 		q.serverError("delete entry", err)
 		return
 	}
 	q.setFlash("entry-deleted")
-	q.redirect("/entries/deleted")
+	q.redirect(w.prefix + "/entries/deleted")
 }
 
 // getDeletedEntries lists what the person deleted and may still restore.
-func (s *Server) getDeletedEntries(q *rq) {
+func (s *Server) getDeletedEntries(q *rq, w who) {
 	var list []edit.DeletedEntry
 	var rev string
 	var loc *time.Location
 	err := q.st.View(q.r.Context(), func(tx *sql.Tx) (err error) {
-		if rev, _, err = edit.Head(tx, q.id.user.ID); errors.Is(err, edit.ErrNoHead) {
+		if rev, _, err = edit.Head(tx, w.owner); errors.Is(err, edit.ErrNoHead) {
 			return nil
 		} else if err != nil {
 			return err
 		}
-		loc = share.LocationOf(tx, q.id.user.ID)
-		list, err = edit.Deleted(tx, q.id.user.ID, s.now(), s.userWindow())
+		loc = share.LocationOf(tx, w.owner)
+		list, err = edit.Deleted(tx, w.owner, s.now(), s.windowFor(w))
 		return
 	})
 	if err != nil {
@@ -185,7 +200,10 @@ func (s *Server) getDeletedEntries(q *rq) {
 	if loc == nil {
 		loc = time.UTC
 	}
-	days, _ := s.days()
+	if !s.auditView(q, w, "deleted", "user", "") {
+		return
+	}
+	days := s.daysFor(w)
 	p := &page{Title: "Recently deleted entries", Active: "uploads", HistRev: rev, UserDays: days}
 	for _, d := range list {
 		r := deletedRow{ID: d.ID, Deleted: d.DeletedAt.In(loc).Format(entryFmt), Restorable: d.Restorable}
@@ -197,31 +215,34 @@ func (s *Server) getDeletedEntries(q *rq) {
 		}
 		p.DeletedRows = append(p.DeletedRows, r)
 	}
-	q.render(http.StatusOK, "deletedentries", p)
+	q.render(http.StatusOK, "deletedentries", w.pg(p))
 }
 
 // postRestoreEntry puts one deleted entry back, inside the person's window.
-func (s *Server) postRestoreEntry(q *rq) {
+func (s *Server) postRestoreEntry(q *rq, w who) {
 	id := pathID(q)
 	err := q.st.Update(q.r.Context(), true, func(tx *sql.Tx) error {
-		_, e := edit.Restore(tx, s.now(), q.id.user.ID, q.id.user.ID, id, q.r.PostForm.Get("rev"), s.userWindow())
-		return e
+		_, e := edit.Restore(tx, s.now(), q.id.user.ID, w.owner, id, q.r.PostForm.Get("rev"), s.windowFor(w))
+		if e != nil {
+			return e
+		}
+		return s.audit(tx, q, w, "data.restore", "encounters", id, nil)
 	})
-	days, _ := s.days()
+	days := s.daysFor(w)
 	switch {
 	case errors.Is(err, edit.ErrNoEntry), errors.Is(err, edit.ErrNoHead):
 		q.notFound()
 		return
 	case errors.Is(err, edit.ErrStale):
-		q.message(http.StatusConflict, "Nothing was restored", formMessage(edit.Fields, err), "/entries/deleted")
+		q.message(http.StatusConflict, "Nothing was restored", formMessage(edit.Fields, err), w.prefix+"/entries/deleted")
 		return
 	case entryMessage(err, days) != "":
-		q.message(http.StatusConflict, "Nothing was restored", entryMessage(err, days), "/entries/deleted")
+		q.message(http.StatusConflict, "Nothing was restored", entryMessage(err, days), w.prefix+"/entries/deleted")
 		return
 	case err != nil:
 		q.serverError("restore entry", err)
 		return
 	}
 	q.setFlash("entry-restored")
-	q.redirect("/entries/" + url.PathEscape(id))
+	q.redirect(w.prefix + "/entries/" + url.PathEscape(id))
 }

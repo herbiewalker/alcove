@@ -1,12 +1,17 @@
 {{define "content"}}
 <h1>Delete this entry?</h1>
 <section class="card">
+  {{if .Prefix}}
+  <p>As administrator you are about to delete {{.PersonName}}'s entry from <b>{{.DeleteWhen}}</b>, with its partner links and photo rows. It will not show in their spaces, search or calendar any more. The action is written to the admin log (the entry and the fact of the deletion, never its content).</p>
+  <p class="muted">{{.PersonName}} can restore it for {{.UserDays}} days, and you can for {{.AdminDays}} days. After that its content is wiped for good. The uploaded backup is never changed, and nothing changes on their phone until they restore an exported backup.</p>
+  {{else}}
   <p>The entry from <b>{{.DeleteWhen}}</b> will be removed from your data, with its partner links and photo rows. It will not show in your spaces, search or calendar any more.</p>
   <p class="muted">You can restore it from Recently deleted entries for {{.UserDays}} days. After that the administrator can still restore it for a while longer, and then its content is wiped for good. Your uploaded backup is never changed, and nothing changes on your phone until you export and restore a backup.</p>
-  <form method="post" action="/entries/{{.DeleteID | urlquery}}/delete">
+  {{end}}
+  <form method="post" action="{{.Prefix}}/entries/{{.DeleteID | urlquery}}/delete">
     <input type="hidden" name="csrf" value="{{.CSRF}}">
     <input type="hidden" name="rev" value="{{.HistRev}}">
-    <div class="actions"><button class="btn danger" type="submit" data-busy="Deleting...">Delete the entry</button> <a class="btn secondary" href="/entries/{{.DeleteID | urlquery}}">Keep it</a></div>
+    <div class="actions"><button class="btn danger" type="submit" data-busy="Deleting...">Delete the entry</button> <a class="btn secondary" href="{{.Prefix}}/entries/{{.DeleteID | urlquery}}">Keep it</a></div>
   </form>
 </section>
 {{end}}

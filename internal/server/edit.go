@@ -202,18 +202,18 @@ func (f *editForm) fill(mood, initiator, protect string) {
 func pathID(q *rq) string { return q.r.PathValue("id") }
 
 // getEditEntry shows the edit form for one of the signed-in person's own entries.
-func (s *Server) getEditEntry(q *rq) {
+func (s *Server) getEditEntry(q *rq, w who) {
 	id := pathID(q)
 	var cur map[string]json.RawMessage
 	var rev string
 	var loc *time.Location
 	var groups []setGroup
 	err := q.st.View(q.r.Context(), func(tx *sql.Tx) (err error) {
-		if cur, rev, err = edit.Current(tx, q.id.user.ID, id); err != nil {
+		if cur, rev, err = edit.Current(tx, w.owner, id); err != nil {
 			return err
 		}
-		loc = share.LocationOf(tx, q.id.user.ID)
-		groups, err = groupsFor(tx, q.id.user.ID, func(f string) map[string]bool { return tokenSet(cur[f]) })
+		loc = share.LocationOf(tx, w.owner)
+		groups, err = groupsFor(tx, w.owner, func(f string) map[string]bool { return tokenSet(cur[f]) })
 		return
 	})
 	switch {
@@ -224,7 +224,10 @@ func (s *Server) getEditEntry(q *rq) {
 		q.serverError("read entry for edit", err)
 		return
 	}
-	q.render(http.StatusOK, "editentry", &page{Title: "Edit entry", Active: "uploads", EditForm: formOf(id, rev, cur, loc, groups)})
+	if !s.auditView(q, w, "edit", "encounters", id) {
+		return
+	}
+	q.render(http.StatusOK, "editentry", w.pg(&page{Title: "Edit entry", Active: "uploads", EditForm: formOf(id, rev, cur, loc, groups)}))
 }
 
 // formMessage says what was wrong, without repeating the value (constraint 8).
@@ -243,13 +246,13 @@ func formMessage(fields []edit.Field, err error) string {
 
 // postEditEntry saves the form as one edit of one of the signed-in person's own entries. Every
 // value is checked first; a refused save changes nothing.
-func (s *Server) postEditEntry(q *rq) {
+func (s *Server) postEditEntry(q *rq, w who) {
 	id, f := pathID(q), q.r.PostForm
 	var cur map[string]json.RawMessage
 	var loc *time.Location
 	if err := q.st.View(q.r.Context(), func(tx *sql.Tx) (err error) {
-		cur, _, err = edit.Current(tx, q.id.user.ID, id)
-		loc = share.LocationOf(tx, q.id.user.ID)
+		cur, _, err = edit.Current(tx, w.owner, id)
+		loc = share.LocationOf(tx, w.owner)
 		return
 	}); errors.Is(err, edit.ErrNoEntry) || errors.Is(err, edit.ErrNoHead) {
 		q.notFound()
@@ -262,8 +265,11 @@ func (s *Server) postEditEntry(q *rq) {
 	in, shown := entryInput(f, loc, oldMs)
 	baseRev := f.Get("rev")
 	err := q.st.Update(q.r.Context(), true, func(tx *sql.Tx) error {
-		_, _, e := edit.Apply(tx, s.now(), q.id.user.ID, q.id.user.ID, id, baseRev, in)
-		return e
+		_, changed, e := edit.Apply(tx, s.now(), q.id.user.ID, w.owner, id, baseRev, in)
+		if e != nil {
+			return e
+		}
+		return s.audit(tx, q, w, "data.edit", "encounters", id, changed)
 	})
 	if errors.Is(err, edit.ErrNoEntry) || errors.Is(err, edit.ErrNoHead) {
 		q.notFound()
@@ -275,7 +281,7 @@ func (s *Server) postEditEntry(q *rq) {
 			Orgasms: f.Get("orgasms"), Note: f.Get("note"), Zone: loc.String()}
 		form.fill(f.Get("mood"), f.Get("initiator"), strings.Join(f["protect"], ","))
 		_ = q.st.View(q.r.Context(), func(tx *sql.Tx) (e error) {
-			form.Groups, e = groupsFor(tx, q.id.user.ID, func(name string) map[string]bool {
+			form.Groups, e = groupsFor(tx, w.owner, func(name string) map[string]bool {
 				if shown[name] {
 					on := map[string]bool{}
 					for _, t := range f["set_"+name] {
@@ -287,7 +293,7 @@ func (s *Server) postEditEntry(q *rq) {
 			})
 			return
 		})
-		q.render(http.StatusBadRequest, "editentry", &page{Title: "Edit entry", Active: "uploads", Error: msg, EditForm: form})
+		q.render(http.StatusBadRequest, "editentry", w.pg(&page{Title: "Edit entry", Active: "uploads", Error: msg, EditForm: form}))
 		return
 	}
 	if err != nil {
@@ -295,13 +301,14 @@ func (s *Server) postEditEntry(q *rq) {
 		return
 	}
 	q.setFlash("entry-saved")
-	q.redirect("/entries/" + url.PathEscape(id))
+	q.redirect(w.prefix + "/entries/" + url.PathEscape(id))
 }
 
 // ---- history and undo, for entries and partners ----
 
 type histKind struct {
 	fields  []edit.Field
+	table   string // the Tryst table, for the admin log
 	base    string // the path of the thing, without its id
 	back    string
 	backTo  string // where the back link goes; empty means the thing itself
@@ -311,8 +318,8 @@ type histKind struct {
 }
 
 var (
-	entryKind = histKind{edit.Fields, "/entries/", "Back to the entry", "", edit.Current, edit.History, edit.Revert}
-	partnKind = histKind{edit.PartnerFields, "/partners/", "Back to my partners", "/partners", edit.PartnerCurrent, edit.PartnerHistory, edit.PartnerRevert}
+	entryKind = histKind{edit.Fields, "encounters", "/entries/", "Back to the entry", "", edit.Current, edit.History, edit.Revert}
+	partnKind = histKind{edit.PartnerFields, "partners", "/partners/", "Back to my partners", "/partners", edit.PartnerCurrent, edit.PartnerHistory, edit.PartnerRevert}
 )
 
 // catalogLabels maps every custom token of the owner's catalogs to its label.
@@ -330,20 +337,20 @@ func catalogLabels(tx *sql.Tx, owner string) (map[string]string, error) {
 	return out, nil
 }
 
-func (s *Server) historyPage(q *rq, k histKind, id, errMsg string) (*page, bool) {
+func (s *Server) historyPage(q *rq, w who, k histKind, id, errMsg string) (*page, bool) {
 	var hist []edit.Revision
 	var head string
 	var loc *time.Location
 	var labels map[string]string
 	err := q.st.View(q.r.Context(), func(tx *sql.Tx) (err error) {
-		if _, head, err = k.current(tx, q.id.user.ID, id); err != nil {
+		if _, head, err = k.current(tx, w.owner, id); err != nil {
 			return err
 		}
-		loc = share.LocationOf(tx, q.id.user.ID)
-		if labels, err = catalogLabels(tx, q.id.user.ID); err != nil {
+		loc = share.LocationOf(tx, w.owner)
+		if labels, err = catalogLabels(tx, w.owner); err != nil {
 			return err
 		}
-		hist, err = k.history(tx, q.id.user.ID, id)
+		hist, err = k.history(tx, w.owner, id)
 		return
 	})
 	if errors.Is(err, edit.ErrNoEntry) || errors.Is(err, edit.ErrNoHead) {
@@ -354,14 +361,20 @@ func (s *Server) historyPage(q *rq, k histKind, id, errMsg string) (*page, bool)
 		q.serverError("read entry history", err)
 		return nil, false
 	}
-	p := &page{Title: "History", Active: "uploads", Error: errMsg, HistID: id, HistRev: head, HistBase: k.base + url.PathEscape(id), HistBack: k.back, HistBackHref: k.backTo}
+	p := &page{Title: "History", Active: "uploads", Error: errMsg, HistID: id, HistRev: head, HistBase: w.prefix + k.base + url.PathEscape(id), HistBack: k.back, HistBackHref: k.backTo}
 	if p.HistBackHref == "" {
 		p.HistBackHref = p.HistBase
 	}
 	for _, r := range hist {
 		row := histRow{ID: r.ID, When: r.At.In(loc).Format(entryFmt), By: "You"}
-		if !r.ByOwner {
+		switch {
+		case w.admin && r.ByOwner:
+			row.By = "The person"
+		case !r.ByOwner:
 			row.By = "The administrator"
+			if w.admin {
+				row.By = "An administrator"
+			}
 		}
 		for _, c := range r.Changes {
 			row.Changes = append(row.Changes, histChange{fieldLabel(k.fields, c.Field), valueText(c.Field, c.Old, loc, labels), valueText(c.Field, c.New, loc, labels)})
@@ -371,25 +384,28 @@ func (s *Server) historyPage(q *rq, k histKind, id, errMsg string) (*page, bool)
 	return p, true
 }
 
-func (s *Server) showHistory(q *rq, k histKind) {
-	if p, ok := s.historyPage(q, k, pathID(q), ""); ok {
-		q.render(http.StatusOK, "history", p)
+func (s *Server) showHistory(q *rq, w who, k histKind) {
+	if p, ok := s.historyPage(q, w, k, pathID(q), ""); ok && s.auditView(q, w, "history", k.table, pathID(q)) {
+		q.render(http.StatusOK, "history", w.pg(p))
 	}
 }
 
-func (s *Server) revertEdit(q *rq, k histKind) {
+func (s *Server) revertEdit(q *rq, w who, k histKind) {
 	id, f := pathID(q), q.r.PostForm
 	err := q.st.Update(q.r.Context(), true, func(tx *sql.Tx) error {
-		_, _, e := k.revert(tx, s.now(), q.id.user.ID, q.id.user.ID, id, f.Get("rev"), f.Get("revision"))
-		return e
+		_, changed, e := k.revert(tx, s.now(), q.id.user.ID, w.owner, id, f.Get("rev"), f.Get("revision"))
+		if e != nil {
+			return e
+		}
+		return s.audit(tx, q, w, "data.revert", k.table, id, changed)
 	})
 	if errors.Is(err, edit.ErrNoEntry) || errors.Is(err, edit.ErrNoHead) {
 		q.notFound()
 		return
 	}
 	if msg := formMessage(k.fields, err); msg != "" {
-		if p, ok := s.historyPage(q, k, id, msg); ok {
-			q.render(http.StatusBadRequest, "history", p)
+		if p, ok := s.historyPage(q, w, k, id, msg); ok {
+			q.render(http.StatusBadRequest, "history", w.pg(p))
 		}
 		return
 	}
@@ -398,26 +414,29 @@ func (s *Server) revertEdit(q *rq, k histKind) {
 		return
 	}
 	q.setFlash("entry-reverted")
-	q.redirect(k.base + url.PathEscape(id) + "/history")
+	q.redirect(w.prefix + k.base + url.PathEscape(id) + "/history")
 }
 
 // getEntryHistory lists the edits of one of the person's own entries, newest first.
-func (s *Server) getEntryHistory(q *rq) { s.showHistory(q, entryKind) }
+func (s *Server) getEntryHistory(q *rq, w who) { s.showHistory(q, w, entryKind) }
 
 // postRevertEntry sets back what one earlier edit changed, as a new edit.
-func (s *Server) postRevertEntry(q *rq) { s.revertEdit(q, entryKind) }
+func (s *Server) postRevertEntry(q *rq, w who) { s.revertEdit(q, w, entryKind) }
 
 // ---- partners ----
 
 // getPartners lists the signed-in person's own partners, so they can be renamed. Only their rows.
-func (s *Server) getPartners(q *rq) {
+func (s *Server) getPartners(q *rq, w who) {
 	var items []edit.Item
 	err := q.st.View(q.r.Context(), func(tx *sql.Tx) (err error) {
-		items, err = edit.Partners(tx, q.id.user.ID)
+		items, err = edit.Partners(tx, w.owner)
 		return
 	})
 	if err != nil {
 		q.serverError("list partners", err)
+		return
+	}
+	if !s.auditView(q, w, "partners", "user", "") {
 		return
 	}
 	p := &page{Title: "My partners", Active: "uploads"}
@@ -430,15 +449,15 @@ func (s *Server) getPartners(q *rq) {
 		}
 		p.PartnerRows = append(p.PartnerRows, partnerRow{ID: it.ID, Name: name})
 	}
-	q.render(http.StatusOK, "partners", p)
+	q.render(http.StatusOK, "partners", w.pg(p))
 }
 
-func (s *Server) getEditPartner(q *rq) {
+func (s *Server) getEditPartner(q *rq, w who) {
 	id := pathID(q)
 	var cur map[string]json.RawMessage
 	var rev string
 	err := q.st.View(q.r.Context(), func(tx *sql.Tx) (err error) {
-		cur, rev, err = edit.PartnerCurrent(tx, q.id.user.ID, id)
+		cur, rev, err = edit.PartnerCurrent(tx, w.owner, id)
 		return
 	})
 	switch {
@@ -449,24 +468,30 @@ func (s *Server) getEditPartner(q *rq) {
 		q.serverError("read partner for edit", err)
 		return
 	}
-	q.render(http.StatusOK, "editpartner", &page{Title: "Edit partner", Active: "uploads",
-		PartnerForm: &partnerForm{ID: id, Rev: rev, Name: edit.Describe(cur["displayName"]), Note: edit.Describe(cur["note"])}})
+	if !s.auditView(q, w, "edit", "partners", id) {
+		return
+	}
+	q.render(http.StatusOK, "editpartner", w.pg(&page{Title: "Edit partner", Active: "uploads",
+		PartnerForm: &partnerForm{ID: id, Rev: rev, Name: edit.Describe(cur["displayName"]), Note: edit.Describe(cur["note"])}}))
 }
 
-func (s *Server) postEditPartner(q *rq) {
+func (s *Server) postEditPartner(q *rq, w who) {
 	id, f := pathID(q), q.r.PostForm
 	in := map[string]string{"displayName": f.Get("name"), "note": strings.ReplaceAll(f.Get("note"), "\r\n", "\n")}
 	err := q.st.Update(q.r.Context(), true, func(tx *sql.Tx) error {
-		_, _, e := edit.PartnerApply(tx, s.now(), q.id.user.ID, q.id.user.ID, id, f.Get("rev"), in)
-		return e
+		_, changed, e := edit.PartnerApply(tx, s.now(), q.id.user.ID, w.owner, id, f.Get("rev"), in)
+		if e != nil {
+			return e
+		}
+		return s.audit(tx, q, w, "data.edit", "partners", id, changed)
 	})
 	if errors.Is(err, edit.ErrNoEntry) || errors.Is(err, edit.ErrNoHead) {
 		q.notFound()
 		return
 	}
 	if msg := formMessage(edit.PartnerFields, err); msg != "" {
-		q.render(http.StatusBadRequest, "editpartner", &page{Title: "Edit partner", Active: "uploads", Error: msg,
-			PartnerForm: &partnerForm{ID: id, Rev: f.Get("rev"), Name: f.Get("name"), Note: f.Get("note")}})
+		q.render(http.StatusBadRequest, "editpartner", w.pg(&page{Title: "Edit partner", Active: "uploads", Error: msg,
+			PartnerForm: &partnerForm{ID: id, Rev: f.Get("rev"), Name: f.Get("name"), Note: f.Get("note")}}))
 		return
 	}
 	if err != nil {
@@ -474,11 +499,11 @@ func (s *Server) postEditPartner(q *rq) {
 		return
 	}
 	q.setFlash("partner-saved")
-	q.redirect("/partners")
+	q.redirect(w.prefix + "/partners")
 }
 
-func (s *Server) getPartnerHistory(q *rq) { s.showHistory(q, partnKind) }
-func (s *Server) postRevertPartner(q *rq) { s.revertEdit(q, partnKind) }
+func (s *Server) getPartnerHistory(q *rq, w who) { s.showHistory(q, w, partnKind) }
+func (s *Server) postRevertPartner(q *rq, w who) { s.revertEdit(q, w, partnKind) }
 
 // entryInput turns the entry form into what edit.Apply and edit.Add take. A set is saved only if
 // the form showed it, so a group with nothing to choose is never cleared. A time left as it was

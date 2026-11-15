@@ -743,7 +743,7 @@ is a recurring check, not a one-off.
 - **Not matched, on purpose:** "Today/Yesterday" headings (the server would need to know each viewer's today and they change under a cached page); the phone's locale (Alcove has no locale setting yet).
 
 ## D-42 — Editing: change records over an upload, replayed on rebuild (M5)
-- **Status:** Accepted 2026-11-15. Slices 1 to 3 built (see the addenda below); slice 4 still to do.
+- **Status:** Accepted 2026-11-15. Slices 1 to 4 built (see the addenda below); export is M6.
 - **Context:** D-19 fixed what may be edited. Today the row cache is derived from the head upload only, so an edit stored only in the cache would be lost by "Rebuild now". Uploads must never change (constraint 1), every admin action is logged without content (6), deletes are soft with 10 and 45 day windows (7), and every shared view reads the cache through the one gate.
 - **Decision:**
   1. **An edit is a revision of kind `edit`** (the column already exists): its parent is the head, its `upload_id` is the same base upload, `created_by` is the person or the admin. Its content is rows in a new table `change` (schema v10, additive): revision, owner, table, row id, field, old value, new value, op (`set`, `add`, `delete`, `restore`). Values are JSON, so they are sealed with everything else, and a purge deletes them with the revision.
@@ -777,4 +777,12 @@ is a recurring check, not a one-off.
 - **Restore:** a new revision puts every row back at its old position (`op = restore`), inside the person's window (the retention setting, 10 days). After it, the values wiped by a purge or a window that has passed make it `ErrExpired`. Restoring an entry that is already there is refused.
 - **Wipe:** the purge job wipes the stored values of deleted entries older than the administrator's window (45 days); the deletion stays in the history, and a rebuild keeps the entry deleted. The admin log line gains `,entries:N` only when something was wiped.
 - **Pages:** Add an entry, Delete (a confirmation page first), Recently deleted entries (restore buttons while the window is open), all linked from My entries. Order of checks: not found before stale, so a request for someone else's entry is a 404, never a conflict.
-- **Still open (slice 4):** the administrator's own editing, delete and restore, with the log entries, and recovery of an entry in the second window.
+- **Still open (slice 4):** see the next addendum.
+
+### D-42 addendum: slice 4 as built
+- **Pages:** the administrator's own list of People gets a Data button for each person, opening `/admin/people/{id}`: their entries, partners, and recently deleted entries. The edit, history, undo, delete and restore pages are the same handlers the person uses, run for the person named in the path (`who` in `internal/server/person.go`), so the rules, the checks and the stale-revision guard are shared. A person who does not exist, or any request from someone who is not the administrator, gets the not-found or refusal page.
+- **Log (constraint 6):** every page that shows a person's data first writes `data.view` (target: the person, or the table and `person:row`; the field column holds only the kind of page). Every change writes `data.edit`, `data.revert`, `data.delete` or `data.restore` in the same transaction as the change, so both commit or neither does. The target is the table (`encounters`, `partners`) and `owner:row`; the fields are the field names touched, never a value. The log's own alphabet check refuses anything that could carry content.
+- **Step-up:** a change asks for the administrator's password again, like every other admin change; looking does not.
+- **Windows:** the administrator restores a deleted entry for the administrator window (45 days), the person for theirs (10). The purge wipes the stored values after the administrator window, as before. The person sees the administrator's edits in their history labelled "The administrator" and can undo them; the administrator sees "The person" and "An administrator".
+- **Recovery from any revision:** the history lists every edit and each can be undone as a new edit; a whole earlier upload is recovered from Recently deleted uploads (M2).
+- **Not done:** the administrator adding an entry on someone's behalf (a new entry is a personal act and needs the person's phone layout anyway); photos are not shown on the administrator's entry page; admin search over everything is M8.

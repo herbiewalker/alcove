@@ -8,6 +8,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) · Versioning: 
 ## [Unreleased]
 
 ### Added
+- Admin editing (D-42 slice 4): the administrator can open, edit, delete and restore any person's entries and rename their partners (People, Data). Every look and every change is written to the admin log with the table, the row and the field names, never the values; changes ask for the password again; the administrator restores a deleted entry for 45 days.
 - Editing (D-42): add, delete and restore entries; edit your own entries (time, length, rating, mood, who started it, protection, orgasms, acts, positions, kinks, settings, toys, occasions, note) and rename your partners from My entries. Each save is a new version with a history and an undo; your uploaded backup is never changed, a rebuild keeps your edits, spaces see them at once. Store schema v10.
 - Photo galleries (D-40): My photos under My data, and Photos on each space page. Blurred until tapped, lazy loaded, 24 to a page, through the same gates as shared entries.
 

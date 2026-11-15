@@ -115,8 +115,8 @@
 
 ## M5 — Editing
 
-- [ ] Editing scope per D-19, including adding new entries; change-sets, revisions, history and diff in the browser (F14). **Slices 1 and 2 done (D-42): own-entry fields, set fields from the catalog, partner names, history, undo.** To do: slice 3 add, delete and restore entries
-- [ ] Admin edit of anyone's data, logged; recovery from any revision
+- [x] Editing scope per D-19, including adding new entries; change-sets, revisions, history and diff in the browser (F14). **Slices 1 to 3 done (D-42): own-entry fields, set fields, partner names, add, delete and restore, history, undo.**
+- [x] Admin edit of anyone's data, logged; recovery from any revision. **Slice 4 done (D-42): /admin/people, every look and change in the admin log, the 45-day restore.** Not done: the administrator adding an entry for someone, and viewing photos (admin search is M8).
 - **Exit:** edits never alter an upload; the admin log records every edit without content.
 
 ## M6 — Backup writer and export *(the riskiest milestone; S1 has already de-risked the concept)*

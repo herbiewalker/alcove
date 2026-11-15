@@ -1,8 +1,8 @@
 {{define "content"}}
 {{with .EditForm}}
 <h1>{{if .New}}Add entry{{else}}Edit entry{{end}}</h1>
-<p class="muted">{{if .New}}A new entry is added to your current data. It is saved as a new version, and your uploaded backup is never changed. It reaches your phone only when you export and restore a backup. Photos can only come from the phone.{{else}}Your changes are saved as a new version. Your uploaded backup is never changed, and every change can be undone from the history. Nothing here changes your phone until you export and restore a backup.{{end}} Times are in your time zone ({{.Zone}}).</p>
-<form class="card" method="post" action="{{if .New}}/entries/new{{else}}/entries/{{.ID | urlquery}}/edit{{end}}" autocomplete="off">
+<p class="muted">{{if $.Prefix}}You are editing {{$.PersonName}}'s entry as administrator. It is saved as a new version that they can see in the history and undo, and the uploaded backup is never changed. The admin log records which entry and which fields you changed, never the values. Times are in their time zone ({{.Zone}}).{{else}}{{if .New}}A new entry is added to your current data. It is saved as a new version, and your uploaded backup is never changed. It reaches your phone only when you export and restore a backup. Photos can only come from the phone.{{else}}Your changes are saved as a new version. Your uploaded backup is never changed, and every change can be undone from the history. Nothing here changes your phone until you export and restore a backup.{{end}} Times are in your time zone ({{.Zone}}).{{end}}</p>
+<form class="card" method="post" action="{{if .New}}/entries/new{{else}}{{$.Prefix}}/entries/{{.ID | urlquery}}/edit{{end}}" autocomplete="off">
   <input type="hidden" name="csrf" value="{{$.CSRF}}">
   <input type="hidden" name="rev" value="{{.Rev}}">
   <div class="field">
@@ -47,7 +47,7 @@
     <label for="note">Note</label>
     <textarea id="note" name="note" rows="6" maxlength="20000">{{.Note}}</textarea>
   </div>
-  <div class="actions"><button class="btn" type="submit" data-busy="Saving...">Save</button> <a class="btn secondary" href="{{if .New}}/entries{{else}}/entries/{{.ID | urlquery}}{{end}}">Cancel</a>{{if not .New}} <a class="btn danger" href="/entries/{{.ID | urlquery}}/delete">Delete this entry</a>{{end}}</div>
+  <div class="actions"><button class="btn" type="submit" data-busy="Saving...">Save</button> <a class="btn secondary" href="{{if .New}}/entries{{else}}{{$.Prefix}}/entries/{{.ID | urlquery}}{{end}}">Cancel</a>{{if not .New}} <a class="btn danger" href="{{$.Prefix}}/entries/{{.ID | urlquery}}/delete">Delete this entry</a>{{end}}</div>
 </form>
 {{end}}
 {{end}}

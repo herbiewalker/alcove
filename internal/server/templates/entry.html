@@ -1,7 +1,7 @@
 {{define "content"}}
 {{with .Detail}}
 <h1>{{.Local.Format "Monday, Jan 2, 2006"}}</h1>
-<p class="muted">{{.Local.Format "3:04 PM"}} in {{if .Mine}}your{{else}}{{.OwnerName}}'s{{end}} time zone. {{if .Mine}}Your entry.{{else}}Shared by {{.OwnerName}}.{{end}}
+<p class="muted">{{.Local.Format "3:04 PM"}} in {{if $.Prefix}}{{$.PersonName}}'s{{else if .Mine}}your{{else}}{{.OwnerName}}'s{{end}} time zone. {{if $.Prefix}}Their entry, opened by you as administrator (written to the admin log). Photos are not shown here.{{else if .Mine}}Your entry.{{else}}Shared by {{.OwnerName}}.{{end}}
 {{if .Private}} <b>Private:</b> nobody else can see it.{{end}}</p>
 
 <section class="card">
@@ -52,5 +52,5 @@
 <p class="muted">{{.OwnerName}} keeps notes out of this space.</p>
 {{end}}
 {{end}}
-<p><a class="btn secondary" href="{{.DetailBack}}">Back to {{.DetailBackLabel}}</a>{{if .Detail.Mine}} <a class="btn secondary" href="/entries">Private or shared</a>{{if not .SpaceID}} <a class="btn" href="/entries/{{.Detail.ID | urlquery}}/edit">Edit</a> <a class="btn secondary" href="/entries/{{.Detail.ID | urlquery}}/history">History</a>{{end}}{{end}}</p>
+<p><a class="btn secondary" href="{{.DetailBack}}">Back to {{.DetailBackLabel}}</a>{{if .Prefix}} <a class="btn" href="{{.Prefix}}/entries/{{.Detail.ID | urlquery}}/edit">Edit</a> <a class="btn secondary" href="{{.Prefix}}/entries/{{.Detail.ID | urlquery}}/history">History</a> <a class="btn danger" href="{{.Prefix}}/entries/{{.Detail.ID | urlquery}}/delete">Delete</a>{{else if .Detail.Mine}} <a class="btn secondary" href="/entries">Private or shared</a>{{if not .SpaceID}} <a class="btn" href="/entries/{{.Detail.ID | urlquery}}/edit">Edit</a> <a class="btn secondary" href="/entries/{{.Detail.ID | urlquery}}/history">History</a>{{end}}{{end}}</p>
 {{end}}
