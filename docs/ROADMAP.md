@@ -121,14 +121,12 @@
 
 ## M6 — Backup writer and export *(the riskiest milestone; S1 has already de-risked the concept)*
 
-> Design accepted in D-43 (2026-11-15). Slices: (1) the writer and read-back (**done**), (2) the export pages (**done**), (3) the emulator round trip.
+> Design accepted in D-43 (2026-11-15). Slices: (1) the writer and read-back (**done**), (2) the export pages (**done**), (3) the emulator round trip (**done**, D-43 addendum).
 
-- [ ] Writer: materialize a revision, re-encrypt as a fresh `TRYSTBK1` (all entries DEFLATED, `data.json` first); base-revision warning and diff (F15)
-- [ ] Guided restore procedure: wipe first only, merge warned against, plus the "fresh phone backup first" confirmation (F29, D-15 addendum)
-- [ ] **Phone download flow (F30):** the export downloads on a phone with a clear filename, and the guide says how to
-      restore it from Downloads in Tryst
-- [ ] **Emulator round trip:** export an edited backup, restore it in Tryst in both modes, confirm the edits (N8).
-      Never a physical phone.
+- [x] Writer: materialize a revision, re-encrypt as a fresh `TRYSTBK1` (all entries DEFLATED, `data.json` first); base-revision warning and diff (F15)
+- [x] Guided restore procedure: wipe first only, merge warned against, plus the "fresh phone backup first" confirmation (F29, D-15 addendum)
+- [ ] **Phone download flow (F30):** the export downloads with a clear filename and the page says how to restore it from Downloads in Tryst (CI proves the download; trying it in a phone browser is still to do)
+- [x] **Emulator round trip:** done on Tryst 0.6.5 (D-43 addendum): wipe first gives 0 differences in two start states; merge re-confirmed unsafe. Re-run with `scripts/emulator/roundtrip.ps1` (docs/RELEASE_CHECKS.md). Never a physical phone.
 - **Exit:** the round trip passes for Tryst schema v19 (and each further version only after it is added to the
   compatibility table and proven).
 
