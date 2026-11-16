@@ -74,6 +74,8 @@ Carried over from Sanctum, where each one cost time.
 - **Never run `connectedDebugAndroidTest` (Tryst's instrumented tests) with a physical phone attached.**
   It uninstalls the app and wipes its data. → Set `ANDROID_SERIAL=emulator-5554` first. Alcove's own
   backup-writer proof runs against an emulator only.
+- **The emulator round trip (`scripts/emulator/roundtrip.ps1`, docs/RELEASE_CHECKS.md) needs the Android SDK, an AVD at `emulator-5554`, and PowerShell.** Tryst hides its window from screenshots, so the driver reads the accessibility tree (`uiautomator dump`) instead. In Git Bash, `adb` mangles `/sdcard/...` paths: prefix the command with `MSYS_NO_PATHCONV=1` or use PowerShell. Android renames a save that clashes with an existing file to `name (1).tryst`, so give every run a fresh file name. The 16K x86_64 image sometimes crashes Tryst in unrelated code; the script retries and reports it.
+- **PowerShell parses `":text"` as a scope-qualified variable.** → Write `":text"`.
 
 ## Known toolchain gaps on this dev box
 
@@ -83,4 +85,5 @@ Carried over from Sanctum, where each one cost time.
 | No `make` | `make` targets are CI and Linux only | CI; `bootstrap.ps1` locally |
 | No C toolchain | no `-race` locally | CI |
 | Windows signals | graceful shutdown unverifiable locally | a live smoke script on a Docker host |
+| No emulator in CI | the export round trip (N8) cannot run there | `scripts/emulator/roundtrip.ps1` by hand before each release that touches `internal/export`, and for each Tryst release |
 | No real `.tryst` in the repo (by design) | real-file interop is not part of CI | synthetic backups in tests; real-file interop proven by hand on a private copy |

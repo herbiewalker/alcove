@@ -1,6 +1,6 @@
 # Alcove — Data Model
 
-> **Status:** Design intent (2026-11-12). Nothing is implemented. Two things are versioned separately:
+> **Status:** Built through store schema v10 (v0.1.2, 2026-11-15); the "Implemented in" sections at the end record each step. The entity table below is the original design and still reads true except where a later section says otherwise. Two things are versioned separately:
 > Alcove's **store schema** and Tryst's **database schema** (`schemaVersion` inside a backup, v19 at the time
 > of writing). Alcove records the Tryst version it read and never dictates it.
 
@@ -27,7 +27,7 @@
 | `backup_password` | a member's stored Tryst backup password, encrypted, with label and optional hint |
 | `upload` | id, owner, original filename, SHA-256, size, Tryst schema version, stored blob path, verified at |
 | `revision` | id, owner, parent revision, kind (upload or edit), created by, created at |
-| `change` | revision, table, row id, field, old value, new value, op (set, delete, restore) |
+| `change` | revision, table, row id, field, old value, new value, op (set, add, delete, restore) |
 | `row_cache` | a materialized view of a revision's tables for fast reads (derivable, rebuildable) |
 | `space_sharing` | per membership: include notes, include photos, show partner names, paused flag (defaults: notes and photos on, partner names hidden, not paused) |
 | `entry_flag` | per entry: private (kept out of the space). Keyed by owner and entry id, so it survives new revisions |
@@ -156,4 +156,14 @@ not deleted**. From M4 a member's entries are shown only if `consent_version` is
 
 ## Implemented in M5 slice 1 (store schema v10)
 
-`change` (id, revision, owner, table, row id, field, old value, new value as JSON text, op `set`, `add`, `delete` or `restore`; only `set` is written so far). An edit is a `revision` of kind `edit` that shares its upload's `upload_id`; `cache_row` is the upload's rows plus every live edit replayed oldest first, and `cache_head.revision_id` names the head. Deleting an upload gives its edit revisions the same `deleted_at`; restoring clears exactly those. See D-42.
+`change` (id, revision, owner, table, row id, field, old value, new value as JSON text, op `set`, `add`, `delete` or `restore`). An edit is a `revision` of kind `edit` that shares its upload's `upload_id`; `cache_row` is the upload's rows plus every live edit replayed oldest first, and `cache_head.revision_id` names the head. Deleting an upload gives its edit revisions the same `deleted_at`; restoring clears exactly those. See D-42.
+
+## Implemented in M5 slices 2 to 4 and M6 (no schema change)
+
+All of this uses the v10 tables above.
+
+- **Operations.** `set` records one field's old and new value. `add` holds the whole new row. `delete` holds every row removed with an entry (the entry, its partner links and its photo rows, each as `old_value`, with the row's position in `new_value`). `restore` puts them back. The purge (after the administrator window) wipes the `old_value` of `delete` records; the fact of the deletion stays, and a rebuild keeps the entry deleted.
+- **Whose revision.** `revision.created_by` is the person or, for the administrator's edits, the administrator; the history page names which.
+- **Order and rebuild.** `edit.Replay` reads the head upload's live edit revisions by `created_at, rowid` and each revision's changes by `id`. `edit.Summarize` reads the same records, in the same order, to count entries changed, added and deleted and partners changed for the export page.
+- **Export.** Reads `cache_row` (in `cache_head.table_order` and `pos` order) and the head upload's file; writes nothing to the database. The only record of an export is one `admin_log` line (`export.create`, counts only).
+- **Admin editing.** Writes `data.edit`, `data.revert`, `data.delete` and `data.restore` to `admin_log` in the same transaction as the change, and `data.view` for every look. The target is the table and `owner:row`; the fields column holds field names only.

@@ -1,14 +1,13 @@
 # Alcove — Requirements
 
-> **Status:** v1 draft (2026-11-12), from the Phase 0 kickoff. Tracks `CLAUDE.md`'s hard constraints as
+> **Status:** Kickoff draft (2026-11-12), kept current; see "Status of each requirement" near the end for what v0.1.2 has built. Tracks `CLAUDE.md`'s hard constraints as
 > testable NFRs. IDs are stable; add, never renumber.
 
 ## Problem & users
 
 - **Problem:** Tryst keeps private records on one phone with no cloud and no network. A couple cannot see a
   shared history, and entries are tedious to fix on a phone. Sanctum stores backups but deliberately shows nothing.
-- **Users:** a couple first, then family members (for example grown children and their spouses), each group in
-  its own independent space. One admin runs the server.
+- **Users:** couples: people who are partners and want to see each other's logs. Each couple has its own independent space, and a person can belong to more than one (for example with more than one partner). One admin runs the server.
 - **Success criteria (v1):**
   1. Two people each upload a backup and see a shared calendar overlay built only from what each chose to share.
   2. A third person joins a different space, and neither space can see the other.
@@ -71,7 +70,7 @@
 | F24 | Optional notifications to the admin (failed logins, errors, no backup in 30 days) via one configured URL | Could |
 | F25 | Optional member-visible "activity on my data" view, off by default | Could |
 | F26 | A member can prefill their Alcove profile from the `profile` table of their uploaded backup (display name and photo by default; other fields only if chosen). Each profile field has its own share setting and defaults to private | Should |
-| F27 | Invites: an admin invites a person to the server; a space owner invites a person to a space (new or existing account). Invites are single-use, expire (default 7 days), are stored hashed, can be revoked, and are rate-limited on redemption. No e-mail is sent; the link or code is handed over in person or by the family's own channel | Must |
+| F27 | Invites: an admin invites a person to the server; a space owner invites a person to a space (new or existing account). Invites are single-use, expire (default 7 days), are stored hashed, can be revoked, and are rate-limited on redemption. No e-mail is sent; the link or code is handed over in person or through your own channel | Must |
 | F28 | A space shows its members as profile cards built from what each has chosen to share, plus pending invites and join requests for the owner | Should |
 | F29 | The export guide tells the user to restore with "replace my current data" (wipe first), warns that merge loses partner links, and requires the user to confirm they exported a fresh backup from the phone first (D-15 addendum) | Must |
 | F30 | **Phone workflow over the LAN.** A person can export a backup in Tryst on the phone, open Alcove in the phone's browser on the same network, and upload it; and can download an edited `.tryst` to the phone and restore it from Downloads in Tryst. The pages are mobile-first and touch-friendly (D-22) | Must |
@@ -100,6 +99,26 @@
 | N15 | No personal information in the repo | `guards.sh no-secrets`, gitleaks, review |
 | N16 | Decrypted user data exists only in memory or tmpfs, never on the data volume (D-16) | `scripts/guards.sh no-plaintext`: ingest and edit a synthetic dataset, then scan the data directory for ZIP magic, JSON and sentinel strings |
 | N17 | With allowed networks at the default, a request from a public address is refused; in proxy mode forwarded headers are trusted only from configured proxies; in require-TLS mode a login over plain HTTP is refused; an unconfirmed allowed-network change reverts | Tests for each mode |
+
+## Status of each requirement (v0.1.2, 2026-11-15)
+
+Built means it works and has a test. "Partly" and "Not built" say what is missing.
+
+| Built | Requirements |
+|-------|--------------|
+| Yes | F1 to F13, F16, F21, F23, F26 to F29, F32, F33 |
+| Yes, with a change | **F14** history shows each change's old and new values with an undo, not a side-by-side diff. **F15** the export page shows the base upload and what changed (counts and field names) and gives the guided steps; the "newer upload exists" warning became "a new upload starts over, and the page warns before it" (D-42), because a newer upload replaces the chain |
+| Partly | **F17** the administrator can view and edit anyone's entries and partners (logged) but cannot search over everything or see photos there (M8). **F18** the log, its viewer and "verify now" exist; filtering and export of the log do not (M8). **F19** photos are shared, blurred, cleaned and gallery-listed; thumbnails and partner or profile pictures are not built (M7). **F30** upload from a phone browser is checked in a phone-sized browser and in CI; the export download in a real phone browser is not yet tried |
+| Not built | F20 (TOTP), F22 (hide screen), F24 (notifications), F25 (activity view), F31 (QR codes) |
+
+| NFR | Status |
+|-----|--------|
+| N1 to N7, N9 to N13, N15 to N17 | Verified by the tests and guards named in the table above, run in CI |
+| N4 | Log-scrape tests cover an upload, an admin edit and an export (counts only, no content or passwords) |
+| N8 | Proven on a Tryst 0.6.5 emulator, wipe first, with synthetic data (D-43 addendum). Not on a real phone; repeat for each Tryst release (docs/RELEASE_CHECKS.md) |
+| N14 | Checked in a phone-sized browser while building; Chrome on a real Android phone is not yet tried |
+
+Success criterion 3 (edit, export, restore on an emulator) is met. Criteria 1, 2, 4, 5 and 6 are met in tests and the container smoke; living with it for real is the owner's step (RUNBOOK 12).
 
 ## Riskiest assumption
 

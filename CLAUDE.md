@@ -1,7 +1,7 @@
 # Alcove — Project Context for Claude Code
 
-> A self-hosted, LAN-only server where a couple (or a family) can upload their **Tryst** backups,
-> manage and edit their entries on a computer, and see everyone else in their space, side by side.
+> A self-hosted, LAN-only server where a couple can upload their **Tryst** backups,
+> manage and edit their entries on a computer, and see each other's entries in a private space, side by side.
 
 Project name **Alcove**, Go module **`github.com/herbiewalker/alcove`**, container **`alcove`**.
 **Size class:** **L · app-service** — per the DevPlaybook sizing matrix. Network service, multiple
@@ -162,6 +162,7 @@ make check          # everything CI runs, locally
 - Cut releases only with a release script that runs the gates and checks CI on the exact commit.
 - Real hardware beats a green build: a live smoke script before every release.
 - Never run instrumented tests with a physical phone attached; use the emulator.
+- A file Alcove writes is proven by restoring it in Tryst on an emulator and comparing the app's own re-export (`scripts/emulator/roundtrip.ps1`), never by reading it back with Alcove's own reader alone.
 
 ## Key documents
 
@@ -172,4 +173,6 @@ make check          # everything CI runs, locally
 - [docs/ROADMAP.md](docs/ROADMAP.md)
 - [docs/DECISIONS.md](docs/DECISIONS.md) — ADR log
 - [CHANGELOG.md](CHANGELOG.md)
+- [RUNBOOK.md](RUNBOOK.md) — first start, backups, updating, editing and exporting, the Unraid deploy
+- [docs/RELEASE_CHECKS.md](docs/RELEASE_CHECKS.md) — the emulator round trip, run before releases that touch export and for each Tryst release
 - [CRITICAL_ASSETS.md](CRITICAL_ASSETS.md) — what git deliberately doesn't hold

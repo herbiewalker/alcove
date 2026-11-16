@@ -7,6 +7,11 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) · Versioning: 
 
 ## [Unreleased]
 
+### Changed
+- Wording: Alcove is described as being for couples (partners who share their Tryst data), not for families, in the README, the Unraid template, the Spaces page and the requirements. The README's warning box is gone; the same trust statement stays under Known limitations and in the threat model.
+- Documentation brought up to date with what is built: the README (status, install, what is and is not proven), RUNBOOK sections 13 to 15 (updating and going back, editing and exporting to the phone, editing as the administrator), the requirements status table, the architecture components and flows, the data model, threat model risks R28 to R30, setup notes for the emulator check, and the critical assets list.
+- RUNBOOK: going back to an older release means restoring the instance backup taken before the update. An older build refuses a database that a newer one has migrated, so setting the image tag back does not work.
+
 ## [0.1.2] - 2026-11-15
 
 Upgrading from 0.1.1: the update restarts the container and migrates the database (schema 9 to 10, one new table) by itself; your data and key are untouched and there is nothing else to do. Before your first real export, read the page it opens: export a fresh backup on the phone first, and restore with "Replace my current data with the backup" on.

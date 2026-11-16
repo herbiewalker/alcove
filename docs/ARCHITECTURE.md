@@ -1,7 +1,7 @@
 # Alcove — Architecture
 
-> **Status:** Design intent (2026-11-12). Nothing below is implemented beyond the scaffold. Update it in
-> the same change that makes it stale (principle 3).
+> **Status:** Describes what is built as of v0.1.2 (2026-11-15), milestones M0 to M6 and the first piece of M7. The
+> decisions behind each part are in [DECISIONS.md](DECISIONS.md). Update it in the same change that makes it stale (principle 3).
 
 ## Stack
 
@@ -33,48 +33,53 @@
                                                              data dir (encrypted)   key file (elsewhere)
 ```
 
-## Planned components
+## Components
+
+Every package below exists. The newest ones are `edit` (M5), `export` (M6) and `photo` (M7). The `server` package is the only one that speaks HTTP; everything else is plain Go that the tests drive directly.
 
 | Package | Responsibility |
 |---------|----------------|
-| `cmd/alcove` | wiring, config from the environment, signals, graceful shutdown, `-healthcheck` |
-| `internal/config` | env-only config; refuses to start if the key file is inside the data directory |
-| `internal/trystbk` | `TRYSTBK1` reader and writer: header, PBKDF2, streaming AEAD, ZIP and generic `data.json` tables |
-| `internal/store` | encrypted persistence: revisions, change-sets, media, soft-delete tombstones |
-| `internal/backup`, `internal/backupcli` | instance backup (one tar of ciphertext, hashed index, sidecar checksum), verify, restore, retention, and the restore drill; the command-line tools (M3 piece A, D-28) |
-| `internal/ingest` | M3 piece B: store an upload verbatim, judge it (duplicate, password, format, size), record it as a revision with its derived row cache, search index and sealed password in one transaction; rebuild the derived data (D-29) |
-| `internal/retention`, `internal/admincli` | M3 piece C: soft delete and restore (user and admin windows), the real purge and its crash-leftover sweep, and the break-glass `reset-password` (D-30) |
-| `internal/spaces` | M3 piece D: spaces, memberships, invites, the space code, join requests, and `Role`, the one visibility gate (D-31) |
-| `internal/compare` | M4 piece D: the compare metrics registry (versioned, schema-aware) built on `share` output only (D-35) |
-| `internal/profile` | M4 piece B: a member's profile fields and their share flags, validation (adult birth date, lengths), age display, and the offers read from the backup's profile row (D-33) |
-| `internal/share` | M4 pieces A and C (`Days` for the calendar): `Entries`, the one read gate for other members' entries (membership, pause, consent wording, private flag, include-notes), the owner's own list and the private flag (D-32) |
-| `internal/auth` | accounts, Argon2id password hashing, in-memory sessions with a step-up window, sign-in rate limiting (M2b). TOTP arrives later |
-| `internal/netsec` | D-23 transport security: allowed networks, proxy mode and client-address resolution, require-TLS, and the self-reverting network change (M2b) |
-| `internal/server` | M2b web layer: the middleware chain (security headers, network gate, locked and first-run gates), CSRF, templates and static files, sign-in, first run, the admin console, log viewer and network settings |
-| `internal/spaces` | spaces, memberships, invites and join requests, roles, member profile cards |
-| `internal/profile` | profile prefill from a Tryst `profile` row, per-field share settings |
-| `internal/sharing` | the visibility check every view goes through: space membership, pause, per-entry private flag, include settings |
-| `internal/views` | calendar overlay and compare metrics computed from shared rows |
-| `internal/edit` | change-sets, diff, history, restore from revisions |
-| `internal/adminlog` | append-only hash-chained log and its verifier |
-| `internal/retention` | soft-delete windows and purge |
-| `internal/httpapi` | routes, templates, CSP, static files |
-| `internal/notify` | optional single-URL notifier (the only outbound client) |
+| `cmd/alcove` | wiring, config from the environment, signals, graceful shutdown, `-healthcheck`, and the sub-commands (`keygen`, `keycheck`, `backup-verify`, `restore`, `drill`, `reset-password`, `test-backup`) |
+| `internal/app`, `internal/config` | the start-up sequence and the environment-only settings; refuses to start when a hard constraint would be broken (key inside the data directory, no tmpfs) |
+| `internal/keyfile`, `internal/keycli` | the master key file (generate, optional passphrase wrapping, fingerprint, the outside-the-data check) and the `keygen` and `keycheck` commands |
+| `internal/seal`, `internal/store` | the sealed, in-memory SQLite database (D-16): migrations (schema v10), per-user data keys, full-text search, an atomic seal with one previous generation |
+| `internal/blobstore` | uploads verbatim and immutable with a SHA-256; photos encrypted under the owner's data key |
+| `internal/trystbk` (+ `synth`) | the `TRYSTBK1` reader and writer: header, PBKDF2, streaming AEAD, ZIP and generic `data.json` tables; `synth` makes deterministic synthetic backups for every test |
+| `internal/ingest` | store an upload verbatim, judge it, record it as a revision with its derived row cache, search index and sealed password in one transaction; rebuild the cache (and replay edits); `Export` gathers an export plan |
+| `internal/edit` | how a person's entries change (D-19, D-42): validated edits, add, delete and restore, history and undo, replay on rebuild, and the change summary the export page shows |
+| `internal/export` | the cache written back as a fresh backup (D-43): photo filtering, the DEFLATE archive, sealing, and the read-back check before anything is offered |
+| `internal/photo` | photo bytes on their way to other people: format checks and cleaning (D-39) |
+| `internal/share` | the ONE read gate for other people's entries (D-32): membership, pause, consent wording, the private flag, include settings; the owner's own list and detail, the calendar days, galleries (D-40) and search |
+| `internal/spaces` | spaces, memberships, invites, join requests and `Role`, the one visibility gate (D-31) |
+| `internal/profile` | a member's profile fields, their share flags, the adult birth date rule, and what the backup's profile row offers (D-33) |
+| `internal/compare` | the compare metrics registry, versioned and schema-aware, built on `share` output only (D-35) |
+| `internal/auth` | accounts, Argon2id hashing, in-memory sessions with a step-up window, sign-in rate limiting |
+| `internal/netsec` | transport security (D-23): allowed networks, proxy mode and client address, require-TLS, the self-reverting network change |
+| `internal/adminlog` | the append-only, hash-chained admin log and its verifier; free-text fields are restricted to identifiers so content cannot reach it |
+| `internal/retention`, `internal/admincli` | soft delete and restore (10 and 45 day windows), the real purge and its crash sweep, and the break-glass `reset-password` |
+| `internal/backup`, `internal/backupcli` | the instance backup (a tar of ciphertext with a hashed index), verify, restore, retention, the restore drill, and their commands (D-28) |
+| `internal/server` | the web layer: security headers, network gate, CSRF, templates and the one script; sign-in, accounts, spaces, entries, galleries, editing, the export pages, and the admin console (`/admin/people` for editing anyone's data, with every look and change logged) |
+| `tools/logocrop` | makes the square header mark and favicons from the master logo |
+
+Not built: `internal/notify` (the optional single-URL notifier, F24) and TOTP (F20). Both are optional and sit in M8.
 
 ## Key data flows
 
 1. **Upload.** Read the cleartext header, bound the iteration count, SHA-256 the file, trial-decrypt with the
    member's stored password, read tables generically, then store the original bytes and record a base revision.
    Duplicates are refused before any KDF work.
-2. **Edit.** The browser edits an entry; the server records a change-set over a base revision (table, row id,
-   field, old, new) and produces a new revision. The admin log records the action without content.
-3. **Export.** Materialize a revision's tables (edited rows plus every untouched table and column), re-encrypt
-   as a fresh `TRYSTBK1`, and offer it as a new file. Show the base upload, warn if a newer one exists, and
-   show a diff first. Requires step-up re-login.
+2. **Edit.** The browser edits an entry (or a partner, or adds or deletes a whole entry); the server records an edit revision over the upload (D-42):
+   `change` rows of table, row id, field, old and new value, written in the same transaction as the cache row and search text they change. A rebuild
+   re-reads the upload and replays every live edit, and a property test proves both paths agree. When the administrator edits, the same
+   transaction writes an admin log line naming the table, row and fields, never the values.
+3. **Export.** Open the head upload with the owner's password, keep everything that is not a table row as uploaded, put in the cache rows
+   (edits, additions and deletions included), leave out photos whose only entries were deleted, write one DEFLATED archive with `data.json` first, seal
+   it, and read it back with the real reader before offering it (D-43). The page shows the base upload, what changed and the restore steps, and needs
+   a ticked "fresh phone backup first" box and step-up re-login. One admin log line records counts only.
 4. **Profile and invite.** Prefill reads the `profile` row of a verified upload and proposes display name and photo; every other field is imported only if the member ticks it, each with its own private-by-default share setting. An invite is a random one-time token (only its hash is stored) with a scope, expiry and role; redeeming it creates an account or a membership. No e-mail is sent.
 5. **Share.** Views read every member's entries in a space through the visibility check (membership, pause, the per-entry private flag, include settings). Isolation is
    tested across users and spaces.
-6. **Recover.** Deletes write tombstones; a user restores within 10 days, the admin within 45; retention purges later.
+6. **Recover.** Deletes are soft: an upload or an entry is restorable by its owner within 10 days and by the administrator within 45; the purge then really removes it (an entry's stored values are wiped, the fact of the deletion stays).
 
 ## Cross-cutting concerns
 
@@ -107,7 +112,7 @@
 Tryst restores in one of two modes. **Wipe first** replaces everything exactly (server deletions propagate; any phone entry newer
 than the backup is lost). **Merge** overwrites rows by id and adds new ones, but deletions do not propagate and it deletes every
 partner link not in the backup (observed on an emulator, D-15 addendum). The export guide asks the user to confirm a fresh phone
-backup first, then always recommends wipe first, and shows a diff of what the restore would change.
+backup first, then always recommends wipe first, and summarises what changed since the upload (the export page, D-43). The emulator round trip (D-43 addendum, Tryst 0.6.5) proved wipe first exact and merge still unsafe; `scripts/emulator/roundtrip.ps1` repeats it.
 
 ## Riskiest assumption
 
@@ -116,7 +121,7 @@ losing recent writes on a crash. Mitigation: seal on every important write; meas
 
 ## Web UI and the phone workflow (D-22)
 
-Server-rendered, mobile-first pages with inline CSS and at most one same-origin script (upload progress). The phone flow:
+Server-rendered, mobile-first pages with inline CSS and at most one same-origin script (upload and download progress, the time-zone button). The phone flow:
 export in Tryst, open Alcove in the phone browser on the LAN, upload; later download the edited `.tryst` and restore it from
 Downloads in Tryst. Uploads stream to the server with a progress bar; exports download with a clear filename. Reuse
 Sanctum's layout, themes and strict CSP.

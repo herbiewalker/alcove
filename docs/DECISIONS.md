@@ -1,6 +1,6 @@
 # Alcove — Decision Log (ADRs)
 
-> **Status:** Kickoff set and design pass 1 done, 2026-11-12 (D-15 to D-26; O-2, O-3, O-4, O-11 to O-13 resolved; O-10 withdrawn; O-1 and O-7 proposed). Newest at the bottom, open questions last. Never delete an ADR;
+> **Status:** Current through v0.1.2 (2026-11-15): D-1 to D-43. Each entry's own status says whether it is built; the newest entries come after the open questions because they were appended as they were made. Newest at the bottom, open questions last. Never delete an ADR;
 > supersede it with a new one. Format: Nygard-style, trimmed.
 
 ---
@@ -90,7 +90,7 @@
 
 ## D-10 — Multiple independent spaces, owner-approved membership, invite only
 - **Status:** Accepted
-- **Decision:** a server hosts several independent spaces (a couple, a family branch). A person can belong to
+- **Decision:** a server hosts several independent spaces (one per couple, or any group of partners). A person can belong to
   several. Anyone with an account can request to join a space and the space owner approves. There is no open
   sign-up: accounts are created by the admin or by invite, and first run states the service is for consenting adults.
 - **Consequences:** roles are server admin, space owner and member, with last-admin and owner-handoff safeguards.
@@ -127,7 +127,7 @@
   cards built only from what is shared. **Invites** are single-use, expire (default 7 days), are stored as a
   hash, can be revoked and are rate-limited on redemption. The admin invites people to the server; a space
   owner invites people to a space, as a new or an existing account. No e-mail is sent: the link or code is
-  handed over in person or through the family's own channel.
+  handed over in person or through your own channel.
 - **Alternatives:** import the whole profile automatically (leaks sensitive fields); open sign-up with approval
   (breaks invite-only); e-mail invites (an outbound dependency, against constraint 3).
 - **Consequences:** a profile is a derived, editable copy tagged with the revision it came from; changing it in
@@ -565,10 +565,10 @@ is a recurring check, not a one-off.
 - **O-1 — Storage scheme.** *Implemented in M2a (D-16, D-26) and measured; D-16 stands.*
 - **O-2 — Compare metrics.** *Resolved in D-18.*
 - **O-3 — Editable fields.** *Resolved in D-19.*
-- **O-4 — Restore semantics.** *Resolved from code in D-15; emulator proof gates M6.*
+- **O-4 — Restore semantics.** *Resolved in D-15 and proven on an emulator in D-43 (wipe first exact, merge unsafe).*
 - **O-5 — TOTP scope.** Admins only, or any user; recovery-code handling.
-- **O-6 — Location features.** Whether and how to show photo locations on a map, and the default visibility.
-- **O-7 — Admin search.** *FTS5 inside the sealed database works (M2a); term logging resolved in D-20.*
+- **O-6 — Location features.** *Resolved in D-39: coordinates as text, shown only when the owner allows it, no map.*
+- **O-7 — Admin search.** *FTS5 inside the sealed database works (M2a); term logging resolved in D-20. The admin search page itself is M8, not built.*
 - **O-8 — Member activity view.** Whether to ship the optional "activity on my data" view and its default.
 - **O-9 — Shared library extraction.** When and how to extract `trystbk` for both projects.
 - **O-10 — Linking members to Tryst partners.** *Withdrawn in D-21 (the collaborative model needs no matching). May return later as its own feature.*

@@ -8,7 +8,7 @@
 > opening it**; (2) anything with an expiry or a pending rotation also gets an `OPEN_LOOPS.md` entry in
 > the DevPlaybook.
 
-## Inventory (planned; nothing is deployed yet)
+## Inventory (as of v0.1.2)
 
 | Asset | Type | Lives at | Second copy | Expires / rotate | Loses what if lost |
 |-------|------|----------|-------------|------------------|--------------------|
@@ -18,6 +18,7 @@
 | **Alcove instance backup** | encrypted snapshot of the data directory | a second disk or machine, not the same array | a second, offline copy | per the backup schedule | edits and revisions made on the server (**Alcove becomes a system of record once it holds edits**) |
 | **Members' Tryst backup passwords** | passphrases stored inside the app so it can open uploads | encrypted inside the data store; each member's own password manager | each member's own copy | per member | the ability to open that member's uploaded backups |
 | **Notification URL** (optional) | credential (webhook or ntfy topic or token) | the container environment on the host; never in git | password manager | rotate if it leaks | alerts stop, or a stranger can post to the channel |
+| **Exported `.tryst` files** | a full copy of a person's history, sealed under a password they chose | the person's phone (Downloads) and browser; **never stored by Alcove** | none; the person can export again at any time | when the password is shared or the phone is lost | the file is as private as its password (min 8 characters, 600,000 key-derivation rounds); a lost password cannot be recovered, but the data can be exported again |
 | `.env` for the deploy | runtime config | on the host, gitignored | regenerate from `.env.example` | on exposure | nothing secret: paths and ports only, by design |
 
 ## Notes

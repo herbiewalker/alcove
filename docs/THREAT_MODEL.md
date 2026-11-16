@@ -1,6 +1,6 @@
 # Alcove — Threat Model
 
-> **Status:** v1 draft (2026-11-12), aligned with D-3 to D-6 and D-10 to D-11. Keep current: a feature that adds
+> **Status:** Kept current through v0.1.2 (2026-11-15; R28 to R30 added for editing and export). Not yet independently audited (M9). Aligned with D-3 to D-6 and D-10 to D-11. Keep current: a feature that adds
 > an asset or a surface changes this file (principle 3). Unlike Sanctum, Alcove shows content, so this is a
 > new model, not a copy.
 
@@ -39,7 +39,7 @@
 
 | Threat | Mitigation |
 |--------|-----------|
-| T1 opens the page on a shared screen | Authentication, short idle timeout, "hide screen" button, photos blurred until clicked, step-up re-login for export and delete |
+| T1 opens the page on a shared screen | Authentication, short idle timeout, photos blurred until clicked, step-up re-login for export and delete (a "hide screen" button is planned, F22, not built) |
 | T2 reaches the port | LAN only, one published port, rate-limited login, strict CSP, no open sign-up |
 | T3 reads outside their space | Every view reads through the visibility check; isolation tests across non-members, spaces, pause and the private flag (N1) |
 | T5 reads a pulled disk | Data encrypted at rest; the key file lives outside the data directory and the app refuses to start otherwise (N2) |
@@ -48,7 +48,9 @@
 | T8 steals a password | Argon2id hashing, 30-minute idle and 12-hour absolute sessions, sign-in rate limiting, step-up for sensitive actions, password change signs out other devices (M2b). Optional TOTP for admins comes later (R17) |
 | Admin misuse | Hash-chained admin log of every view, search, edit, restore and export (N5) |
 | Logs leak content | Logs carry ids, field names and counts only; a log-scrape test (N4) |
-| A bad export corrupts the phone | Emulator-proven writer, diff and base-revision warning before export, immutable originals kept (N8) |
+| A bad export corrupts the phone | The writer is proven on an emulator (N8, D-43): wipe first restores it exactly. The file is read back and checked before it is offered, the page shows what changed and requires a "fresh phone backup first" confirmation, and originals are never changed |
+| An export leaks | Step-up re-login, built per request and never kept on the server, `no-store`, sealed under a password the person chooses, counts-only log line (R28) |
+| The admin edits or deletes someone's data | Every look and change is an admin log line (table, row, field names), changes need step-up, the person sees and can undo it in their history, deletions are restorable for 10 and 45 days (R29) |
 | Third parties exposed | Partner names hidden in shared views by default |
 
 ## Residual risks
@@ -64,7 +66,7 @@
 - **R4 — Photo location metadata is kept** (a deliberate feature choice). A location can reveal a home address.
   Mitigated by showing a photo's location only when its owner enables it, and a visible marker on photos that carry one.
 - **R5 — A restore overwrites newer phone-side edits to the same entries**, and deletions on the server do not
-  reach the phone. Mitigated by the diff, the base-revision warning and keeping originals. A data-loss risk,
+  reach the phone. Mitigated by the export page (it says which upload the file is based on and what changed, and requires a confirmation that a fresh phone backup was taken first) and by keeping originals. A data-loss risk,
   not a disclosure one.
 - **R6 — Tryst schema drift** can produce an export the app rejects or misreads. Mitigated by generic
   pass-through of unknown columns, refusing newer schemas, and a compatibility table tested on an emulator.
@@ -143,10 +145,13 @@ from the admin, D-3 must be revisited (per-owner keys, browser-side decryption),
   outside `internal/share` selects another owner's rows. What a viewer has already seen cannot be unseen, and the administrator sees every
   entry through their own logged views (R1).
 - **R22 — Invites and codes are bearer secrets (D-31).** Whoever holds a live invite can use it once, and whoever holds a space code can ask
-  to join (the owner still approves). Both travel by a channel Alcove does not control, so a code sent over a family chat is as private as
+  to join (the owner still approves). Both travel by a channel Alcove does not control, so a code sent over a shared chat is as private as
   that chat. Mitigations: 80 bits, one use, 1 to 30 days, revocable, stored only as a hash, shown once, rate-limited, and every outcome
   looks the same to a guesser. A leaked invite is visible to its owner (state "used") and cancelled with one tap; a leaked space code is
   replaced by making a new one. The administrator can see every space, and each look is in the admin log (R1).
 - **R15 — A purge is complete only after the backups that predate it age out (D-26).** Destroying a user's wrapped data key makes their
   photos unreadable on the live instance. Older sealed generations and instance backups still contain that key, so they can still
   open the blobs they also contain. Mitigated by retention on instance backups and by saying so plainly in the runbook.
+- **R28 — An export is the person's whole history in one file (D-43).** The file is sealed under a password the person picks (the same as the upload's by default, or a new one of at least 8 characters), built for one request, never stored on the server, sent `no-store`, and asked for only after a fresh step-up and a ticked confirmation. After that it lives in the phone's Downloads and the browser's download list, protected only by its password and Tryst's key derivation (600,000 PBKDF2 rounds), so a short password is the weak point; the page says so and there is no recovery. The admin log records only that an export happened and four counts. Not in scope: the administrator exporting someone else's data (not built, so there is no new reader).
+- **R29 — The administrator can edit and delete anyone's entries (D-42 slice 4).** Accepted with R1, and bounded: every page that shows a person's data writes `data.view` before it renders, every change writes `data.edit`, `data.revert`, `data.delete` or `data.restore` in the same transaction as the change (so neither exists without the other), the log names the table, `owner:row` and field names and nothing else, changes need a fresh step-up, and the person sees "The administrator" in the entry's history and can undo it. A deletion can be restored by the person for 10 days and by the administrator for 45, then the stored values are wiped. The administrator still sees photos only through the person's own pages (the admin entry page leaves them out), and cannot add entries for someone.
+- **R30 — Restoring is still a manual, destructive step on the phone (D-15, D-43).** Alcove cannot see or undo what the phone does with a file. The proven path is Tryst's "Replace my current data with the backup" (exact on Tryst 0.6.5 in two start states); merge keeps deleted entries and their photos and drops partner links, so the page tells people never to switch it off. Anything added on the phone after the base upload is lost by a wipe restore unless a fresh phone backup was taken first, which is why the confirmation exists. The proof is on an emulator with synthetic data; a real phone, real photos and other Tryst versions are not covered, and the check must be repeated for each Tryst release (docs/RELEASE_CHECKS.md).

@@ -5,6 +5,9 @@
 > Milestones in order; **foundations before features** (principle 2). Each has exit criteria and is not done until
 > they are met. Crypto and storage come before views; the risky writer is proven early by a spike and finished late;
 > the web UI is mobile-first from the first page.
+>
+> **Updated 2026-11-15 (v0.1.2):** M0 to M6 are done. M7 (photos) is partly done, M8 (admin search, log filters, optional TOTP and notifications) and M9 (the audit) are not started, and the live validation (L1) is the owner's.
+
 
 ---
 
@@ -44,7 +47,7 @@
 - [x] Blob store (`internal/blobstore`): uploads verbatim and immutable with a SHA-256, photos encrypted under the owner's data key, owner and id validated
 - [x] `scripts/guards.sh no-plaintext` armed (`TestGuard_NoPlaintext`, forced to fail by making the seal leak a plaintext copy); the scanner itself is tested against each signature it claims to catch
 - [x] Measured on a Windows dev box (a Linux tmpfs figure comes from CI and the live smoke): **50,000 entries with 50,000 search rows**: database 29 MiB, seal 145 ms, reopen 187 ms, search 51 ms. **200,000 of each**: 116 MiB, seal 532 ms, reopen 777 ms, search 219 ms. A household is a small fraction of that, and photos are not in the database. On tmpfs the live database is the RAM cost (SQLite memory sits outside the Go heap, so the Go heap figure is not the one to read)
-- [ ] Rebuild path for the row cache and search index from revisions *(moved to M3, where revisions first exist)*
+- [x] Rebuild path for the row cache and search index from revisions *(moved to M3, where revisions first existed; edits are replayed on it since M5)*
 - **Exit:** met 2026-11-13 locally and in tests (CI and the live smoke confirm it on Linux and in the image): a restart needs no human unlock (default mode); the key file inside the data directory refuses to start; the plaintext guard passes and was forced to fail; a wrong key fails cleanly and leaves the sealed data untouched.
 
 ## M2b — Accounts, admin log, UI shell
@@ -97,17 +100,17 @@
 - [x] **Piece D (D-35):** the compare metrics registry (At a glance, Rhythm, Trend, Variety), the Compare page, per-member time zones
 - [x] **Open an entry (D-37):** a read-only entry page for the owner and, through the gate, for space members
 - [x] **Search (D-38):** members search their own entries and the notes a space shows them
-- [ ] Metrics registry per D-18 (reviewed whenever Tryst Insights changes); space visibility, pause, per-entry private,
+- [x] Metrics registry per D-18 (reviewed whenever Tryst Insights changes); space visibility, pause, per-entry private,
       include settings and owner approval of joins (F5, F11; D-21); the `all_members` mode is a later per-space setting
-- [ ] Profile prefill from the Tryst profile with per-field sharing, and member cards (F26, F28; D-14)
-- [ ] Calendar overlay (F12), then compare metrics (F13)
+- [x] Profile prefill from the Tryst profile with per-field sharing, and member cards (F26, F28; D-14)
+- [x] Calendar overlay (F12), then compare metrics (F13)
 - **Exit:** a non-member and another space see nothing; pause, the private flag and leave are honoured; owner approval
   of joins holds; layout and keyboard checks pass at phone, tablet and desktop widths.
 
 ## L1 — First live deploy *(read-only features; the validation ladder starts here)*
 
 - [x] `RUNBOOK` (section 12), `docker-compose`, the Unraid template and its guard, the live smoke script. **Still to do on the real host:** deploy, LAN-only, limits applied
-- [ ] Deploy on the real host (needs the first published release)
+- [ ] Deploy on the real host (releases 0.1.0 to 0.1.2 are published; this is the owner's step, see RUNBOOK 12 and 13)
 - [ ] Validation ladder (principle 11): synthetic data, then one real backup, then the full history
 - [ ] Checked from a real phone browser: upload a backup from the phone, view the overlay
 - [x] Runbook recipes for HTTPS (Caddy or Nginx Proxy Manager, `tailscale serve`); the default stays secured wifi (D-23)
@@ -128,17 +131,19 @@
 - [ ] **Phone download flow (F30):** the export downloads with a clear filename and the page says how to restore it from Downloads in Tryst (CI proves the download; trying it in a phone browser is still to do)
 - [x] **Emulator round trip:** done on Tryst 0.6.5 (D-43 addendum): wipe first gives 0 differences in two start states; merge re-confirmed unsafe. Re-run with `scripts/emulator/roundtrip.ps1` (docs/RELEASE_CHECKS.md). Never a physical phone.
 - **Exit:** the round trip passes for Tryst schema v19 (and each further version only after it is added to the
-  compatibility table and proven).
+  compatibility table and proven). Met 2026-11-15 on an emulator for Tryst 0.6.5.
 
 ## M7 — Photos
 
 - [x] **First piece (D-39):** photos copied out encrypted at upload, blurred until tapped, shared through the space with the entry, place off by default, metadata stripped for others, O-6 resolved (text coordinates, no map). **Gallery (D-40) done.** **Still to do:** thumbnails, partner and profile pictures
-- [ ] Media store; blur until clicked; sharing; location kept and shown per photo (F19, R4); resolve O-6
+- [x] Media store; blur until clicked; sharing; location kept and shown per photo (F19, R4); O-6 resolved (D-39)
+- [ ] Thumbnails (the gallery loads full pictures, 24 at a time), partner pictures and profile pictures
 - **Exit:** photos upload and view on a phone and a desktop; location is shown only when its owner allows it.
 
 ## M8 — Admin console and operations
 
-- [ ] Settings page for the transport-security options (D-23); account, space and health pages (full); search over everything (D-17); log viewer filters and export (F17, F18)
+- [x] Settings page for transport security (D-23), People and Spaces pages: built earlier.
+- [ ] A fuller health page; search over everything (D-17); log viewer filters and export (F17, F18)
 - [ ] Optional TOTP (F20); optional notifications (F24); optional member activity view (F25, O-8)
 - [ ] Optional QR codes for the server address and invites, generated locally (F31)
 - **Exit:** the admin can find and fix a user's problem without a shell; every admin action is in the log.
@@ -147,8 +152,8 @@
 
 - [ ] Phase 3 audit passes, one lens per fresh session: **authorization and isolation (who can see what)**, crypto and
       storage, secrets and logging, input and injection, build hardening, accessibility and mobile
-- [ ] Final live validation on the real host and a real phone, then v0.1.0 via the release script
-- **Exit:** the README's design-phase status line comes off, and not before.
+- [ ] Final live validation on the real host and a real phone, then a release that says the audit passed (0.1.0 to 0.1.2 shipped earlier, before it)
+- **Exit:** the README says the audit has passed, and not before.
 
 ---
 

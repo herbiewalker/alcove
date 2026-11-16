@@ -122,6 +122,8 @@ from the People page first), and it does not need any other administrator.
    message, and nothing is saved. A good upload becomes your current data; older uploads are kept as history.
 4. The limit is `ALCOVE_MAX_UPLOAD_MB` (default 512). A slow wifi is fine: that one request is allowed to run for up to 25 minutes.
 
+Going the other way (edits back onto the phone) is section 14.
+
 To try Alcove with no real data, make a fake backup: `docker run --rm -v <folder>:/f <image> test-backup -out /f/test.tryst`. It prints
 the password to use.
 
@@ -129,7 +131,7 @@ the password to use.
 
 They are copies made from each person's current upload and can be thrown away. Admin console → **Backups** → **Rebuild now** (asks
 for your password again). It needs each person's remembered backup password; anyone who chose not to remember it is skipped and
-listed in the result. No upload is touched.
+listed in the result. No upload is touched. Edits you made in Alcove are kept: they are replayed from their records on top of the upload.
 
 ## 10. Adding and removing people
 
@@ -205,5 +207,69 @@ the calendar. Add the page to the home screen if you like. This is the check no 
 setup code only works while there are no accounts, so a failed first run can be wiped by stopping the container and removing the
 contents of the data folder, then starting again.
 
-**G. Done means:** both of you use it for real, a backup and a restore drill have passed since the last upload, and the README status
+**G. Done means:** both of you use it for real, a backup and a restore drill have passed since the last upload, you have restored one edited export on the phone (section 14, after a fresh phone backup), and the README status
 line says what is and is not proven.
+
+## 13. Updating to a new release
+
+1. **Back up first** (section 2): Admin, Backups, Back up now, then Verify. This is also your way back.
+2. Read the new version's section in `CHANGELOG.md`. It says whether the database changes and whether you have to do anything afterwards.
+3. In the Docker tab, update the container (it pulls `:stable`), or set the tag to the version you want. The container restarts and
+   migrates the database by itself. Your data and key are untouched.
+4. Check the log for errors, open the admin console, and look at one person's data.
+
+**Going back is not "set the tag back".** Migrations only go forward, and an older build refuses to open a newer database (it says the
+schema is newer than it understands) and does not start. To return to an older version, stop the container, restore the instance backup
+you took in step 1 (section 4), then start the older image. Anything done after that backup is gone, so do this only if the new version is
+really unusable.
+
+Version notes that need a step:
+
+- **0.1.1 to 0.1.2:** the database goes from schema 9 to 10 (one new table). Nothing else to do. Editing and export work on data you
+  uploaded earlier; if the Export page says your data needs a rebuild, do section 9 once.
+- **0.1.0 to 0.1.1:** after updating, press **Rebuild now** once (section 9), so photos from an upload you already have are copied out.
+
+## 14. Editing your data and sending it back to the phone
+
+This is for everyone, not just the administrator. Your uploaded backup is never changed; every change is saved on top of it as a new
+version, and nothing reaches your phone until you restore a file there yourself.
+
+**Editing.** My data → My entries. Open an entry and press **Edit** to change the time, length, rating, mood, who started it,
+protection, orgasm count, acts, positions, kinks, settings, toys, occasions and the note. **Add an entry** and **Delete this entry**
+are on the same pages. **History** lists every change, newest first, with an **Undo** on each; undoing is itself a new entry in the
+history. **My partners** renames a partner or edits a note. A deleted entry sits in **Recently deleted entries** and can be restored for
+`ALCOVE_USER_RECOVERY_DAYS` (10); the administrator can restore it for the longer window. If someone else (the administrator) changed
+something, the history says "The administrator".
+
+- A page opened before a change refuses to save over it ("this was changed after you opened it"). Open it again.
+- Edited notes and ratings show in your spaces at once; a private entry stays private; a deleted entry leaves every space.
+- **Uploading a newer backup starts over.** Edits made on the old upload stay in its history but are not carried onto the new one,
+  because the phone is the truth for what it holds. The My data page warns you before that happens. Export first if you want to keep them.
+
+**Sending the edits to your phone.** My data → **Export to Tryst**. Read the page: it says which upload the file is based on, what
+changed since, and what Tryst should report afterwards.
+
+1. On the phone, in Tryst: Settings → Backup & restore → **Export encrypted backup**. Do this first. Restoring replaces what is on the
+   phone, so anything you added there after your last upload is lost without it.
+2. In Alcove, tick that you did that, choose the password for the file (the same as your backup password, or a new one of at least 8
+   characters typed twice; Tryst asks for it when you restore and nobody can recover a lost one), confirm your Alcove password again,
+   and press **Download the backup**. If Alcove does not keep your backup password it asks for it once to open your upload.
+3. On the phone, open **Settings → Backup & restore → Import backup**, pick the file from Downloads, enter the password, and leave
+   **Replace my current data with the backup (recommended)** switched **on**. **Never switch it off:** merging keeps entries you deleted
+   and removes the partner links of others (D-15, D-43).
+4. Check the count in Tryst's message ("Brought in N trysts, M partners and K photos") against the Export page.
+
+Refusals you may see: your data needs a rebuild (ask the administrator to do section 9), or the backup comes from a newer Tryst than this
+server understands (export stays off for it). A file that fails its own check is never offered.
+
+## 15. Editing someone's data as the administrator
+
+Admin console → **People** → **Data** next to a person. You can open their entries and partners, change, undo, delete and restore them,
+and see what they deleted (restorable by you for `ALCOVE_ADMIN_RECOVERY_DAYS`, 45). You cannot add an entry for them, see their photos
+here, or export their data.
+
+- Every page you open there is written to the admin log, and every change is written in the same transaction as the change. The log
+  names the table, the person and row, and the field names, never a value (constraint 8).
+- A change asks for your password again (use "Confirm it is you" on the page first).
+- The person sees your change in the entry's history as "The administrator" and can undo it. Tell them why you made it.
+- Rebuilding (section 9) keeps all edits; they are replayed from their records.

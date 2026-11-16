@@ -21,7 +21,7 @@
   <Privileged>false</Privileged>
   <Support>https://github.com/herbiewalker/alcove</Support>
   <Project>https://github.com/herbiewalker/alcove</Project>
-  <Overview>A private, self-hosted place for a couple or a family to upload their Tryst backups and see, side by side, what they choose to share: a shared calendar, compare views and member cards, in spaces that only members can see. Encrypted at rest, no outside connections, for adults who have all agreed. Keep this on your LAN only; never forward the port to the internet.</Overview>
+  <Overview>A private, self-hosted place for a couple to upload their Tryst backups and see, side by side, what they choose to share: a shared calendar, compare views and member cards, in spaces that only members can see. Encrypted at rest, no outside connections, for adults who have all agreed. Keep this on your LAN only; never forward the port to the internet.</Overview>
   <Category>Tools: Other:</Category>
   <WebUI>http://[IP]:[PORT:8080]/</WebUI>
   <TemplateURL>https://raw.githubusercontent.com/herbiewalker/alcove/main/deploy/unraid-template.xml</TemplateURL>
