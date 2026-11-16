@@ -132,7 +132,7 @@ than a day) and owners with no account, so a crash between the steps is finished
 
 ## Implemented in M4 piece D (store schema v8)
 
-`user_tz` (user, IANA zone name): no row means the server's default zone (`ALCOVE_TZ`, UTC if empty). Compare metrics are computed, never stored.
+`user_tz` (user, IANA zone name): no row means the default zone (the console setting `setting.default_tz` if the administrator saved one, else `ALCOVE_TZ`, UTC if empty). Compare metrics are computed, never stored.
 
 ## Implemented in M4 piece B (store schema v7)
 

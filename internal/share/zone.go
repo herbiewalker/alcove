@@ -27,6 +27,12 @@ func SetDefaultZone(name string) error {
 	return nil
 }
 
+// ValidZone reports whether name is empty (UTC) or a real IANA zone, without changing anything.
+func ValidZone(name string) error {
+	_, err := load(name)
+	return err
+}
+
 // DefaultZoneName is the name of the zone used when a person has not chosen one.
 func DefaultZoneName() string { return defaultZone.Load().String() }
 

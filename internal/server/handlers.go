@@ -14,6 +14,7 @@ import (
 	"github.com/herbiewalker/alcove/internal/adminlog"
 	"github.com/herbiewalker/alcove/internal/auth"
 	"github.com/herbiewalker/alcove/internal/netsec"
+	"github.com/herbiewalker/alcove/internal/share"
 )
 
 const timeFmt = "2006-01-02 15:04:05"
@@ -527,6 +528,13 @@ func (s *Server) settingsPage(q *rq) *page {
 		YourIP:      q.c.IP.String(), ProxyMode: v.ProxyMode, RequireTLS: v.RequireTLS,
 		EnvNets: v.AllowedSrc == netsec.FromEnv, EnvProxy: v.ProxySrc == netsec.FromEnv, EnvTLS: v.TLSSrc == netsec.FromEnv,
 		AllowedSource: sourceNote(v.AllowedSrc), ProxySource: sourceNote(v.ProxySrc), TLSSource: sourceNote(v.TLSSrc)}
+	p.ZoneFallback = s.envZone
+	p.DefaultTZ = share.DefaultZoneName()
+	if q.st != nil {
+		if v, ok, err := q.st.GetMeta(zoneKey); err == nil && ok {
+			p.ZoneSaved = v
+		}
+	}
 	if p.Pending {
 		left := v.PendingUntil.Sub(s.now()).Round(time.Second)
 		if left < 0 {
@@ -679,6 +687,38 @@ func (s *Server) postTLS(q *rq) {
 		return
 	}
 	q.setFlash("tls")
+	q.redirect("/admin/settings")
+}
+
+// zoneKey is where the console's default time zone is kept. It beats the environment's ALCOVE_TZ,
+// so a rebuilt container (which can reset its variables) cannot change what people see.
+const zoneKey = "setting.default_tz"
+
+func (s *Server) postZone(q *rq) {
+	if q.needStepUp("/admin/settings") {
+		return
+	}
+	name := strings.TrimSpace(q.r.PostForm.Get("tz"))
+	if err := share.ValidZone(name); err != nil {
+		q.settingsError(http.StatusBadRequest, "That is not a time zone name. Use one like America/New_York or Europe/Berlin.")
+		return
+	}
+	if err := q.audit("settings.timezone.change", "settings", "timezone", "default_tz", func(tx *sql.Tx) error {
+		if name == "" {
+			_, err := tx.Exec(`DELETE FROM meta WHERE key = ?`, zoneKey)
+			return err
+		}
+		return putMeta(tx, map[string]string{zoneKey: name}, zoneKey)
+	}); err != nil {
+		q.serverError("save default time zone", err)
+		return
+	}
+	apply := name
+	if apply == "" {
+		apply = s.envZone
+	}
+	_ = share.SetDefaultZone(apply)
+	q.setFlash("zone")
 	q.redirect("/admin/settings")
 }
 

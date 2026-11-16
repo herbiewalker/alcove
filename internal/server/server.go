@@ -103,7 +103,8 @@ type Server struct {
 	hasUsers atomic.Bool
 
 	mu        sync.Mutex
-	ready     bool // settings loaded from the unlocked store
+	ready     bool   // settings loaded from the unlocked store
+	envZone   string // the zone the environment gave: the fallback when the console has none
 	setupCode string
 
 	jobs jobs
@@ -127,7 +128,7 @@ func New(be Backend, opt Options) (*Server, error) {
 	if opt.Params == (auth.Params{}) {
 		opt.Params = auth.DefaultParams
 	}
-	s := &Server{be: be, opt: opt, log: opt.Logger, now: opt.Now, params: opt.Params,
+	s := &Server{be: be, opt: opt, log: opt.Logger, now: opt.Now, params: opt.Params, envZone: share.DefaultZoneName(),
 		sessions: auth.NewSessions(opt.Now), tpl: map[string]*template.Template{},
 		loginLim: auth.LoginLimiter(), setupLim: &auth.Limiter{Capacity: 10, RefillEvery: 30 * time.Second},
 		unlockLim:  &auth.Limiter{Capacity: 5, RefillEvery: time.Minute},
@@ -184,6 +185,11 @@ func (s *Server) ensure() *store.Store {
 	for _, k := range []string{"setting.allowed_networks", "setting.proxy_mode", "setting.trusted_proxies", "setting.require_tls"} {
 		if v, ok, err := st.GetMeta(k); err == nil && ok {
 			saved[k] = v
+		}
+	}
+	if v, ok, err := st.GetMeta(zoneKey); err == nil && ok && v != "" {
+		if err := share.SetDefaultZone(v); err != nil {
+			s.log.Error("saved default time zone rejected; keeping the environment's")
 		}
 	}
 	m, err := netsec.New(saved, s.opt.Env, s.netOptions())
@@ -512,6 +518,7 @@ type page struct {
 	DetailBackLabel                  string
 	ProfileTZ                        string
 	DefaultTZ                        string
+	ZoneSaved, ZoneFallback          string // the console's default zone and the environment's fallback
 }
 
 type logRow struct {
@@ -579,6 +586,7 @@ var flashes = map[string]string{
 	"net-undo":        "Network list reverted.",
 	"proxy":           "Proxy settings saved.",
 	"tls":             "HTTPS setting saved.",
+	"zone":            "Default time zone saved.",
 	"signedout":       "Signed out.",
 	"uploaded":        "Backup uploaded and checked. It is now your current data.",
 	"done":            "Done.",
@@ -795,6 +803,7 @@ func (s *Server) routes_() {
 	s.handle("POST /admin/settings/networks/cancel", admin, s.postNetworksCancel)
 	s.handle("POST /admin/settings/proxy", admin, s.postProxy)
 	s.handle("POST /admin/settings/tls", admin, s.postTLS)
+	s.handle("POST /admin/settings/timezone", admin, s.postZone)
 
 	// Everything else is a 404 page, never a directory listing or a hint.
 	s.mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {

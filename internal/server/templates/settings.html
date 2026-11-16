@@ -44,4 +44,16 @@
   <label class="check"><input type="checkbox" name="tls" value="1" {{if .RequireTLS}}checked{{end}} {{if .EnvTLS}}disabled{{end}}><span>Require an encrypted connection</span></label>
   <div class="actions"><button class="btn" type="submit" {{if .EnvTLS}}disabled{{end}}>Save</button></div>
 </form>
+
+<form class="card" method="post" action="/admin/settings/timezone">
+  <h2>Default time zone</h2>
+  <input type="hidden" name="csrf" value="{{.CSRF}}">
+  <p class="muted">Used for anyone who has not set their own on their profile. It decides which day an entry falls on and the times shown. Stored data is never changed. Now in use: <strong>{{.DefaultTZ}}</strong>.</p>
+  <div class="field">
+    <label for="dtz">Time zone name</label>
+    <input id="dtz" name="tz" type="text" maxlength="64" value="{{.ZoneSaved}}" placeholder="{{.ZoneFallback}}" autocapitalize="none" spellcheck="false">
+    <p class="hint">A name like America/New_York or Europe/Berlin. Saved here, it is kept even if the container's settings are reset. Empty goes back to the container's setting ({{.ZoneFallback}}).</p>
+  </div>
+  <div class="actions"><button class="btn" type="submit">Save</button></div>
+</form>
 {{end}}
