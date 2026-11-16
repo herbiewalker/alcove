@@ -18,7 +18,13 @@ const maxServedPhoto = 64 << 20
 
 // getMyPhoto sends one of the signed-in person's own photos, exactly as stored. A picture the
 // browser can show is shown; anything else is offered as a download, never rendered.
-func (s *Server) getMyPhoto(q *rq) {
+func (s *Server) getMyPhoto(q *rq) { s.myPhoto(q, false) }
+
+// getMyThumb sends the small version of one of the person's own photos (D-44), or the picture
+// itself when a small one cannot be made.
+func (s *Server) getMyThumb(q *rq) { s.myPhoto(q, true) }
+
+func (s *Server) myPhoto(q *rq, thumb bool) {
 	id := q.r.PathValue("id")
 	var kind photo.Kind
 	err := q.st.View(q.r.Context(), func(tx *sql.Tx) (err error) {
@@ -31,6 +37,9 @@ func (s *Server) getMyPhoto(q *rq) {
 	}
 	if err != nil {
 		q.serverError("find photo", err)
+		return
+	}
+	if thumb && kind != photo.Unknown && s.sendThumb(q, q.id.user.ID, id) {
 		return
 	}
 	rc, ok := s.openPhoto(q, q.id.user.ID, id)
@@ -52,7 +61,12 @@ func (s *Server) getMyPhoto(q *rq) {
 // getSpacePhoto sends another member's photo with its metadata removed, only if the space's own
 // rules show that photo to this person. Everything else is the same 404 page. The cleaned file is
 // built in memory first, so a picture that cannot be cleaned is never sent half done.
-func (s *Server) getSpacePhoto(q *rq) {
+func (s *Server) getSpacePhoto(q *rq) { s.spacePhoto(q, false) }
+
+// getSpaceThumb is the small version of a shared photo, behind exactly the same gate (D-44).
+func (s *Server) getSpaceThumb(q *rq) { s.spacePhoto(q, true) }
+
+func (s *Server) spacePhoto(q *rq, thumb bool) {
 	sp, _, ok := s.gate(q)
 	if !ok {
 		return
@@ -72,6 +86,9 @@ func (s *Server) getSpacePhoto(q *rq) {
 		return
 	case err != nil:
 		q.serverError("find shared photo", err)
+		return
+	}
+	if thumb && s.sendThumb(q, owner, id) {
 		return
 	}
 	rc, ok := s.openPhoto(q, owner, id)
@@ -96,10 +113,18 @@ func (s *Server) getSpacePhoto(q *rq) {
 // openPhoto opens the decrypting reader for one stored photo. The data key is fetched outside any
 // transaction, and zeroed as soon as the reader exists.
 func (s *Server) openPhoto(q *rq, owner, id string) (io.ReadCloser, bool) {
+	rc, ok := s.openPhotoQuiet(q, owner, id)
+	if !ok {
+		q.notFound()
+	}
+	return rc, ok
+}
+
+// openPhotoQuiet is openPhoto without writing a response when it fails.
+func (s *Server) openPhotoQuiet(q *rq, owner, id string) (io.ReadCloser, bool) {
 	dek, err := q.st.DataKey(owner)
 	if err != nil {
 		s.log.Error("photo key", "err", err.Error())
-		q.notFound()
 		return nil, false
 	}
 	key := dek.Bytes()
@@ -110,7 +135,6 @@ func (s *Server) openPhoto(q *rq, owner, id string) (io.ReadCloser, bool) {
 	}
 	if err != nil {
 		s.log.Warn("a stored photo could not be opened", "owner", owner)
-		q.notFound()
 		return nil, false
 	}
 	return rc, true

@@ -144,6 +144,13 @@ func stripJPEG(br *bufio.Reader, bw *bufio.Writer) error {
 		if err != nil {
 			return err
 		}
+		if m == 0xE1 {
+			// The block is dropped, but the one number that tells a viewer which way up the
+			// picture goes is kept, alone in a block of its own (D-44).
+			if o := orientationOf(payload); o != 1 {
+				bw.Write(orientationSegment(o))
+			}
+		}
 		if keepJPEGSegment(m, payload) {
 			bw.Write([]byte{0xFF, m})
 			bw.Write(lb)

@@ -137,7 +137,8 @@
 
 - [x] **First piece (D-39):** photos copied out encrypted at upload, blurred until tapped, shared through the space with the entry, place off by default, metadata stripped for others, O-6 resolved (text coordinates, no map). **Gallery (D-40) done.** **Still to do:** thumbnails, partner and profile pictures
 - [x] Media store; blur until clicked; sharing; location kept and shown per photo (F19, R4); O-6 resolved (D-39)
-- [ ] Thumbnails (the gallery loads full pictures, 24 at a time), partner pictures and profile pictures
+- [x] Thumbnails (D-44): made on demand, kept only in memory; shared photos keep their rotation
+- [ ] Partner pictures and profile pictures
 - **Exit:** photos upload and view on a phone and a desktop; location is shown only when its owner allows it.
 
 ## M8 — Admin console and operations

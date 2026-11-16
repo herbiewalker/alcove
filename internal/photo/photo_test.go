@@ -254,3 +254,82 @@ func TestMultipleScansAreKept(t *testing.T) {
 		t.Error("the end marker is missing")
 	}
 }
+
+// exifWith builds a real EXIF segment with an orientation tag and a GPS-looking marker beside it.
+func exifWith(o int, little bool) []byte {
+	var t bytes.Buffer
+	bo := binary.ByteOrder(binary.BigEndian)
+	if little {
+		bo = binary.LittleEndian
+		t.WriteString("II")
+	} else {
+		t.WriteString("MM")
+	}
+	put16 := func(v int) { b := make([]byte, 2); bo.PutUint16(b, uint16(v)); t.Write(b) }
+	put32 := func(v int) { b := make([]byte, 4); bo.PutUint32(b, uint32(v)); t.Write(b) }
+	put16(42)
+	put32(8)
+	put16(2) // two entries
+	put16(0x010F)
+	put16(2)
+	put32(8)
+	put32(38) // Make: a string stored elsewhere
+	put16(0x0112)
+	put16(3)
+	put32(1)
+	put16(o)
+	put16(0)
+	put32(0)
+	t.WriteString("GPSMARK-48.8566")
+	return seg(0xE1, "Exif\x00\x00"+t.String())
+}
+
+func TestOrientationSurvivesCleaningAndNothingElseDoes(t *testing.T) {
+	for _, little := range []bool{false, true} {
+		for _, o := range []int{2, 3, 6, 8} {
+			src := jpegWith(t, exifWith(o, little))
+			if got := Orientation(bytes.NewReader(src)); got != o {
+				t.Fatalf("orientation read %d, want %d (little=%v)", got, o, little)
+			}
+			clean, _, err := strip(t, src)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got := Orientation(bytes.NewReader(clean)); got != o {
+				t.Errorf("after cleaning the orientation is %d, want %d", got, o)
+			}
+			if bytes.Contains(clean, []byte("GPSMARK")) {
+				t.Error("the position survived next to the orientation")
+			}
+			if _, err := jpeg.Decode(bytes.NewReader(clean)); err != nil {
+				t.Errorf("the cleaned file does not decode: %v", err)
+			}
+			again, _, _ := strip(t, clean)
+			if !bytes.Equal(again, clean) {
+				t.Error("cleaning is not idempotent with an orientation block")
+			}
+		}
+	}
+	// As stored, missing and broken values keep no EXIF block at all.
+	for _, src := range [][]byte{jpegWith(t, exifWith(1, false)), jpegWith(t, exifWith(9, false)), jpegWith(t)} {
+		clean, _, _ := strip(t, src)
+		if bytes.Contains(clean, []byte("Exif")) || Orientation(bytes.NewReader(clean)) != 1 {
+			t.Error("an unrotated picture kept an EXIF block")
+		}
+	}
+	if Orientation(bytes.NewReader([]byte("not a picture"))) != 1 {
+		t.Error("garbage must read as 1")
+	}
+}
+
+func TestOrientationOfDamagedBlocksNeverPanics(t *testing.T) {
+	full := exifWith(6, true)[4:] // the payload without marker and length
+	for n := 0; n <= len(full); n++ {
+		_ = orientationOf(full[:n])
+	}
+	for i := range full {
+		b := append([]byte{}, full...)
+		b[i] ^= 0xFF
+		_ = orientationOf(b)
+	}
+}

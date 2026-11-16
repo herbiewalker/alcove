@@ -14,17 +14,19 @@ const photosPerPage = 24
 
 // tile is one picture in a gallery: where to load it, and where its entry opens.
 type tile struct {
-	Src, Entry, Who, When, Caption string
-	Mine                           bool
+	Src, Thumb, Entry, Who, When, Caption string
+	Mine                                  bool
 }
 
 func tileOf(spaceID string, it share.GalleryItem) tile {
 	t := tile{Who: it.OwnerName, When: it.When.Format(entryFmt), Caption: it.Caption, Mine: it.Mine}
 	if spaceID == "" {
 		t.Src = "/photos/" + urlSeg(it.MediaID)
+		t.Thumb = t.Src + "/thumb"
 		t.Entry = "/entries/" + urlSeg(it.EntryID)
 	} else {
 		t.Src = "/spaces/" + spaceID + "/photo/" + urlSeg(it.OwnerID) + "/" + urlSeg(it.MediaID)
+		t.Thumb = t.Src + "/thumb"
 		t.Entry = "/spaces/" + spaceID + "/entry/" + urlSeg(it.OwnerID) + "/" + urlSeg(it.EntryID)
 	}
 	return t

@@ -6,7 +6,7 @@
 <div class="photos gallery">
   {{range .Tiles}}
   <figure class="photo blurred">
-    <a class="photolink" href="{{.Src}}"><img src="{{.Src}}" alt="A photo from {{.When}}" loading="lazy" decoding="async"></a>
+    <a class="photolink" href="{{.Src}}"><img src="{{.Thumb}}" alt="A photo from {{.When}}" loading="lazy" decoding="async"></a>
     <figcaption class="small"><a href="{{.Entry}}">{{.When}}</a>{{if .Who}}{{if not .Mine}} <span class="muted">{{.Who}}</span>{{end}}{{end}}{{if .Caption}}<br>{{.Caption}}{{end}}</figcaption>
   </figure>
   {{end}}

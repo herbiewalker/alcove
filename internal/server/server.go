@@ -105,6 +105,8 @@ type Server struct {
 	mu        sync.Mutex
 	ready     bool   // settings loaded from the unlocked store
 	envZone   string // the zone the environment gave: the fallback when the console has none
+	thumbs    *thumbCache
+	thumbSem  chan struct{}
 	setupCode string
 
 	jobs jobs
@@ -128,7 +130,7 @@ func New(be Backend, opt Options) (*Server, error) {
 	if opt.Params == (auth.Params{}) {
 		opt.Params = auth.DefaultParams
 	}
-	s := &Server{be: be, opt: opt, log: opt.Logger, now: opt.Now, params: opt.Params, envZone: share.DefaultZoneName(),
+	s := &Server{be: be, opt: opt, log: opt.Logger, now: opt.Now, params: opt.Params, envZone: share.DefaultZoneName(), thumbs: newThumbCache(opt.Now), thumbSem: make(chan struct{}, thumbWorkers),
 		sessions: auth.NewSessions(opt.Now), tpl: map[string]*template.Template{},
 		loginLim: auth.LoginLimiter(), setupLim: &auth.Limiter{Capacity: 10, RefillEvery: 30 * time.Second},
 		unlockLim:  &auth.Limiter{Capacity: 5, RefillEvery: time.Minute},
@@ -727,6 +729,7 @@ func (s *Server) routes_() {
 	s.handle("GET /entries", user, s.getMyEntries)
 	s.handle("GET /entries/{id}", user, s.getMyEntry)
 	s.handle("GET /photos/{id}", user, s.getMyPhoto)
+	s.handle("GET /photos/{id}/thumb", user, s.getMyThumb)
 	s.handle("GET /gallery", user, s.getMyGallery)
 	s.handle("GET /entries/new", user, forOwn(s.getNewEntry))
 	s.handle("POST /entries/new", user, forOwn(s.postNewEntry))
@@ -766,6 +769,7 @@ func (s *Server) routes_() {
 	s.handle("GET /spaces/{id}/entries", user, s.getSpaceEntries)
 	s.handle("GET /spaces/{id}/entry/{owner}/{entry}", user, s.getSpaceEntry)
 	s.handle("GET /spaces/{id}/photo/{owner}/{media}", user, s.getSpacePhoto)
+	s.handle("GET /spaces/{id}/photo/{owner}/{media}/thumb", user, s.getSpaceThumb)
 	s.handle("GET /spaces/{id}/calendar", user, s.getSpaceCalendar)
 	s.handle("GET /spaces/{id}/compare", user, s.getSpaceCompare)
 	s.handle("POST /spaces/{id}/restore", user, s.postSpaceRestore)

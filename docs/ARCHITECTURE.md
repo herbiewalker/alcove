@@ -48,7 +48,7 @@ Every package below exists. The newest ones are `edit` (M5), `export` (M6) and `
 | `internal/ingest` | store an upload verbatim, judge it, record it as a revision with its derived row cache, search index and sealed password in one transaction; rebuild the cache (and replay edits); `Export` gathers an export plan |
 | `internal/edit` | how a person's entries change (D-19, D-42): validated edits, add, delete and restore, history and undo, replay on rebuild, and the change summary the export page shows |
 | `internal/export` | the cache written back as a fresh backup (D-43): photo filtering, the DEFLATE archive, sealing, and the read-back check before anything is offered |
-| `internal/photo` | photo bytes on their way to other people: format checks and cleaning (D-39) |
+| `internal/photo` | photo bytes on their way to other people: format checks, cleaning that keeps only the rotation (D-39, D-44), and thumbnails drawn from decoded pixels (D-44) |
 | `internal/share` | the ONE read gate for other people's entries (D-32): membership, pause, consent wording, the private flag, include settings; the owner's own list and detail, the calendar days, galleries (D-40) and search |
 | `internal/spaces` | spaces, memberships, invites, join requests and `Role`, the one visibility gate (D-31) |
 | `internal/profile` | a member's profile fields, their share flags, the adult birth date rule, and what the backup's profile row offers (D-33) |

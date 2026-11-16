@@ -10,7 +10,7 @@ func TestTheGalleriesListPicturesBlurredAndFollowTheSpace(t *testing.T) {
 	entry, media, _ := withPhotos(t, s)
 	own, shared := s.photoURL(entry, media)
 	page := s.sam.do("GET", "/gallery", nil).Body.String()
-	if !strings.Contains(page, `<figure class="photo blurred">`) || !strings.Contains(page, `src="`+own+`"`) || !strings.Contains(page, `href="/entries/`+entry) || !strings.Contains(page, `loading="lazy"`) {
+	if !strings.Contains(page, `<figure class="photo blurred">`) || !strings.Contains(page, `src="`+own+`/thumb"`) || !strings.Contains(page, `href="/entries/`+entry) || !strings.Contains(page, `loading="lazy"`) {
 		t.Fatalf("own gallery: %.600s", page)
 	}
 	// Someone else's gallery does not list sam's picture.
@@ -19,7 +19,7 @@ func TestTheGalleriesListPicturesBlurredAndFollowTheSpace(t *testing.T) {
 	}
 	sg := "/spaces/" + s.space + "/gallery"
 	page = s.kim.do("GET", sg, nil).Body.String()
-	if !strings.Contains(page, `src="`+shared+`"`) || strings.Contains(page, "GPS") {
+	if !strings.Contains(page, `src="`+shared+`/thumb"`) || strings.Contains(page, "GPS") {
 		t.Fatalf("space gallery: %.600s", page)
 	}
 	// Photos off: nothing is listed.

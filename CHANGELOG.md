@@ -7,6 +7,13 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) · Versioning: 
 
 ## [Unreleased]
 
+### Added
+- Thumbnails (D-44): the photo galleries load small pictures made on demand (360 pixels on the long side) instead of every full picture, so they open much faster on a phone. They are kept only in memory for ten minutes, never written to disk, carry no metadata, sit behind the same gates as the picture, and a picture that cannot be shrunk is sent whole. No migration, nothing to do when updating.
+- Default time zone setting: Admin, Network and security now has a "Default time zone" card (needs your password again, logged by field name). The saved zone beats `ALCOVE_TZ`, so a rebuilt or force-updated container whose variables were reset cannot change what people see. Empty goes back to `ALCOVE_TZ`. Stored data is never touched.
+
+### Fixed
+- A photo shared in a space (and its thumbnail) keeps its rotation. Cleaning removed the whole EXIF block, including the Orientation tag, so phone portraits showed on their side to other members. The tag is now kept alone in a block that holds nothing else.
+
 ### Changed
 - Wording: Alcove is described as being for couples (partners who share their Tryst data), not for families, in the README, the Unraid template, the Spaces page and the requirements. The README's warning box is gone; the same trust statement stays under Known limitations and in the threat model.
 - Documentation brought up to date with what is built: the README (status, install, what is and is not proven), RUNBOOK sections 13 to 15 (updating and going back, editing and exporting to the phone, editing as the administrator), the requirements status table, the architecture components and flows, the data model, threat model risks R28 to R30, setup notes for the emulator check, and the critical assets list.
