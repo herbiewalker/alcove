@@ -407,6 +407,9 @@ func (s *Server) getAdmin(q *rq) {
 		q.serverError("admin console", err)
 		return
 	}
+	if _, w, herr := s.health(q); herr == nil {
+		p.HealthWarns = w
+	}
 	p.Stats.Sealed = "never"
 	if t := q.st.LastSealed(); !t.IsZero() {
 		p.Stats.Sealed = t.UTC().Format("15:04:05") + " UTC"

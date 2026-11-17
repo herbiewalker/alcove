@@ -216,7 +216,7 @@ line says what is and is not proven.
 2. Read the new version's section in `CHANGELOG.md`. It says whether the database changes and whether you have to do anything afterwards.
 3. In the Docker tab, update the container (it pulls `:stable`), or set the tag to the version you want. The container restarts and
    migrates the database by itself. Your data and key are untouched.
-4. Check the log for errors, open the admin console, and look at one person's data.
+4. Check the log for errors, open the admin console and its Health page (it lists anything that needs attention), and look at one person's data.
 
 **Going back is not "set the tag back".** Migrations only go forward, and an older build refuses to open a newer database (it says the
 schema is newer than it understands) and does not start. To return to an older version, stop the container, restore the instance backup

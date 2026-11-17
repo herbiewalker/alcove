@@ -1,0 +1,19 @@
+{{define "content"}}
+<h1>Health</h1>
+{{if .HealthWarns}}<p class="notice warn">{{.HealthWarns}} {{if eq .HealthWarns 1}}thing needs{{else}}things need{{end}} your attention.</p>{{else}}<p class="notice ok">Nothing needs your attention.</p>{{end}}
+<p class="muted">Counts and states only: no names and no content. Opening this page is written to the admin log.</p>
+{{range .Health}}
+<section class="card">
+  <h2>{{.Title}}</h2>
+  <table>
+    <tbody>
+    {{range .Rows}}
+      <tr><th scope="row">{{.Label}}</th>
+        <td>{{if eq .Level "warn"}}<b>Needs attention:</b> {{end}}{{.Value}}{{if .Note}}<br><span class="muted small">{{.Note}}</span>{{end}}</td></tr>
+    {{end}}
+    </tbody>
+  </table>
+</section>
+{{end}}
+<p><a class="btn secondary" href="/admin">Back to the console</a></p>
+{{end}}

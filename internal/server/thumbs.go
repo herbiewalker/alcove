@@ -113,3 +113,10 @@ func (s *Server) sendThumb(q *rq, owner, id string) bool {
 	_, _ = q.w.Write(data)
 	return true
 }
+
+// len is how many thumbnails are held right now (for the health page).
+func (c *thumbCache) len() int {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.order.Len()
+}

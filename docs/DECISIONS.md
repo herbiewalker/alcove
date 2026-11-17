@@ -860,3 +860,15 @@ is a recurring check, not a one-off.
 - **Alternatives:** put it in `share` behind an admin flag (a flag one mistake from "everyone sees everything" in the one package that must not leak); keep deleted entries searchable (a second index of deleted text that the purge must also empty, for little use); log the term (turns the log into a copy of the content).
 - **Consequences:** no schema change and no migration. The administrator's reach is unchanged (D-6: the admin sees everything); the search only makes it faster, and every use is on the record.
 - **Guard:** `TestAdminSearchFindsEverythingAndLogsOnlyTheShape` (private and paused notes found by the administrator and not by a member; the log and the server log carry no words; a deleted entry is not found) and `TestAdminSearchIsAdminOnlyPostOnlyAndRefusesBadTerms`.
+
+## D-47 — A health page: counts and states, and a plain list of what needs attention (M8 slice 3)
+- **Status:** Accepted
+- **Context:** the admin console showed three numbers. The things that go wrong quietly on a self-hosted server are things nobody looks at: no backup in a month, a backup never restored, a log chain never checked. Sanctum learned this the hard way (a key copy that was never proved).
+- **Decision:**
+  1. **`/admin/health`** (administrators only) lists, in four groups, storage and protection (database open, last sealed, schema, thumbnail cache), backups and checks (last instance backup, last restore drill, last admin-log check), what the server holds (accounts, uploads, photos, spaces, log lines, all counts) and network and settings (HTTPS required, proxy mode, a pending network change, default time zone, version and start time).
+  2. **Each row has a level:** `ok`, `warn` or `info`. A warning means there is something to do and says what: no backup folder configured, never backed up, backup older than 30 days, never run a restore drill, admin log never checked, last check failed, check older than 30 days, a network change waiting to be confirmed. The page and the console home both show how many warnings there are.
+  3. **Counts and states only.** No names, no content, nothing that could identify an entry. It reads; it changes nothing. Opening it is written to the admin log (`admin.health.view`), like every console page.
+  4. **Not included, on purpose:** free disk space and memory (they need a platform-specific call; Unraid's own dashboard shows them better), and any outbound check (constraint 3). A seal that has not happened is `info`, not a warning, because an idle server has nothing to seal.
+- **Alternatives:** a JSON `/healthz` with details (that endpoint is unauthenticated and stays a bare ok); alerts by email or webhook (the optional notification slice, F24).
+- **Consequences:** no schema change. The 30-day line matches the monthly nudge the author's own backup scripts use.
+- **Guard:** `TestHealthPageSaysWhatNeedsAttentionAndNothingPrivate` (a new server shows exactly three warnings; doing the three things clears them; a month later two return; no person is named; the view is logged) and `TestHealthShowsAFailedLogCheckAndIsAdminOnly`.

@@ -105,6 +105,7 @@ type Server struct {
 	mu        sync.Mutex
 	ready     bool   // settings loaded from the unlocked store
 	envZone   string // the zone the environment gave: the fallback when the console has none
+	started   time.Time
 	thumbs    *thumbCache
 	thumbSem  chan struct{}
 	setupCode string
@@ -130,7 +131,7 @@ func New(be Backend, opt Options) (*Server, error) {
 	if opt.Params == (auth.Params{}) {
 		opt.Params = auth.DefaultParams
 	}
-	s := &Server{be: be, opt: opt, log: opt.Logger, now: opt.Now, params: opt.Params, envZone: share.DefaultZoneName(), thumbs: newThumbCache(opt.Now), thumbSem: make(chan struct{}, thumbWorkers),
+	s := &Server{be: be, opt: opt, log: opt.Logger, now: opt.Now, params: opt.Params, envZone: share.DefaultZoneName(), started: opt.Now(), thumbs: newThumbCache(opt.Now), thumbSem: make(chan struct{}, thumbWorkers),
 		sessions: auth.NewSessions(opt.Now), tpl: map[string]*template.Template{},
 		loginLim: auth.LoginLimiter(), setupLim: &auth.Limiter{Capacity: 10, RefillEvery: 30 * time.Second},
 		unlockLim:  &auth.Limiter{Capacity: 5, RefillEvery: time.Minute},
@@ -160,7 +161,7 @@ func (s *Server) netOptions() netsec.Options {
 }
 
 func (s *Server) parseTemplates() error {
-	pages := []string{"message", "setup", "login", "unlock", "home", "account", "stepup", "admin", "adminlog", "settings", "backup", "uploads", "users", "usercreated", "forcepw", "mydeleted", "admindeleted", "spaces", "space", "join", "joinconsent", "codeshown", "adminspaces", "spaceentries", "myentries", "profile", "prefill", "calendar", "compare", "entry", "search", "gallery", "editentry", "history", "partners", "editpartner", "deleteentry", "deletedentries", "persondata", "export", "adminsearch"}
+	pages := []string{"message", "setup", "login", "unlock", "home", "account", "stepup", "admin", "adminlog", "settings", "backup", "uploads", "users", "usercreated", "forcepw", "mydeleted", "admindeleted", "spaces", "space", "join", "joinconsent", "codeshown", "adminspaces", "spaceentries", "myentries", "profile", "prefill", "calendar", "compare", "entry", "search", "gallery", "editentry", "history", "partners", "editpartner", "deleteentry", "deletedentries", "persondata", "export", "adminsearch", "health"}
 	for _, p := range pages {
 		t, err := template.ParseFS(assets, "templates/base.html", "templates/"+p+".html")
 		if err != nil {
@@ -461,6 +462,8 @@ type page struct {
 	FilterQuery               template.URL // built by url.Values.Encode, so already escaped
 	FilterProblem             string
 	Filtered                  bool
+	Health                    []healthGroup
+	HealthWarns               int
 	SteppedUp, Pending        bool
 	EnvNets, EnvProxy, EnvTLS bool
 	ProxyMode, RequireTLS     bool
@@ -788,6 +791,7 @@ func (s *Server) routes_() {
 	s.handle("GET /admin", admin, s.getAdmin)
 	s.handle("GET /admin/log", admin, s.getAdminLog)
 	s.handle("GET /admin/search", admin, s.getAdminSearch)
+	s.handle("GET /admin/health", admin, s.getHealth)
 	s.handle("POST /admin/search", admin, s.postAdminSearch)
 	s.handle("POST /admin/log/verify", admin, s.postVerifyLog)
 	s.handle("POST /admin/log/export", admin, s.postLogExport)

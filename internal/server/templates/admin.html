@@ -6,6 +6,11 @@
   <div><b>{{.Stats.Sealed}}</b><span class="muted small">last sealed to disk</span></div>
 </div>
 <section class="card">
+  <h2>Health</h2>
+  <p>{{if .HealthWarns}}<b>{{.HealthWarns}} {{if eq .HealthWarns 1}}thing needs{{else}}things need{{end}} your attention.</b>{{else}}Nothing needs your attention.{{end}} Backups, restore drill, log check, storage and settings at a glance.</p>
+  <p><a class="btn" href="/admin/health">Open health</a></p>
+</section>
+<section class="card">
   <h2>People</h2>
   <p>Add people, disable them, reset a password, or delete them with a grace period before everything is removed.</p>
   <p><a class="btn" href="/admin/users">Open People</a> <a class="btn secondary" href="/admin/deleted">Recently deleted</a> <a class="btn secondary" href="/admin/search">Search everything</a></p>
