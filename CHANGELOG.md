@@ -8,6 +8,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) · Versioning: 
 ## [Unreleased]
 
 ### Added
+- Admin search (D-46): Admin, Search everything finds words in every person's current notes and in their partners' names and notes, whatever they share. Each search is logged by length and result count only, never the words, and opening a result is logged like any look at someone's data. Entries a person deleted are not searched.
 - Admin log filters and export (D-45): filter the log by who, action (or the start of one), target type and date range, keep the filter while paging, and download the matching lines as a CSV. The download needs your password again, holds only ids and field names, is safe to open in a spreadsheet, and is itself written to the log.
 - Thumbnails (D-44): the photo galleries load small pictures made on demand (360 pixels on the long side) instead of every full picture, so they open much faster on a phone. They are kept only in memory for ten minutes, never written to disk, carry no metadata, sit behind the same gates as the picture, and a picture that cannot be shrunk is sent whole. No migration, nothing to do when updating.
 - Default time zone setting: Admin, Network and security now has a "Default time zone" card (needs your password again, logged by field name). The saved zone beats `ALCOVE_TZ`, so a rebuilt or force-updated container whose variables were reset cannot change what people see. Empty goes back to `ALCOVE_TZ`. Stored data is never touched.

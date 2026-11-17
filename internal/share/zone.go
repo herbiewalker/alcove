@@ -96,3 +96,6 @@ func (z zones) get(name string) *time.Location {
 func LocationOf(tx *sql.Tx, userID string) *time.Location {
 	return zones{}.get(ZoneName(tx, userID))
 }
+
+// LocationByName is the zone a stored name means, or the default zone for an empty or unusable one.
+func LocationByName(name string) *time.Location { return zones{}.get(name) }

@@ -160,7 +160,7 @@ func (s *Server) netOptions() netsec.Options {
 }
 
 func (s *Server) parseTemplates() error {
-	pages := []string{"message", "setup", "login", "unlock", "home", "account", "stepup", "admin", "adminlog", "settings", "backup", "uploads", "users", "usercreated", "forcepw", "mydeleted", "admindeleted", "spaces", "space", "join", "joinconsent", "codeshown", "adminspaces", "spaceentries", "myentries", "profile", "prefill", "calendar", "compare", "entry", "search", "gallery", "editentry", "history", "partners", "editpartner", "deleteentry", "deletedentries", "persondata", "export"}
+	pages := []string{"message", "setup", "login", "unlock", "home", "account", "stepup", "admin", "adminlog", "settings", "backup", "uploads", "users", "usercreated", "forcepw", "mydeleted", "admindeleted", "spaces", "space", "join", "joinconsent", "codeshown", "adminspaces", "spaceentries", "myentries", "profile", "prefill", "calendar", "compare", "entry", "search", "gallery", "editentry", "history", "partners", "editpartner", "deleteentry", "deletedentries", "persondata", "export", "adminsearch"}
 	for _, p := range pages {
 		t, err := template.ParseFS(assets, "templates/base.html", "templates/"+p+".html")
 		if err != nil {
@@ -787,6 +787,8 @@ func (s *Server) routes_() {
 	s.handle("POST /stepup", user, s.postStepUp)
 	s.handle("GET /admin", admin, s.getAdmin)
 	s.handle("GET /admin/log", admin, s.getAdminLog)
+	s.handle("GET /admin/search", admin, s.getAdminSearch)
+	s.handle("POST /admin/search", admin, s.postAdminSearch)
 	s.handle("POST /admin/log/verify", admin, s.postVerifyLog)
 	s.handle("POST /admin/log/export", admin, s.postLogExport)
 	s.handle("GET /admin/users", admin, s.getUsers)

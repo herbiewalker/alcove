@@ -145,7 +145,8 @@
 
 - [x] Settings page for transport security (D-23), People and Spaces pages: built earlier.
 - [x] Log viewer filters and CSV export (F18, D-45)
-- [ ] A fuller health page; search over everything (D-17, F17)
+- [x] Admin search over everything (F17, D-46)
+- [ ] A fuller health page
 - [ ] Optional TOTP (F20); optional notifications (F24); optional member activity view (F25, O-8)
 - [ ] Optional QR codes for the server address and invites, generated locally (F31)
 - **Exit:** the admin can find and fix a user's problem without a shell; every admin action is in the log.

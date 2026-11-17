@@ -206,3 +206,11 @@ func SearchSpace(tx *sql.Tx, spaceID, viewerID string, consent int, raw string, 
 	}
 	return out, rows.Err()
 }
+
+// Segments splits an FTS snippet (marked with control characters by SnippetExpr) into plain pieces.
+// It and SnippetExpr are exported for the administrator's search (D-46), which reads outside the
+// sharing gate on purpose and so lives in its own package.
+func Segments(snippet string) []Seg { return segs(snippet) }
+
+// SnippetExpr is the SQL that cuts a short marked excerpt out of a matched note.
+const SnippetExpr = snip

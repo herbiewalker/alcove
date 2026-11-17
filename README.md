@@ -106,7 +106,7 @@ The round trip must be repeated for every Tryst release ([docs/RELEASE_CHECKS.md
 - **Plain HTTP on the LAN.** Content crosses your home network unencrypted by default (a secured wifi is assumed). HTTPS is available through a reverse proxy or Tailscale, enabled by the admin (R14, D-23).
 - **Manual phone round trip.** Edits reach the phone by exporting a backup and restoring it with "Replace my current data" on, not by sync. Anything added on the phone since the last upload is lost by that restore unless you export a fresh backup from the phone first (the page makes you confirm).
 - **A new upload starts over.** Edits made on the previous upload are kept in its history but not carried onto the new one.
-- **Not built yet:** admin search over everything, TOTP for admins, notifications, the "hide screen" button, QR codes, and the administrator adding an entry on someone's behalf.
+- **Not built yet:** TOTP for admins, notifications, the "hide screen" button, QR codes, and the administrator adding an entry on someone's behalf.
 - **Tied to Tryst's backup format**, which changes with Tryst. Compatibility is a standing maintenance cost.
 
 ## License
