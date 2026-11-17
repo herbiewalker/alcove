@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"html/template"
 	"net/http"
 
 	"strconv"
@@ -330,7 +331,7 @@ func (s *Server) postAccount(q *rq) {
 // stepUpPaths are the only places a step-up may return to, so the "next" field can never be an
 // open redirect. The first is the default for an administrator, the second for everyone else.
 var stepUpPaths = map[string]bool{
-	"/admin": true, "/admin/settings": true, "/admin/backup": true, "/admin/users": true, "/admin/deleted": true,
+	"/admin": true, "/admin/log": true, "/admin/settings": true, "/admin/backup": true, "/admin/users": true, "/admin/deleted": true,
 	"/uploads": true, "/uploads/deleted": true, "/account": true, "/spaces": true, "/admin/spaces": true, "/export": true,
 }
 
@@ -418,7 +419,7 @@ func (s *Server) getAdmin(q *rq) {
 
 const logPageSize = 50
 
-func (s *Server) logPage(q *rq, p *page, page int, action string) bool {
+func (s *Server) logPage(q *rq, p *page, page int, action string, in logIn) bool {
 	if page < 1 {
 		page = 1
 	}
@@ -427,14 +428,24 @@ func (s *Server) logPage(q *rq, p *page, page int, action string) bool {
 	var total int
 	err := q.st.Update(q.r.Context(), false, func(tx *sql.Tx) error {
 		if action != "" {
-			if _, err := adminlog.Append(tx, s.now(), q.id.user.ID, action, "admin_log", "all", ""); err != nil {
+			if _, err := adminlog.Append(tx, s.now(), q.id.user.ID, action, "admin_log", "all", map[bool]string{true: "filtered", false: ""}[in.any()]); err != nil {
 				return err
 			}
 		}
 		var err error
-		if entries, err = adminlog.List(tx, logPageSize, (page-1)*logPageSize); err != nil {
+		flt, problem := resolveLogFilter(tx, in)
+		p.FilterProblem = problem
+		if entries, err = adminlog.Find(tx, flt, logPageSize, (page-1)*logPageSize); err != nil {
 			return err
 		}
+		if total, err = adminlog.Count(tx, flt); err != nil {
+			return err
+		}
+		var all int
+		if err = tx.QueryRow(`SELECT COUNT(*) FROM admin_log`).Scan(&all); err != nil {
+			return err
+		}
+		p.Stats.LogEntries = all
 		rows, err := tx.Query(`SELECT id, username FROM user`)
 		if err != nil {
 			return err
@@ -450,7 +461,7 @@ func (s *Server) logPage(q *rq, p *page, page int, action string) bool {
 		if err := rows.Err(); err != nil {
 			return err
 		}
-		return tx.QueryRow(`SELECT COUNT(*) FROM admin_log`).Scan(&total)
+		return nil
 	})
 	if err != nil {
 		q.serverError("read admin log", err)
@@ -464,6 +475,7 @@ func (s *Server) logPage(q *rq, p *page, page int, action string) bool {
 		p.Entries = append(p.Entries, logRow{Seq: e.Seq, Time: e.Time.Format(timeFmt), Who: who, Action: e.Action,
 			Target: strings.Trim(e.TargetType+" "+e.TargetID, " "), Fields: e.Fields})
 	}
+	p.Filter, p.FilterQuery, p.Filtered = in, template.URL(in.query()), in.any()
 	if page > 1 {
 		p.Newer = page - 1
 	}
@@ -480,8 +492,8 @@ func (s *Server) logPage(q *rq, p *page, page int, action string) bool {
 
 func (s *Server) getAdminLog(q *rq) {
 	n, _ := strconv.Atoi(q.r.URL.Query().Get("page"))
-	p := &page{Title: "Admin log", Active: "admin"}
-	if s.logPage(q, p, n, "adminlog.view") {
+	p := &page{Title: "Admin log", Active: "admin", SteppedUp: q.id.sess.SteppedUp(s.now())}
+	if s.logPage(q, p, n, "adminlog.view", logInOf(q.r.URL.Query())) {
 		q.render(http.StatusOK, "adminlog", p)
 	}
 }
@@ -511,7 +523,7 @@ func (s *Server) postVerifyLog(q *rq) {
 	} else {
 		p.Flash = fmt.Sprintf("The chain verifies: %d entries, each matching the one before.", res.Entries)
 	}
-	if s.logPage(q, p, 1, "") {
+	if s.logPage(q, p, 1, "", logIn{}) {
 		q.render(status, "adminlog", p)
 	}
 }

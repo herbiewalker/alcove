@@ -55,7 +55,7 @@ Every package below exists. The newest ones are `edit` (M5), `export` (M6) and `
 | `internal/compare` | the compare metrics registry, versioned and schema-aware, built on `share` output only (D-35) |
 | `internal/auth` | accounts, Argon2id hashing, in-memory sessions with a step-up window, sign-in rate limiting |
 | `internal/netsec` | transport security (D-23): allowed networks, proxy mode and client address, require-TLS, the self-reverting network change |
-| `internal/adminlog` | the append-only, hash-chained admin log and its verifier; free-text fields are restricted to identifiers so content cannot reach it |
+| `internal/adminlog` | the append-only, hash-chained admin log, its verifier and its filters (D-45); free-text fields are restricted to identifiers so content cannot reach it |
 | `internal/retention`, `internal/admincli` | soft delete and restore (10 and 45 day windows), the real purge and its crash sweep, and the break-glass `reset-password` |
 | `internal/backup`, `internal/backupcli` | the instance backup (a tar of ciphertext with a hashed index), verify, restore, retention, the restore drill, and their commands (D-28) |
 | `internal/server` | the web layer: security headers, network gate, CSRF, templates and the one script; sign-in, accounts, spaces, entries, galleries, editing, the export pages, and the admin console (`/admin/people` for editing anyone's data, with every look and change logged) |

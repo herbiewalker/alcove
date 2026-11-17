@@ -144,7 +144,8 @@
 ## M8 — Admin console and operations
 
 - [x] Settings page for transport security (D-23), People and Spaces pages: built earlier.
-- [ ] A fuller health page; search over everything (D-17); log viewer filters and export (F17, F18)
+- [x] Log viewer filters and CSV export (F18, D-45)
+- [ ] A fuller health page; search over everything (D-17, F17)
 - [ ] Optional TOTP (F20); optional notifications (F24); optional member activity view (F25, O-8)
 - [ ] Optional QR codes for the server address and invites, generated locally (F31)
 - **Exit:** the admin can find and fix a user's problem without a shell; every admin action is in the log.

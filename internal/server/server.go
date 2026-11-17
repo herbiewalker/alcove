@@ -457,6 +457,10 @@ type page struct {
 	}
 	Entries                   []logRow
 	Newer, Older              int
+	Filter                    logIn
+	FilterQuery               template.URL // built by url.Values.Encode, so already escaped
+	FilterProblem             string
+	Filtered                  bool
 	SteppedUp, Pending        bool
 	EnvNets, EnvProxy, EnvTLS bool
 	ProxyMode, RequireTLS     bool
@@ -784,6 +788,7 @@ func (s *Server) routes_() {
 	s.handle("GET /admin", admin, s.getAdmin)
 	s.handle("GET /admin/log", admin, s.getAdminLog)
 	s.handle("POST /admin/log/verify", admin, s.postVerifyLog)
+	s.handle("POST /admin/log/export", admin, s.postLogExport)
 	s.handle("GET /admin/users", admin, s.getUsers)
 	s.handle("POST /admin/users/create", admin, s.postUserCreate)
 	for _, k := range []string{"disable", "enable", "delete", "restore", "reset"} {
