@@ -110,8 +110,38 @@ the server is running).
    input; if the key file is passphrase-wrapped, the key passphrase is the first line.)
 3. `docker compose start`, sign in with the temporary password, and choose a new one when asked.
 
-The reset ends nothing else and is written to the admin log as done by the system. It will not reset a deleted account (restore it
+The reset ends nothing else (it does not turn off two-step sign-in; see 7a) and is written to the admin log as done by the system. It will not reset a deleted account (restore it
 from the People page first), and it does not need any other administrator.
+
+## 7a. Two-step sign-in (administrators): setting it up and getting back in
+
+Optional, and off until you turn it on. With it on, signing in needs your password and a 6-digit code from an authenticator app.
+
+**Set it up.** Account, Two-step sign-in, Set up. Scan the picture with any authenticator app (or type the key under it), then type the
+code the app shows. Nothing is turned on until that code is right. Then you get ten recovery codes, shown once: keep them on paper, not
+on the phone. Other devices are signed out.
+
+**Check the clock.** A code only works if the server's clock and the phone's clock agree to within about 30 seconds. Admin, Health shows
+the server's time in UTC. Set the phone's clock to automatic. A wrong clock is the usual reason a correct-looking code is refused.
+
+**Lost the phone? The way back, in order:**
+1. Type a recovery code in the same box at the second step. Each works once. Then make new ones (Account, Two-step sign-in).
+2. Another administrator opens People and presses **Reset two-step** on your row (they confirm their password first). You are signed out
+   everywhere and can sign in with your password alone, then set it up again.
+3. On the server, with Alcove stopped (the same rules as section 7):
+   ```
+   docker run --rm -v <key file>:/run/keys/alcove.key:ro -v <data folder>:/data --tmpfs /tmp <image> \
+       reset-2fa -user <name>
+   ```
+   It turns two-step off for that person, forgets the secret and recovery codes, and leaves the password alone. If the key file is
+   passphrase-wrapped, the key passphrase is the first line on standard input. It is logged as done by the system.
+
+Five wrong codes lock the second step for that account for ten minutes (it needs the password first, so no one outside can use this to
+lock you out). The admin log shows `session.2fa.locked`. Wait, then sign in again.
+
+**Drill it once** before you rely on it, with the same spirit as the restore drill: turn it on, sign out, sign in with the app, sign out,
+sign in with one recovery code, make new recovery codes, then run step 3 on a test copy or practise step 2 with a second administrator.
+A way back you have never used is a hope. Admin, Health warns when an administrator is down to two recovery codes.
 
 ## 8. Uploading a backup from a phone
 

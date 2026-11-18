@@ -24,6 +24,7 @@ import (
 	"github.com/herbiewalker/alcove/internal/auth"
 	"github.com/herbiewalker/alcove/internal/config"
 	"github.com/herbiewalker/alcove/internal/store"
+	"github.com/herbiewalker/alcove/internal/totp"
 )
 
 // Params is the Argon2id setting used for the new hash. Tests lower it.
@@ -50,33 +51,14 @@ func ResetPassword(args []string, cfg config.Config, stdin io.Reader, stdout, st
 		return strings.TrimRight(s, "\r\n")
 	}
 
-	a, err := app.Start(cfg, app.Options{})
-	if err != nil {
-		if errors.Is(err, store.ErrLocked) {
-			fmt.Fprintln(stderr, "reset-password: the server is running on this data folder. Stop it first (for example `docker compose stop`), run this again, then start it. Nothing was changed.")
-			return 1
-		}
-		fmt.Fprintln(stderr, "reset-password:", err)
-		return 1
+	a, code := openApp("reset-password", cfg, line, stderr)
+	if a == nil {
+		return code
 	}
 	defer a.Close()
-	if a.State() == app.StateLocked {
-		pass := line()
-		if pass == "" {
-			fmt.Fprintln(stderr, "reset-password: the key file is passphrase-wrapped; give the passphrase on the first line of standard input")
-			return 2
-		}
-		if err := a.Unlock(pass); err != nil {
-			if errors.Is(err, store.ErrLocked) {
-				fmt.Fprintln(stderr, "reset-password: the server is running on this data folder. Stop it first. Nothing was changed.")
-				return 1
-			}
-			fmt.Fprintln(stderr, "reset-password: the key passphrase did not open the key")
-			return 1
-		}
-	}
 
 	var pw string
+	var err error
 	if *gen {
 		if pw, err = auth.TempPassword(); err != nil {
 			fmt.Fprintln(stderr, "reset-password:", err)
@@ -138,3 +120,100 @@ func ResetPassword(args []string, cfg config.Config, stdin io.Reader, stdout, st
 var errDeleted = errors.New("deleted")
 
 func nil2ctx() context.Context { return context.Background() }
+
+// openApp opens the sealed store the way the server would, for a break-glass command. It returns the
+// app, or nil and the exit code (after saying why). The caller closes the app.
+func openApp(name string, cfg config.Config, line func() string, stderr io.Writer) (*app.App, int) {
+	a, err := app.Start(cfg, app.Options{})
+	if err != nil {
+		if errors.Is(err, store.ErrLocked) {
+			fmt.Fprintf(stderr, "%s: the server is running on this data folder. Stop it first (for example `docker compose stop`), run this again, then start it. Nothing was changed.\n", name)
+			return nil, 1
+		}
+		fmt.Fprintf(stderr, "%s: %v\n", name, err)
+		return nil, 1
+	}
+	if a.State() == app.StateLocked {
+		pass := line()
+		if pass == "" {
+			a.Close()
+			fmt.Fprintf(stderr, "%s: the key file is passphrase-wrapped; give the passphrase on the first line of standard input\n", name)
+			return nil, 2
+		}
+		if err := a.Unlock(pass); err != nil {
+			a.Close()
+			if errors.Is(err, store.ErrLocked) {
+				fmt.Fprintf(stderr, "%s: the server is running on this data folder. Stop it first. Nothing was changed.\n", name)
+				return nil, 1
+			}
+			fmt.Fprintf(stderr, "%s: the key passphrase did not open the key\n", name)
+			return nil, 1
+		}
+	}
+	return a, 0
+}
+
+// ResetTwoStep runs `alcove reset-2fa -user NAME`: it turns two-step sign-in off for one person and
+// forgets their secret and recovery codes, for the day the phone and the recovery codes are both gone
+// (D-49). Same trust and same rules as reset-password: it needs the data folder and the key, and the
+// server must be stopped. It does not touch the password, which is a separate command on purpose.
+func ResetTwoStep(args []string, cfg config.Config, stdin io.Reader, stdout, stderr io.Writer) int {
+	fs := flag.NewFlagSet("reset-2fa", flag.ContinueOnError)
+	fs.SetOutput(stderr)
+	user := fs.String("user", "", "the account whose two-step sign-in to turn off")
+	if err := fs.Parse(args); err != nil {
+		return 2
+	}
+	if *user == "" {
+		fmt.Fprintln(stderr, "reset-2fa: -user is required")
+		return 2
+	}
+	in := bufio.NewReader(stdin)
+	line := func() string {
+		s, _ := in.ReadString('\n')
+		return strings.TrimRight(s, "\r\n")
+	}
+	a, code := openApp("reset-2fa", cfg, line, stderr)
+	if a == nil {
+		return code
+	}
+	defer a.Close()
+
+	var target auth.User
+	var was bool
+	err := a.Store().Update(nil2ctx(), true, func(tx *sql.Tx) error {
+		var e error
+		if target, e = auth.ByUsername(tx, *user); e != nil {
+			return e
+		}
+		if target.Deleted() {
+			return errDeleted
+		}
+		if was, e = totp.Enabled(tx, target.ID); e != nil || !was {
+			return e
+		}
+		if e = totp.Disable(tx, target.ID); e != nil {
+			return e
+		}
+		_, e = adminlog.Append(tx, time.Now(), adminlog.System, "user.totp.reset.cli", "user", target.ID, "totp")
+		return e
+	})
+	switch {
+	case errors.Is(err, auth.ErrNoUser):
+		fmt.Fprintf(stderr, "reset-2fa: there is no account named %q. Nothing was changed.\n", *user)
+		return 1
+	case errors.Is(err, errDeleted):
+		fmt.Fprintln(stderr, "reset-2fa: that account is deleted; restore it from the People page first. Nothing was changed.")
+		return 1
+	case err != nil:
+		fmt.Fprintln(stderr, "reset-2fa:", err)
+		return 1
+	}
+	if !was {
+		fmt.Fprintf(stdout, "ok: two-step sign-in was not on for @%s. Nothing was changed.\n", target.Username)
+		return 0
+	}
+	fmt.Fprintf(stdout, "ok: two-step sign-in is off for @%s, and its secret and recovery codes are gone. Their password is unchanged.\n", target.Username)
+	fmt.Fprintln(stdout, "Start the server again. The reset is recorded in the admin log. Sign in and set it up again from Account when you are ready.")
+	return 0
+}

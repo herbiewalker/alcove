@@ -813,7 +813,7 @@ func (s *Server) routes_() {
 	s.handle("POST /admin/log/export", admin, s.postLogExport)
 	s.handle("GET /admin/users", admin, s.getUsers)
 	s.handle("POST /admin/users/create", admin, s.postUserCreate)
-	for _, k := range []string{"disable", "enable", "delete", "restore", "reset"} {
+	for _, k := range []string{"disable", "enable", "delete", "restore", "reset", "reset2fa"} {
 		s.handle("POST /admin/users/"+k, admin, s.userAction(k))
 	}
 	s.handle("GET /admin/deleted", admin, s.getAdminDeleted)

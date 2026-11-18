@@ -54,11 +54,12 @@
   {{range .Users}}
     <tr>
       <td><b>{{.Name}}</b><br><span class="muted">@{{.Username}}{{if .Self}} (you){{end}}</span></td>
-      <td>{{.Role}}</td><td>{{.State}}</td><td>{{.Uploads}}</td><td>{{.LastLogin}}</td>
+      <td>{{.Role}}{{if .TwoOn}}<br><span class="muted small">two-step on</span>{{end}}</td><td>{{.State}}</td><td>{{.Uploads}}</td><td>{{.LastLogin}}</td>
       <td>
         <a class="btn secondary" href="/admin/people/{{.ID}}">Data</a>
         {{if .CanDisable}}<form method="post" action="/admin/users/disable"><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="id" value="{{.ID}}"><button class="btn secondary" type="submit">Disable</button></form>{{end}}
         {{if .CanEnable}}<form method="post" action="/admin/users/enable"><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="id" value="{{.ID}}"><button class="btn secondary" type="submit">Enable</button></form>{{end}}
+        {{if .CanReset2FA}}<form method="post" action="/admin/users/reset2fa" data-busy="Turning off two-step sign-in..."><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="id" value="{{.ID}}"><button class="btn secondary" type="submit">Reset two-step</button></form>{{end}}
         {{if .CanReset}}<form method="post" action="/admin/users/reset" data-busy="Making a temporary password..."><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="id" value="{{.ID}}"><button class="btn secondary" type="submit">Reset password</button></form>{{end}}
         {{if .CanDelete}}<form method="post" action="/admin/users/delete" data-busy="Deleting the account..."><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="id" value="{{.ID}}"><button class="btn secondary" type="submit">Delete</button></form>{{end}}
       </td>

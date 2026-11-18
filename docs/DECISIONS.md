@@ -886,7 +886,7 @@ is a recurring check, not a one-off.
 - **Guard:** `internal/qr` tests read the picture back the way a scanner would (format word, mask, check words, text) for every version size and match the published Reed-Solomon example; `TestQRCodesAreLocalAndNeverHoldTheInviteCode`; `TestHideScreenButtonIsHiddenWithoutTheScriptAndTheScriptStoresNothing`. Not yet tried with a real phone camera.
 
 ## D-49 — Optional two-step sign-in (TOTP) for administrators (M8 slice 5; resolves O-5)
-- **Status:** Accepted 2026-11-18 (administrators only for now; space owners may get it later). Build in four pieces: (1) `internal/totp` and schema v11, (2) the two-step sign-in, (3) setup, disable and new recovery codes, (4) another admin's reset, `alcove reset-2fa`, health row and the runbook drill.
+- **Status:** Accepted 2026-11-18 and built (administrators only for now; space owners may get it later). Built in four pieces: (1) `internal/totp` and schema v11, (2) the two-step sign-in, (3) setup, disable and new recovery codes, (4) another admin's reset, `alcove reset-2fa`, health row and the runbook drill.
 - **Context:** the administrator account can see and edit everything, and a password is the only thing between a device on the wifi and that account (R17). D-27 deliberately has no per-account lockout, because that would let anyone on the wifi lock the admin out. A second factor must add protection without adding a way to lock the owner out of their own server, so the design is mostly about recovery.
 - **Decision:**
   1. **Scope (O-5).** Administrators only, opt in, off by default. The storage is keyed by user, so offering it to members later is a page change, not a redesign.

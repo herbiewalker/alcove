@@ -27,3 +27,21 @@ func TestResetRefusedWhileTheServerHoldsTheDataDirectory(t *testing.T) {
 		t.Error("the refused command changed the account")
 	}
 }
+
+// reset-2fa follows the same rule: with the server running it is refused and changes nothing.
+func TestReset2FARefusedWhileTheServerHoldsTheDataDirectory(t *testing.T) {
+	r := newRig(t)
+	r.turnOn("alice")
+	st, err := store.Open(store.Config{DataDir: r.cfg.DataDir, TmpDir: r.cfg.TmpDir, Key: r.key, AllowNonTmpfsTmp: true, SealEvery: time.Hour})
+	if err != nil {
+		t.Fatal(err)
+	}
+	code, _, errs := run2fa(r, "", "-user", "alice")
+	_ = st.Close()
+	if code != 1 || !strings.Contains(errs, "Stop it first") {
+		t.Fatalf("%d %s", code, errs)
+	}
+	if on, _ := r.twoOn("alice"); !on {
+		t.Error("the refused command turned two-step off")
+	}
+}

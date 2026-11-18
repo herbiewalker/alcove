@@ -13,6 +13,7 @@ import (
 	"github.com/herbiewalker/alcove/internal/blobstore"
 	"github.com/herbiewalker/alcove/internal/retention"
 	"github.com/herbiewalker/alcove/internal/store"
+	"github.com/herbiewalker/alcove/internal/totp"
 )
 
 // Account lifecycle for the administrator (D-30, F2): create, disable, enable, delete, restore and
@@ -42,13 +43,30 @@ type userRow struct {
 	ID, Username, Name, Role, State, Created, LastLogin, Until   string
 	Uploads                                                      int
 	Self, CanDisable, CanEnable, CanDelete, CanRestore, CanReset bool
+	TwoOn, CanReset2FA                                           bool
 }
 
 func (s *Server) userRows(q *rq) ([]userRow, []userRow, error) {
 	var list []auth.User
 	counts := map[string]int{}
+	two := map[string]bool{}
 	err := q.st.View(q.r.Context(), func(tx *sql.Tx) (err error) {
 		if list, err = auth.List(tx); err != nil {
+			return err
+		}
+		trows, err := tx.Query(`SELECT user_id FROM user_totp`)
+		if err != nil {
+			return err
+		}
+		defer trows.Close()
+		for trows.Next() {
+			var id string
+			if err := trows.Scan(&id); err != nil {
+				return err
+			}
+			two[id] = true
+		}
+		if err := trows.Err(); err != nil {
 			return err
 		}
 		rows, err := tx.Query(`SELECT owner_id, COUNT(*) FROM revision WHERE deleted_at IS NULL AND kind = 'upload' GROUP BY owner_id`)
@@ -73,7 +91,8 @@ func (s *Server) userRows(q *rq) ([]userRow, []userRow, error) {
 	var live, gone []userRow
 	for _, u := range list {
 		r := userRow{ID: u.ID, Username: u.Username, Name: u.DisplayName, Role: u.Role, Created: u.CreatedAt.Format(timeFmt),
-			LastLogin: "never", Uploads: counts[u.ID], Self: u.ID == q.id.user.ID}
+			LastLogin: "never", Uploads: counts[u.ID], Self: u.ID == q.id.user.ID, TwoOn: two[u.ID]}
+		r.CanReset2FA = r.TwoOn && !r.Self && !u.Deleted()
 		if !u.LastLoginAt.IsZero() {
 			r.LastLogin = u.LastLoginAt.Format(timeFmt)
 		}
@@ -251,6 +270,22 @@ func (s *Server) userAction(kind string) func(*rq) {
 					return e
 				}
 				e = auth.SetPasswordForced(tx, id, h, true)
+			case "reset2fa":
+				act, fields = "user.totp.reset", "totp"
+				if target.Deleted() {
+					return refuse("Restore the account before resetting its two-step sign-in.")
+				}
+				if self {
+					return refuse("Turn off your own two-step sign-in on the Account page.")
+				}
+				on, e2 := totp.Enabled(tx, id)
+				if e2 != nil {
+					return e2
+				}
+				if !on {
+					return refuse("Two-step sign-in is not on for that person.")
+				}
+				e = totp.Disable(tx, id)
 			default:
 				return refuse("Unknown action.")
 			}
@@ -268,7 +303,8 @@ func (s *Server) userAction(kind string) func(*rq) {
 			q.serverError("account action", err)
 			return
 		}
-		if kind == "disable" || kind == "delete" || kind == "reset" {
+		if kind == "disable" || kind == "delete" || kind == "reset" || kind == "reset2fa" {
+			s.pendings.DropUser(id)
 			s.sessions.RevokeUser(id) // their devices are signed out at once
 		}
 		if kind == "reset" {

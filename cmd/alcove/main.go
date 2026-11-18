@@ -7,6 +7,7 @@
 //	alcove restore -backup F -to D extract a verified backup into an empty directory (no key needed)
 //	alcove test-backup -out F      write a synthetic Tryst backup (fake data) for trying and testing Alcove
 //	alcove reset-password -user U  break-glass: set a new password for U (stop the server first)
+//	alcove reset-2fa -user U       break-glass: turn two-step sign-in off for U (stop the server first)
 //	alcove drill -backup F -key K  restore into a throwaway place and read it back with that key
 //	alcove -healthcheck      probe /healthz on localhost, for the container HEALTHCHECK
 package main
@@ -54,6 +55,13 @@ func main() {
 			os.Exit(backupcli.Restore(os.Args[2:], os.Stdout, os.Stderr))
 		case "drill":
 			os.Exit(backupcli.Drill(os.Args[2:], os.Stdin, os.Stdout, os.Stderr))
+		case "reset-2fa":
+			cfg, err := config.Load(os.Getenv)
+			if err != nil {
+				fmt.Fprintln(os.Stderr, "alcove: configuration error:", err)
+				os.Exit(2)
+			}
+			os.Exit(admincli.ResetTwoStep(os.Args[2:], cfg, os.Stdin, os.Stdout, os.Stderr))
 		case "reset-password":
 			cfg, err := config.Load(os.Getenv)
 			if err != nil {

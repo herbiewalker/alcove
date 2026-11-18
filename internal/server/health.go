@@ -57,6 +57,7 @@ func (s *Server) health(q *rq) (groups []healthGroup, warns int, err error) {
 	}
 
 	var users, active, disabled, pendingUsers, uploads, deletedUploads, photos, spaceN, logN int
+	var adminsN, twoN, lowRec int
 	var lastVerifyTS int64
 	var lastVerifyResult string
 	err = q.st.View(q.r.Context(), func(tx *sql.Tx) error {
@@ -74,6 +75,9 @@ func (s *Server) health(q *rq) (groups []healthGroup, warns int, err error) {
 			{&photos, `SELECT COUNT(*) FROM media_blob`},
 			{&spaceN, `SELECT COUNT(*) FROM space WHERE deleted_at IS NULL`},
 			{&logN, `SELECT COUNT(*) FROM admin_log`},
+			{&adminsN, `SELECT COUNT(*) FROM user WHERE deleted_at IS NULL AND status = 'active' AND role = 'admin'`},
+			{&twoN, `SELECT COUNT(*) FROM user_totp t JOIN user u ON u.id = t.user_id WHERE u.deleted_at IS NULL AND u.status = 'active'`},
+			{&lowRec, `SELECT COUNT(*) FROM user_totp t WHERE (SELECT COUNT(*) FROM user_recovery r WHERE r.user_id = t.user_id AND r.used_at = 0) <= 2`},
 		} {
 			if err := one(c.dst, c.sql); err != nil {
 				return err
@@ -169,6 +173,16 @@ func (s *Server) health(q *rq) (groups []healthGroup, warns int, err error) {
 	if !nv.PendingUntil.IsZero() {
 		add(&nt, "Network list change", "waiting for you to confirm it", "warn", "It undoes itself if you do not confirm in time (Network and security).")
 	}
+	switch {
+	case twoN == 0:
+		add(&nt, "Two-step sign-in", "off for every administrator", "info", "Optional. Turn it on from Account, Two-step sign-in (D-49).")
+	default:
+		add(&nt, "Two-step sign-in", strconv.Itoa(twoN)+" of "+strconv.Itoa(adminsN)+" administrators use it", "info", "")
+	}
+	if lowRec > 0 {
+		add(&nt, "Recovery codes running low", plural(lowRec, "person has", "people have")+" 2 or fewer left", "warn", "They should make new recovery codes on the Account page before the phone is lost.")
+	}
+	add(&nt, "Server clock (UTC)", now.UTC().Format("2006-01-02 15:04:05"), "info", "A code from an authenticator app only works if this and the phone's clock agree to within about 30 seconds.")
 	add(&nt, "Default time zone", share.DefaultZoneName(), "info", "")
 	add(&nt, "Version", strings.TrimPrefix(s.opt.Version, "v"), "info", "Up since "+s.started.UTC().Format("2006-01-02 15:04")+" UTC.")
 	groups = append(groups, nt)
