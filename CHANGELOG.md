@@ -8,7 +8,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) · Versioning: 
 ## [Unreleased]
 
 ### Added
-- Groundwork for two-step sign-in (D-49, not usable yet): a TOTP and recovery-code package and two new database tables (schema 10 to 11, additive; they migrate by themselves on the next start). Nothing signs in with them until the next pieces land.
+- Groundwork for two-step sign-in (D-49, not usable yet): a TOTP and recovery-code package, two new database tables (schema 10 to 11, additive; they migrate by themselves on the next start) and the sign-in step itself: a person with a second step on gets no session from a password alone, and finishes with a current code or a recovery code (five wrong codes lock that step for ten minutes). Nobody can turn it on until the setup page lands.
 - Hide screen (D-48): a Hide button in the top bar covers the page with a blank grey sheet and a neutral tab title; tap it or press Escape to come back. It only covers: you stay signed in and nothing is stored or sent. It needs the page script and stays hidden without it.
 - QR codes (D-48): Admin shows the server address with a QR code, and a page that shows a new invite or space code adds a QR code for the join page, so a phone can open it by camera. Drawn by Alcove itself, no outside service. The secret code is never in the picture.
 - Health page (D-47): Admin, Health shows what the server holds and what needs attention at a glance: no backup folder, never backed up, a backup older than 30 days, no restore drill yet, the admin log never or not recently checked or failing its check, a network change waiting to be confirmed. The console home shows how many things need attention. Counts and states only; opening it is logged.

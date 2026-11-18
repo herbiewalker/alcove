@@ -16,6 +16,7 @@ import (
 	"github.com/herbiewalker/alcove/internal/auth"
 	"github.com/herbiewalker/alcove/internal/netsec"
 	"github.com/herbiewalker/alcove/internal/share"
+	"github.com/herbiewalker/alcove/internal/totp"
 )
 
 const timeFmt = "2006-01-02 15:04:05"
@@ -190,7 +191,13 @@ func (s *Server) postLogin(q *rq) {
 	username, password := q.r.PostForm.Get("username"), q.r.PostForm.Get("password")
 	var u auth.User
 	var uerr error
-	if err := q.st.View(q.r.Context(), func(tx *sql.Tx) error { u, uerr = auth.ByUsername(tx, username); return nil }); err != nil {
+	var twoStep bool
+	if err := q.st.View(q.r.Context(), func(tx *sql.Tx) (e error) {
+		if u, uerr = auth.ByUsername(tx, username); uerr == nil {
+			twoStep, e = totp.Enabled(tx, u.ID)
+		}
+		return e
+	}); err != nil {
 		q.serverError("sign-in lookup", err)
 		return
 	}
@@ -208,6 +215,18 @@ func (s *Server) postLogin(q *rq) {
 	var newHash string
 	if rehash {
 		newHash, _ = auth.Hash(password, s.params)
+	}
+	if twoStep {
+		// A right password is only the first step (D-49): no session, no sign-in line in the log, until
+		// the second step passes. The stronger hash, if one was due, is still saved now.
+		if newHash != "" {
+			if err := q.st.Update(q.r.Context(), false, func(tx *sql.Tx) error { return auth.SetPassword(tx, u.ID, newHash) }); err != nil {
+				q.serverError("sign-in rehash", err)
+				return
+			}
+		}
+		s.startSecondStep(q, u)
+		return
 	}
 	err := q.st.Update(q.r.Context(), false, func(tx *sql.Tx) error {
 		if err := auth.TouchLogin(tx, u.ID, s.now()); err != nil {

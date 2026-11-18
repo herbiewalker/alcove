@@ -175,4 +175,4 @@ Two tables for optional two-step sign-in (D-49), both removed with the account (
 - `user_totp` (user id, secret, enabled at, last step). The secret is stored as is inside the sealed database, because a code cannot be checked without it; it never reaches a log. `last_step` is the newest 30-second step already accepted, so a code cannot be used twice.
 - `user_recovery` (user id, SHA-256 hash, used at). Ten rows per person at a time; a code is spent by setting `used_at`. New codes replace all ten.
 
-The code is in `internal/totp`. Nothing uses these tables yet: the sign-in step, the setup pages and the reset commands are the next pieces.
+The code is in `internal/totp`. Piece 2 reads them at sign-in; the setup pages and the reset commands are the next pieces.

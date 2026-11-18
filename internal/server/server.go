@@ -95,6 +95,7 @@ type Server struct {
 	routes   []route
 	tpl      map[string]*template.Template
 	sessions *auth.Sessions
+	pendings *auth.Pendings
 	csrfKey  []byte
 
 	loginLim, setupLim, unlockLim, stepLim, refusedLog, joinLim *auth.Limiter
@@ -132,7 +133,7 @@ func New(be Backend, opt Options) (*Server, error) {
 		opt.Params = auth.DefaultParams
 	}
 	s := &Server{be: be, opt: opt, log: opt.Logger, now: opt.Now, params: opt.Params, envZone: share.DefaultZoneName(), started: opt.Now(), thumbs: newThumbCache(opt.Now), thumbSem: make(chan struct{}, thumbWorkers),
-		sessions: auth.NewSessions(opt.Now), tpl: map[string]*template.Template{},
+		sessions: auth.NewSessions(opt.Now), pendings: auth.NewPendings(opt.Now), tpl: map[string]*template.Template{},
 		loginLim: auth.LoginLimiter(), setupLim: &auth.Limiter{Capacity: 10, RefillEvery: 30 * time.Second},
 		unlockLim:  &auth.Limiter{Capacity: 5, RefillEvery: time.Minute},
 		joinLim:    &auth.Limiter{Capacity: 10, RefillEvery: 30 * time.Second},
@@ -161,7 +162,7 @@ func (s *Server) netOptions() netsec.Options {
 }
 
 func (s *Server) parseTemplates() error {
-	pages := []string{"message", "setup", "login", "unlock", "home", "account", "stepup", "admin", "adminlog", "settings", "backup", "uploads", "users", "usercreated", "forcepw", "mydeleted", "admindeleted", "spaces", "space", "join", "joinconsent", "codeshown", "adminspaces", "spaceentries", "myentries", "profile", "prefill", "calendar", "compare", "entry", "search", "gallery", "editentry", "history", "partners", "editpartner", "deleteentry", "deletedentries", "persondata", "export", "adminsearch", "health"}
+	pages := []string{"message", "setup", "login", "unlock", "home", "account", "stepup", "admin", "adminlog", "settings", "backup", "uploads", "users", "usercreated", "forcepw", "mydeleted", "admindeleted", "spaces", "space", "join", "joinconsent", "codeshown", "adminspaces", "spaceentries", "myentries", "profile", "prefill", "calendar", "compare", "entry", "search", "gallery", "editentry", "history", "partners", "editpartner", "deleteentry", "deletedentries", "persondata", "export", "adminsearch", "health", "logincode"}
 	for _, p := range pages {
 		t, err := template.ParseFS(assets, "templates/base.html", "templates/"+p+".html")
 		if err != nil {
@@ -716,6 +717,8 @@ func (s *Server) routes_() {
 	s.handle("POST /setup", public, s.postSetup)
 	s.handle("GET /login", public, s.getLogin)
 	s.handle("POST /login", public, s.postLogin)
+	s.handle("GET /login/code", public, s.getLoginCode)
+	s.handle("POST /login/code", public, s.postLoginCode)
 	s.handle("POST /logout", anyone, s.postLogout)
 	s.handle("POST /theme", anyone, s.postTheme)
 	s.handle("GET /{$}", user, s.getHome)

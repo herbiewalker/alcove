@@ -1,0 +1,16 @@
+{{define "content"}}
+<section class="card center">
+  <img class="mark-large" src="/static/mark-192.png" width="96" height="96" alt="">
+  <h1>Second step</h1>
+  <p class="muted">Your password was right. Now type the 6-digit code from your authenticator app, or one of your recovery codes.</p>
+</section>
+<form class="card" method="post" action="/login/code" data-busy="Checking the code..." autocomplete="off">
+  <input type="hidden" name="csrf" value="{{.CSRF}}">
+  <div class="field">
+    <label for="code">Code</label>
+    <input id="code" name="code" type="text" inputmode="text" autocapitalize="none" autocomplete="one-time-code" spellcheck="false" maxlength="40" required autofocus>
+    <p class="hint">A recovery code works once. If you have neither, see the runbook for the way back in.</p>
+  </div>
+  <div class="actions"><button class="btn" type="submit">Continue</button> <a class="btn secondary" href="/login">Start again</a></div>
+</form>
+{{end}}
