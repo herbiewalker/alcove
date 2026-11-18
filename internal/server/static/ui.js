@@ -3,7 +3,7 @@
    itself. It reads and stores nothing, never touches a password, and sends nothing but the upload
    form itself, exactly as the browser would (fields first, file last).
 
-   Three jobs:
+   The jobs, numbered where they appear below:
    1. The upload bar on My data (real progress, then "Checking the backup" with a running clock).
    2. A "Working..." bar for any form that takes a moment, and a guard against double-clicks.
    3. For a download, "Preparing your download..." until the browser has really received the file
@@ -199,5 +199,37 @@
     };
     tick();
     setInterval(tick, 1000);
+  }
+  // 5. Hide screen (F22, D-48): one tap covers the page with a blank grey sheet, and the tab title
+  // becomes a neutral one; one tap (or Escape) brings it back. It only covers: the sign-in stays, the
+  // idle timeout still runs, and nothing is stored or sent. Without this script the button stays hidden.
+  var hideBtn = document.getElementById("hide-screen");
+  if (hideBtn) {
+    var cover = null, realTitle = "";
+    var uncover = function () {
+      if (!cover) { return; }
+      cover.hidden = true;
+      document.title = realTitle;
+      document.body.removeAttribute("aria-hidden");
+      hideBtn.focus();
+    };
+    var hideNow = function () {
+      if (!cover) {
+        cover = el("button", "cover");
+        cover.type = "button";
+        cover.setAttribute("aria-label", "Screen hidden. Press to show it again.");
+        cover.addEventListener("click", uncover);
+        document.body.appendChild(cover);
+      }
+      realTitle = document.title;
+      document.title = "New tab";
+      cover.hidden = false;
+      cover.focus();
+    };
+    hideBtn.hidden = false;
+    hideBtn.addEventListener("click", hideNow);
+    document.addEventListener("keydown", function (ev) {
+      if (ev.key === "Escape" && cover && !cover.hidden) { uncover(); }
+    });
   }
 })();

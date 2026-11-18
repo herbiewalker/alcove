@@ -23,6 +23,7 @@
     <a href="/search"{{if eq .Active "search"}} aria-current="page"{{end}}>Search</a>
     {{if .IsAdmin}}<a href="/admin"{{if eq .Active "admin"}} aria-current="page"{{end}}>Admin</a>{{end}}
     <a href="/account"{{if eq .Active "account"}} aria-current="page"{{end}}>Account</a>
+    <button type="button" id="hide-screen" hidden>Hide</button>
     <form method="post" action="/logout"><input type="hidden" name="csrf" value="{{.CSRF}}"><button type="submit">Sign out</button></form>
   </nav>
   {{end}}

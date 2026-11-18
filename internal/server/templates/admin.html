@@ -11,6 +11,11 @@
   <p><a class="btn" href="/admin/health">Open health</a></p>
 </section>
 <section class="card">
+  <h2>Open Alcove on a phone</h2>
+  <p>On the same wifi, this is the address: <code>{{.QRText}}</code></p>
+  {{if .QR}}<div class="qrbox">{{.QR}}</div><p class="muted small">Point a phone camera at it. It holds only the address, no account and no code. If the address is wrong for the phone (a different name or port), type the right one instead.</p>{{end}}
+</section>
+<section class="card">
   <h2>People</h2>
   <p>Add people, disable them, reset a password, or delete them with a grace period before everything is removed.</p>
   <p><a class="btn" href="/admin/users">Open People</a> <a class="btn secondary" href="/admin/deleted">Recently deleted</a> <a class="btn secondary" href="/admin/search">Search everything</a></p>

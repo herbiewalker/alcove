@@ -410,6 +410,8 @@ func (s *Server) getAdmin(q *rq) {
 	if _, w, herr := s.health(q); herr == nil {
 		p.HealthWarns = w
 	}
+	p.QRText = q.r.Host
+	p.QR = qrFor(q.joinBase()+"/", "QR code for the address of this server")
 	p.Stats.Sealed = "never"
 	if t := q.st.LastSealed(); !t.IsZero() {
 		p.Stats.Sealed = t.UTC().Format("15:04:05") + " UTC"

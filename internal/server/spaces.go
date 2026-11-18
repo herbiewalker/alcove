@@ -360,7 +360,7 @@ func (s *Server) postSpaceAction(q *rq) {
 			what = "space code"
 			note = "Anyone who has this code can ask to join; you still approve each person. Making a new code stops the old one."
 		}
-		q.render(http.StatusOK, "codeshown", &page{Title: "Your " + what, Active: "spaces", Code: codeShown, JoinURL: q.joinBase() + "/join", CodeNote: note, Back: "/spaces/" + id})
+		q.render(http.StatusOK, "codeshown", &page{Title: "Your " + what, Active: "spaces", Code: codeShown, JoinURL: q.joinBase() + "/join", CodeNote: note, Back: "/spaces/" + id, QR: qrFor(q.joinBase()+"/join", "QR code for the join page")})
 		return
 	}
 	q.setFlash("done")
@@ -685,6 +685,7 @@ func (s *Server) postServerInvite(q *rq) {
 		return
 	}
 	q.render(http.StatusOK, "codeshown", &page{Title: "Your invite", Active: "admin", Code: code, JoinURL: q.joinBase() + "/join",
+		QR:       qrFor(q.joinBase()+"/join", "QR code for the join page"),
 		CodeNote: "Give it to one person, in person or through your own channel. It creates one account, works once, and expires.", Back: "/admin/users"})
 }
 

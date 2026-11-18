@@ -39,7 +39,7 @@
 
 | Threat | Mitigation |
 |--------|-----------|
-| T1 opens the page on a shared screen | Authentication, short idle timeout, photos blurred until clicked, step-up re-login for export and delete (a "hide screen" button is planned, F22, not built) |
+| T1 opens the page on a shared screen | Authentication, short idle timeout, photos blurred until clicked, step-up re-login for export and delete a "hide screen" button, F22, D-48) |
 | T2 reaches the port | LAN only, one published port, rate-limited login, strict CSP, no open sign-up |
 | T3 reads outside their space | Every view reads through the visibility check; isolation tests across non-members, spaces, pause and the private flag (N1) |
 | T5 reads a pulled disk | Data encrypted at rest; the key file lives outside the data directory and the app refuses to start otherwise (N2) |

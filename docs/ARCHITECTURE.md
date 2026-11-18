@@ -55,6 +55,7 @@ Every package below exists. The newest ones are `edit` (M5), `export` (M6) and `
 | `internal/compare` | the compare metrics registry, versioned and schema-aware, built on `share` output only (D-35) |
 | `internal/auth` | accounts, Argon2id hashing, in-memory sessions with a step-up window, sign-in rate limiting |
 | `internal/netsec` | transport security (D-23): allowed networks, proxy mode and client address, require-TLS, the self-reverting network change |
+| `internal/qr` | draws QR codes as inline SVG, no library (D-48) |
 | `internal/adminsearch` | the administrator's search over every person's current notes and partners, outside the sharing gate on purpose (D-46) |
 | `internal/adminlog` | the append-only, hash-chained admin log, its verifier and its filters (D-45); free-text fields are restricted to identifiers so content cannot reach it |
 | `internal/retention`, `internal/admincli` | soft delete and restore (10 and 45 day windows), the real purge and its crash sweep, and the break-glass `reset-password` |

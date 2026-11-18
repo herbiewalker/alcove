@@ -109,7 +109,7 @@ Built means it works and has a test. "Partly" and "Not built" say what is missin
 | Yes | F1 to F13, F16, F21, F23, F26 to F29, F32, F33 |
 | Yes, with a change | **F14** history shows each change's old and new values with an undo, not a side-by-side diff. **F15** the export page shows the base upload and what changed (counts and field names) and gives the guided steps; the "newer upload exists" warning became "a new upload starts over, and the page warns before it" (D-42), because a newer upload replaces the chain |
 | Partly | **F17** the administrator can view, search and edit anyone's entries and partners (all logged) but cannot see their photos there or search deleted entries (D-46). **F18** is done: the log, its viewer, filters, CSV export and "verify now" (D-45). **F19** photos are shared, blurred, cleaned and gallery-listed; thumbnails and partner or profile pictures are not built (M7). **F30** upload from a phone browser is checked in a phone-sized browser and in CI; the export download in a real phone browser is not yet tried |
-| Not built | F20 (TOTP), F22 (hide screen), F24 (notifications), F25 (activity view), F31 (QR codes) |
+| Not built | F20 (TOTP), F24 (notifications), F25 (activity view) |
 
 | NFR | Status |
 |-----|--------|

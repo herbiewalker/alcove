@@ -464,6 +464,8 @@ type page struct {
 	Filtered                  bool
 	Health                    []healthGroup
 	HealthWarns               int
+	QR                        template.HTML
+	QRText                    string
 	SteppedUp, Pending        bool
 	EnvNets, EnvProxy, EnvTLS bool
 	ProxyMode, RequireTLS     bool
