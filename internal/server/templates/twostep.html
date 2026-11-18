@@ -1,0 +1,52 @@
+{{define "content"}}
+<h1>Two-step sign-in</h1>
+{{if .Setup}}
+<section class="card">
+  <h2>Set it up</h2>
+  <p>1. Open an authenticator app on your phone and add an account by scanning this picture, or by typing the key under it.</p>
+  {{if .QR}}<div class="qrbox">{{.QR}}</div>{{end}}
+  <p class="center">Key: <code>{{.QRText}}</code></p>
+  <p class="muted small">This key is shown only while you set up. Anyone who has it can make your codes, so do not photograph this screen.</p>
+</section>
+<form class="card" method="post" action="/account/twostep/enable" autocomplete="off" data-busy="Checking the code...">
+  <input type="hidden" name="csrf" value="{{.CSRF}}">
+  <div class="field">
+    <label for="code">2. Type the 6-digit code the app shows now</label>
+    <input id="code" name="code" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="10" required autofocus>
+    <p class="hint">It is only turned on once this code is right, so a mistake here cannot lock you out. You will then get ten recovery codes.</p>
+  </div>
+  <div class="actions"><button class="btn" type="submit">Turn it on</button> <a class="btn secondary" href="/account/twostep">Cancel</a></div>
+</form>
+{{else if .TwoOn}}
+<section class="card">
+  <p><b>Two-step sign-in is on</b> (since {{.TwoSince}}). After your password you type a code from your authenticator app.</p>
+  <p>Recovery codes left: <b>{{.RecLeft}}</b> of 10.{{if le .RecLeft 2}} <b>Make new ones soon.</b>{{end}}</p>
+  <p class="muted small">If you lose your phone: use a recovery code at the second step, or have another administrator reset it, or run <code>alcove reset-2fa</code> on the server (see the runbook).</p>
+</section>
+<form class="card" method="post" action="/account/twostep/recovery" autocomplete="off" data-busy="Making new codes...">
+  <h2>New recovery codes</h2>
+  <input type="hidden" name="csrf" value="{{.CSRF}}">
+  <p class="muted">The old ones stop working. Type a current code (or a recovery code) to confirm.</p>
+  <div class="field"><label for="code1">Code</label><input id="code1" name="code" type="text" autocomplete="one-time-code" maxlength="40" required></div>
+  <div class="actions"><button class="btn" type="submit">Make new recovery codes</button></div>
+</form>
+<form class="card" method="post" action="/account/twostep/disable" autocomplete="off" data-busy="Turning it off...">
+  <h2>Turn it off</h2>
+  <input type="hidden" name="csrf" value="{{.CSRF}}">
+  <p class="muted">Sign-in goes back to a password alone. Other devices are signed out.</p>
+  <div class="field"><label for="code2">Code</label><input id="code2" name="code" type="text" autocomplete="one-time-code" maxlength="40" required></div>
+  <div class="actions"><button class="btn danger" type="submit">Turn off two-step sign-in</button></div>
+</form>
+{{else}}
+<section class="card">
+  <p><b>Two-step sign-in is off.</b> Your password is the only thing between a device on this network and an account that can see everything on this server.</p>
+  <p>With it on, signing in also needs a 6-digit code from an authenticator app on your phone. You get ten one-time recovery codes for the day the phone is lost, and it is only switched on after you prove the app works.</p>
+  <p class="muted small">You will be asked for your password again first.</p>
+</section>
+<form class="card" method="post" action="/account/twostep/start" data-busy="Making a key...">
+  <input type="hidden" name="csrf" value="{{.CSRF}}">
+  <div class="actions"><button class="btn" type="submit">Set up two-step sign-in</button></div>
+</form>
+{{end}}
+<p><a href="/account">Back to Account</a></p>
+{{end}}

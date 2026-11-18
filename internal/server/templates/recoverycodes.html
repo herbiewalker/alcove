@@ -1,0 +1,9 @@
+{{define "content"}}
+<h1>{{.Title}}</h1>
+<section class="card">
+  <p>{{.Message}}</p>
+  <p><b>They are shown only now</b> and cannot be looked up again. Each works once, in place of the 6-digit code, if you lose your phone. Keep them somewhere other than the phone, such as on paper with your server key copy.</p>
+  <ol class="temp">{{range .Codes}}<li><code>{{.}}</code></li>{{end}}</ol>
+  <p><a class="btn" href="{{.Back}}">I have saved them</a></p>
+</section>
+{{end}}

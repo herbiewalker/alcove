@@ -318,3 +318,7 @@ figure.photo figcaption { margin-top: 4px; overflow-wrap: anywhere; }
 #hide-screen[hidden] { display: none; }
 .cover { position: fixed; inset: 0; z-index: 100; background: #f2f2f2; cursor: pointer; border: 0; width: 100%; padding: 0; }
 .cover[hidden] { display: none; }
+
+/* Recovery codes (D-49): one per line, easy to copy by hand. */
+ol.temp { list-style: none; padding: 0; margin: 16px 0; }
+ol.temp li { margin: 8px 0; }

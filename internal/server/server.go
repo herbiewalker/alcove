@@ -96,6 +96,7 @@ type Server struct {
 	tpl      map[string]*template.Template
 	sessions *auth.Sessions
 	pendings *auth.Pendings
+	setups   *setupStore
 	csrfKey  []byte
 
 	loginLim, setupLim, unlockLim, stepLim, refusedLog, joinLim *auth.Limiter
@@ -133,7 +134,7 @@ func New(be Backend, opt Options) (*Server, error) {
 		opt.Params = auth.DefaultParams
 	}
 	s := &Server{be: be, opt: opt, log: opt.Logger, now: opt.Now, params: opt.Params, envZone: share.DefaultZoneName(), started: opt.Now(), thumbs: newThumbCache(opt.Now), thumbSem: make(chan struct{}, thumbWorkers),
-		sessions: auth.NewSessions(opt.Now), pendings: auth.NewPendings(opt.Now), tpl: map[string]*template.Template{},
+		sessions: auth.NewSessions(opt.Now), pendings: auth.NewPendings(opt.Now), setups: &setupStore{}, tpl: map[string]*template.Template{},
 		loginLim: auth.LoginLimiter(), setupLim: &auth.Limiter{Capacity: 10, RefillEvery: 30 * time.Second},
 		unlockLim:  &auth.Limiter{Capacity: 5, RefillEvery: time.Minute},
 		joinLim:    &auth.Limiter{Capacity: 10, RefillEvery: 30 * time.Second},
@@ -162,7 +163,7 @@ func (s *Server) netOptions() netsec.Options {
 }
 
 func (s *Server) parseTemplates() error {
-	pages := []string{"message", "setup", "login", "unlock", "home", "account", "stepup", "admin", "adminlog", "settings", "backup", "uploads", "users", "usercreated", "forcepw", "mydeleted", "admindeleted", "spaces", "space", "join", "joinconsent", "codeshown", "adminspaces", "spaceentries", "myentries", "profile", "prefill", "calendar", "compare", "entry", "search", "gallery", "editentry", "history", "partners", "editpartner", "deleteentry", "deletedentries", "persondata", "export", "adminsearch", "health", "logincode"}
+	pages := []string{"message", "setup", "login", "unlock", "home", "account", "stepup", "admin", "adminlog", "settings", "backup", "uploads", "users", "usercreated", "forcepw", "mydeleted", "admindeleted", "spaces", "space", "join", "joinconsent", "codeshown", "adminspaces", "spaceentries", "myentries", "profile", "prefill", "calendar", "compare", "entry", "search", "gallery", "editentry", "history", "partners", "editpartner", "deleteentry", "deletedentries", "persondata", "export", "adminsearch", "health", "logincode", "twostep", "recoverycodes"}
 	for _, p := range pages {
 		t, err := template.ParseFS(assets, "templates/base.html", "templates/"+p+".html")
 		if err != nil {
@@ -466,6 +467,10 @@ type page struct {
 	Health                    []healthGroup
 	HealthWarns               int
 	QR                        template.HTML
+	TwoOn, Setup              bool
+	RecLeft                   int
+	TwoSince                  string
+	Codes                     []string
 	QRText                    string
 	SteppedUp, Pending        bool
 	EnvNets, EnvProxy, EnvTLS bool
@@ -539,7 +544,7 @@ type logRow struct {
 	Fields                    string
 }
 
-var knownPaths = map[string]bool{"/": true, "/login": true, "/setup": true, "/unlock": true, "/account": true,
+var knownPaths = map[string]bool{"/": true, "/login": true, "/setup": true, "/unlock": true, "/account": true, "/account/twostep": true,
 	"/admin": true, "/admin/log": true, "/admin/settings": true, "/admin/backup": true, "/uploads": true, "/admin/users": true, "/admin/deleted": true, "/uploads/deleted": true, "/account/password": true, "/spaces": true, "/join": true, "/admin/spaces": true, "/profile": true, "/export": true}
 
 // render writes a page with a status code. It builds the whole page first so a template error
@@ -599,6 +604,7 @@ var flashes = map[string]string{
 	"proxy":           "Proxy settings saved.",
 	"tls":             "HTTPS setting saved.",
 	"zone":            "Default time zone saved.",
+	"2fa-off":         "Two-step sign-in is off.",
 	"signedout":       "Signed out.",
 	"uploaded":        "Backup uploaded and checked. It is now your current data.",
 	"done":            "Done.",
@@ -791,6 +797,11 @@ func (s *Server) routes_() {
 	s.handle("POST /join/accept", anyone, s.postJoinAccept)
 	s.handle("GET /account", user, s.getAccount)
 	s.handle("POST /account", user, s.postAccount)
+	s.handle("GET /account/twostep", admin, s.getTwoStep)
+	s.handle("POST /account/twostep/start", admin, s.postTwoStepStart)
+	s.handle("POST /account/twostep/enable", admin, s.postTwoStepEnable)
+	s.handle("POST /account/twostep/recovery", admin, s.postTwoStepRecovery)
+	s.handle("POST /account/twostep/disable", admin, s.postTwoStepDisable)
 	s.handle("GET /stepup", user, s.getStepUp)
 	s.handle("POST /stepup", user, s.postStepUp)
 	s.handle("GET /admin", admin, s.getAdmin)

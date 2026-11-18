@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/herbiewalker/alcove/internal/adminlog"
 	"github.com/herbiewalker/alcove/internal/auth"
@@ -100,28 +101,9 @@ func (s *Server) postLoginCode(q *rq) {
 		if u.Status != auth.StatusActive || u.Deleted() {
 			return nil
 		}
-		secret, last, on, e := totp.Secret(tx, uid)
-		if e != nil || !on {
+		var passed bool
+		if how, passed, e = checkFactor(tx, now, uid, typed); e != nil || !passed {
 			return e
-		}
-		if totp.LooksLikeRecovery(typed) {
-			spent, left, e := totp.UseRecovery(tx, now, uid, typed)
-			if e != nil || !spent {
-				return e
-			}
-			how = "2fa:recovery,left:" + strconv.Itoa(left)
-		} else {
-			step, valid := totp.Verify(secret, typed, now, last)
-			if !valid {
-				return nil
-			}
-			if e := totp.AcceptStep(tx, uid, step); e != nil {
-				if errors.Is(e, totp.ErrReplay) {
-					return nil
-				}
-				return e
-			}
-			how = "2fa:totp"
 		}
 		if e := auth.TouchLogin(tx, uid, now); e != nil {
 			return e
@@ -155,4 +137,33 @@ func (s *Server) postLoginCode(q *rq) {
 	q.clearPending()
 	s.loginLim.Reset(q.ip())
 	s.signIn(q, u)
+}
+
+// checkFactor tests a typed 6-digit code or recovery code for a person who has two-step on and
+// spends it (a code's step, or a recovery code) in the caller's transaction. how is the text for the
+// admin log: which kind it was, and for a recovery code how many remain. It never errors on a wrong
+// code, only on a database fault.
+func checkFactor(tx *sql.Tx, now time.Time, uid, typed string) (how string, ok bool, err error) {
+	secret, last, on, err := totp.Secret(tx, uid)
+	if err != nil || !on {
+		return "", false, err
+	}
+	if totp.LooksLikeRecovery(typed) {
+		spent, left, err := totp.UseRecovery(tx, now, uid, typed)
+		if err != nil || !spent {
+			return "", false, err
+		}
+		return "2fa:recovery,left:" + strconv.Itoa(left), true, nil
+	}
+	step, valid := totp.Verify(secret, typed, now, last)
+	if !valid {
+		return "", false, nil
+	}
+	if err := totp.AcceptStep(tx, uid, step); err != nil {
+		if errors.Is(err, totp.ErrReplay) {
+			return "", false, nil
+		}
+		return "", false, err
+	}
+	return "2fa:totp", true, nil
 }
