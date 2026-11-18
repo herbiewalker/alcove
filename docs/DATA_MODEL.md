@@ -1,6 +1,6 @@
 # Alcove — Data Model
 
-> **Status:** Built through store schema v10 (v0.1.2, 2026-11-15); the "Implemented in" sections at the end record each step. The entity table below is the original design and still reads true except where a later section says otherwise. Two things are versioned separately:
+> **Status:** Built through store schema v11 (v10 shipped in v0.1.2, 2026-11-15; v11 is unreleased); the "Implemented in" sections at the end record each step. The entity table below is the original design and still reads true except where a later section says otherwise. Two things are versioned separately:
 > Alcove's **store schema** and Tryst's **database schema** (`schemaVersion` inside a backup, v19 at the time
 > of writing). Alcove records the Tryst version it read and never dictates it.
 
@@ -167,3 +167,12 @@ All of this uses the v10 tables above.
 - **Order and rebuild.** `edit.Replay` reads the head upload's live edit revisions by `created_at, rowid` and each revision's changes by `id`. `edit.Summarize` reads the same records, in the same order, to count entries changed, added and deleted and partners changed for the export page.
 - **Export.** Reads `cache_row` (in `cache_head.table_order` and `pos` order) and the head upload's file; writes nothing to the database. The only record of an export is one `admin_log` line (`export.create`, counts only).
 - **Admin editing.** Writes `data.edit`, `data.revert`, `data.delete` and `data.restore` to `admin_log` in the same transaction as the change, and `data.view` for every look. The target is the table and `owner:row`; the fields column holds field names only.
+
+## Implemented in M8 slice 5, piece 1 (store schema v11)
+
+Two tables for optional two-step sign-in (D-49), both removed with the account (`ON DELETE CASCADE`):
+
+- `user_totp` (user id, secret, enabled at, last step). The secret is stored as is inside the sealed database, because a code cannot be checked without it; it never reaches a log. `last_step` is the newest 30-second step already accepted, so a code cannot be used twice.
+- `user_recovery` (user id, SHA-256 hash, used at). Ten rows per person at a time; a code is spent by setting `used_at`. New codes replace all ten.
+
+The code is in `internal/totp`. Nothing uses these tables yet: the sign-in step, the setup pages and the reset commands are the next pieces.
