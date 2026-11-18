@@ -11,7 +11,7 @@
 ![LAN only](https://img.shields.io/badge/network-LAN_only-2ea44f)
 ![Nothing leaks outside a space](https://img.shields.io/badge/spaces-isolated-2ea44f)
 
-**Status: v0.1.2, built through the editing and export milestones, not yet independently audited.** The server runs, starts unattended with its key kept apart from the data, and has accounts, an admin console with a tamper-evident log, uploads of Tryst backups kept as revisions, encrypted instance backups with a tested restore, soft delete with a real purge, and private spaces joined by invite. Members see each other's entries (with private entries and pause honoured), profile cards, a shared calendar and compare views, and photos. You can **edit your entries on a computer** (and the administrator can edit anyone's, always logged) and **export a fresh `.tryst` to restore on your phone**. The export round trip is proven on a Tryst 0.6.5 **emulator** with synthetic data, **not yet on a real phone**. See [what is and is not proven](#what-is-and-is-not-proven).
+**Status: v0.1.3, built through the editing and export milestones plus most of the admin console (search, log filters, health, optional two-step sign-in), not yet independently audited.** The server runs, starts unattended with its key kept apart from the data, and has accounts, an admin console with a tamper-evident log, uploads of Tryst backups kept as revisions, encrypted instance backups with a tested restore, soft delete with a real purge, and private spaces joined by invite. Members see each other's entries (with private entries and pause honoured), profile cards, a shared calendar and compare views, and photos. You can **edit your entries on a computer** (and the administrator can edit anyone's, always logged) and **export a fresh `.tryst` to restore on your phone**. The export round trip is proven on a Tryst 0.6.5 **emulator** with synthetic data, **not yet on a real phone**. See [what is and is not proven](#what-is-and-is-not-proven).
 
 </div>
 
@@ -41,7 +41,7 @@ person uploads their backups, edits their entries on a computer, and chooses wha
 
 ## Getting started
 
-**Run it** (Unraid or any Docker host). The image is `ghcr.io/herbiewalker/alcove`; `:stable` always points at the newest release, and an exact tag such as `0.1.2` pins a version. The short version:
+**Run it** (Unraid or any Docker host). The image is `ghcr.io/herbiewalker/alcove`; `:stable` always points at the newest release, and an exact tag such as `0.1.3` pins a version. The short version:
 
 1. Make the master key **once**, in a folder that is not the data folder, and keep a second copy somewhere that is not that machine. Prove the copy before the first real upload.
 2. Start the container (the Unraid template in [`deploy/`](deploy/unraid-template.xml) or `docker compose`). It needs one port, a data folder, the key folder and a backup folder on a different disk.
@@ -78,7 +78,7 @@ On Linux or in CI, `make check` runs the same gates. `alcove test-backup` writes
 
 | Proven (tests, CI, the container smoke) | Proven by hand on an emulator | Not yet proven |
 |-----------------------------------------|-------------------------------|----------------|
-| Isolation between members, spaces and outsiders; the admin log chain; encryption at rest and the key kept apart; soft delete and purge; the instance backup and restore drill; editing and its rebuild equivalence; the export file reading back identical | An export restored in Tryst 0.6.5 with "Replace my current data" on matches the app's own re-export, table by table, in two start states (synthetic data). Merge mode is unsafe (it keeps deleted entries and drops partner links) | A real phone, real photos and a real backup of yours; Chrome on a real Android phone; other Tryst versions; an independent security audit (M9); very large backups |
+| Isolation between members, spaces and outsiders; the admin log chain; encryption at rest and the key kept apart; soft delete and purge; the instance backup and restore drill; editing and its rebuild equivalence; the export file reading back identical | An export restored in Tryst 0.6.5 with "Replace my current data" on matches the app's own re-export, table by table, in two start states (synthetic data). Merge mode is unsafe (it keeps deleted entries and drops partner links) | A real phone, real photos and a real backup of yours; Chrome on a real Android phone; other Tryst versions; two-step sign-in with a real authenticator app, the QR codes with a real phone camera and photo thumbnails on real phone photos; an independent security audit (M9); very large backups |
 
 The round trip must be repeated for every Tryst release ([docs/RELEASE_CHECKS.md](docs/RELEASE_CHECKS.md)). Until you have done one yourself on a phone you care about, make a fresh backup in Tryst first and treat the first export as a trial.
 

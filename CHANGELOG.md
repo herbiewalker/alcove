@@ -7,6 +7,10 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) · Versioning: 
 
 ## [Unreleased]
 
+## [0.1.3] - 2026-11-18
+
+Upgrading from 0.1.2: the update restarts the container and migrates the database (schema 10 to 11, two new tables for two-step sign-in) by itself; your data and key are untouched and there is nothing else to do. Everything below is optional or automatic: two-step sign-in is off until an administrator turns it on, and the default time zone setting only takes over from `ALCOVE_TZ` once you save one. Not yet tried by hand: two-step sign-in with a real authenticator app, the QR codes with a real phone camera, and thumbnails on real phone photos. Going back to 0.1.2 means restoring the instance backup taken before the update (RUNBOOK section 13).
+
 ### Added
 - Two-step sign-in for administrators (D-49): Account, Two-step sign-in sets it up with a QR code for any authenticator app, and only turns it on after you type a correct code from the app. You then get ten one-time recovery codes. Signing in then needs your password and a 6-digit code (or a recovery code); five wrong codes lock that step for ten minutes. New recovery codes and turning it off need a current code. Other devices are signed out when it changes. If the phone is lost: a recovery code, another administrator's reset on People, or `alcove reset-2fa` on the server. Health shows how many administrators use it, warns when recovery codes run low, and shows the server clock. Schema 10 to 11 (additive) migrates by itself on the next start.
 - Hide screen (D-48): a Hide button in the top bar covers the page with a blank grey sheet and a neutral tab title; tap it or press Escape to come back. It only covers: you stay signed in and nothing is stored or sent. It needs the page script and stays hidden without it.

@@ -6,7 +6,7 @@
 > they are met. Crypto and storage come before views; the risky writer is proven early by a spike and finished late;
 > the web UI is mobile-first from the first page.
 >
-> **Updated 2026-11-15 (v0.1.2):** M0 to M6 are done. M7 (photos) is partly done, M8 (admin search, log filters, optional TOTP and notifications) and M9 (the audit) are not started, and the live validation (L1) is the owner's.
+> **Updated 2026-11-18 (v0.1.3):** M0 to M6 are done. M7 (photos) is mostly done (partner and profile pictures wait on a product decision), M8 is mostly done (log filters, admin search, health, hide screen, QR codes, optional TOTP; notifications and the member activity view remain) and M9 (the audit) is not started, and the live validation (L1) is the owner's.
 
 
 ---
