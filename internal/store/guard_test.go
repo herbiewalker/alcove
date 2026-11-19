@@ -26,8 +26,14 @@ var plaintextSignatures = [][]byte{
 	[]byte(sentinel),
 	[]byte("SQLite format 3"),
 	[]byte("PK\x03\x04"),   // ZIP
-	[]byte("\xff\xd8\xff"), // JPEG
+	[]byte("JFIF\x00"),     // a JPEG's marker (5 bytes, so it cannot turn up in ciphertext by chance)
+	[]byte("Exif\x00\x00"), // a JPEG's EXIF marker (6 bytes, likewise)
 }
+
+// A JPEG that starts a file is caught by its first three bytes. Those three bytes are NOT searched for
+// inside a file: in random ciphertext they turn up about once in 16 million positions, which made this
+// guard fail on roughly 3 runs in 100 (a false positive on the encrypted database, found 2026-11-18).
+var jpegStart = []byte("\xff\xd8\xff")
 
 // findPlaintext returns the files under dir that look like readable user data. allow lists base
 // names that may legitimately be readable.
@@ -41,6 +47,10 @@ func findPlaintext(t *testing.T, dir string, allow map[string]bool) []string {
 		b, rerr := os.ReadFile(p)
 		if rerr != nil {
 			return rerr
+		}
+		if bytes.HasPrefix(b, jpegStart) {
+			bad = append(bad, p+" starts like a JPEG")
+			return nil
 		}
 		for _, sig := range plaintextSignatures {
 			if bytes.Contains(b, sig) {
@@ -121,6 +131,8 @@ func TestGuard_ScannerCatchesPlaintext(t *testing.T) {
 		"live.sqlite":  []byte("SQLite format 3\x00 rest of a database"),
 		"archive.zip":  []byte("PK\x03\x04 zip bytes"),
 		"photo.jpg":    []byte("\xff\xd8\xff\xe0 jpeg"),
+		"jfif.bin":     []byte("xx \xff\xd8\xff\xe0\x00\x10JFIF\x00 tail"),
+		"embedded.bin": []byte("header bytes \xff\xd8\xff\xe1\x00\x10Exif\x00\x00 more"),
 		"export.json":  []byte(`{"encounters":[]}`),
 		"rows.json":    []byte(`  [{"a":1}]`),
 	}
