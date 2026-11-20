@@ -7,6 +7,9 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) · Versioning: 
 
 ## [Unreleased]
 
+### Added
+- Optional "Activity on my data" page for members (D-51, F25). Off until an administrator turns it on in Network and security, then every member gets a page under Account listing when an administrator (or the server's command line) opened or changed their data: time, kind and field names, no content and no administrator name. It is a read of the existing admin log, so there is no schema change. The page says what it cannot show (an administrator's search is logged by shape, not per person).
+
 ## [0.1.3] - 2026-11-18
 
 Upgrading from 0.1.2: the update restarts the container and migrates the database (schema 10 to 11, two new tables for two-step sign-in) by itself; your data and key are untouched and there is nothing else to do. Everything below is optional or automatic: two-step sign-in is off until an administrator turns it on, and the default time zone setting only takes over from `ALCOVE_TZ` once you save one. Not yet tried by hand: two-step sign-in with a real authenticator app, the QR codes with a real phone camera, and thumbnails on real phone photos. Going back to 0.1.2 means restoring the instance backup taken before the update (RUNBOOK section 13).

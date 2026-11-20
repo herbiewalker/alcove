@@ -64,7 +64,7 @@ Every package below exists. The newest ones are `edit` (M5), `export` (M6) and `
 | `internal/server` | the web layer: security headers, network gate, CSRF, templates and the one script; sign-in, accounts, spaces, entries, galleries, editing, the export pages, and the admin console (`/admin/people` for editing anyone's data, with every look and change logged) |
 | `tools/logocrop` | makes the square header mark and favicons from the master logo |
 
-Not built: `internal/notify` (the optional single-URL notifier, F24) and TOTP (F20). Both are optional and sit in M8.
+Not built: `internal/notify` (the optional single-URL notifier, F24; deferred by the owner). Two-step sign-in is `internal/totp` (D-49); the member activity page reads `adminlog.About` (D-51).
 
 ## Key data flows
 

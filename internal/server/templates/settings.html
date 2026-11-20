@@ -56,4 +56,13 @@
   </div>
   <div class="actions"><button class="btn" type="submit">Save</button></div>
 </form>
+
+<form class="card" method="post" action="/admin/settings/activity">
+  <h2>Activity page for members</h2>
+  <input type="hidden" name="csrf" value="{{.CSRF}}">
+  <p class="muted">When on, every member gets a page on their Account that lists when an administrator opened or changed their data: time, kind and field names, no content and no administrator name. Off by default. Turning it off hides the page again; the admin log is not affected.</p>
+  <label class="check"><input type="checkbox" name="activity" value="1" {{if .ActivityOn}}checked{{end}}><span>Show members the activity on their data</span></label>
+  {{if not .SteppedUp}}<p class="notice warn">Saving asks for your password again. <a href="/stepup?next=/admin/settings">Confirm it is you</a>.</p>{{end}}
+  <div class="actions"><button class="btn" type="submit">Save</button></div>
+</form>
 {{end}}

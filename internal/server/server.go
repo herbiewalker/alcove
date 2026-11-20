@@ -163,7 +163,7 @@ func (s *Server) netOptions() netsec.Options {
 }
 
 func (s *Server) parseTemplates() error {
-	pages := []string{"message", "setup", "login", "unlock", "home", "account", "stepup", "admin", "adminlog", "settings", "backup", "uploads", "users", "usercreated", "forcepw", "mydeleted", "admindeleted", "spaces", "space", "join", "joinconsent", "codeshown", "adminspaces", "spaceentries", "myentries", "profile", "prefill", "calendar", "compare", "entry", "search", "gallery", "editentry", "history", "partners", "editpartner", "deleteentry", "deletedentries", "persondata", "export", "adminsearch", "health", "logincode", "twostep", "recoverycodes"}
+	pages := []string{"message", "setup", "login", "unlock", "home", "account", "stepup", "admin", "adminlog", "settings", "backup", "uploads", "users", "usercreated", "forcepw", "mydeleted", "admindeleted", "spaces", "space", "join", "joinconsent", "codeshown", "adminspaces", "spaceentries", "myentries", "profile", "prefill", "calendar", "compare", "entry", "search", "gallery", "editentry", "history", "partners", "editpartner", "deleteentry", "deletedentries", "persondata", "export", "adminsearch", "health", "logincode", "twostep", "recoverycodes", "activity"}
 	for _, p := range pages {
 		t, err := template.ParseFS(assets, "templates/base.html", "templates/"+p+".html")
 		if err != nil {
@@ -468,6 +468,8 @@ type page struct {
 	HealthWarns               int
 	QR                        template.HTML
 	TwoOn, Setup              bool
+	Activity                  []activityRow
+	ActivityOn                bool
 	RecLeft                   int
 	TwoSince                  string
 	Codes                     []string
@@ -545,7 +547,7 @@ type logRow struct {
 }
 
 var knownPaths = map[string]bool{"/": true, "/login": true, "/setup": true, "/unlock": true, "/account": true, "/account/twostep": true,
-	"/admin": true, "/admin/log": true, "/admin/settings": true, "/admin/backup": true, "/uploads": true, "/admin/users": true, "/admin/deleted": true, "/uploads/deleted": true, "/account/password": true, "/spaces": true, "/join": true, "/admin/spaces": true, "/profile": true, "/export": true}
+	"/admin": true, "/admin/log": true, "/admin/settings": true, "/admin/backup": true, "/uploads": true, "/admin/users": true, "/admin/deleted": true, "/uploads/deleted": true, "/account/password": true, "/spaces": true, "/join": true, "/admin/spaces": true, "/profile": true, "/export": true, "/account/activity": true}
 
 // render writes a page with a status code. It builds the whole page first so a template error
 // never leaves half a page on the wire.
@@ -604,6 +606,7 @@ var flashes = map[string]string{
 	"proxy":           "Proxy settings saved.",
 	"tls":             "HTTPS setting saved.",
 	"zone":            "Default time zone saved.",
+	"activity":        "Saved.",
 	"2fa-off":         "Two-step sign-in is off.",
 	"signedout":       "Signed out.",
 	"uploaded":        "Backup uploaded and checked. It is now your current data.",
@@ -835,6 +838,8 @@ func (s *Server) routes_() {
 	s.handle("POST /admin/settings/proxy", admin, s.postProxy)
 	s.handle("POST /admin/settings/tls", admin, s.postTLS)
 	s.handle("POST /admin/settings/timezone", admin, s.postZone)
+	s.handle("POST /admin/settings/activity", admin, s.postActivity)
+	s.handle("GET /account/activity", user, s.getActivity)
 
 	// Everything else is a 404 page, never a directory listing or a hint.
 	s.mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {

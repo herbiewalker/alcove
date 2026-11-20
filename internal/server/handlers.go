@@ -295,7 +295,7 @@ func (s *Server) getAccount(q *rq) {
 	if !q.id.user.LastLoginAt.IsZero() {
 		last = q.id.user.LastLoginAt.Format(timeFmt) + " UTC"
 	}
-	q.render(http.StatusOK, "account", &page{Title: "Account", Active: "account", LastLogin: last})
+	q.render(http.StatusOK, "account", &page{Title: "Account", Active: "account", LastLogin: last, ActivityOn: s.activityOn(q)})
 }
 
 func (s *Server) postAccount(q *rq) {
@@ -564,6 +564,7 @@ func (s *Server) settingsPage(q *rq) *page {
 		YourIP:      q.c.IP.String(), ProxyMode: v.ProxyMode, RequireTLS: v.RequireTLS,
 		EnvNets: v.AllowedSrc == netsec.FromEnv, EnvProxy: v.ProxySrc == netsec.FromEnv, EnvTLS: v.TLSSrc == netsec.FromEnv,
 		AllowedSource: sourceNote(v.AllowedSrc), ProxySource: sourceNote(v.ProxySrc), TLSSource: sourceNote(v.TLSSrc)}
+	p.ActivityOn = s.activityOn(q)
 	p.ZoneFallback = s.envZone
 	p.DefaultTZ = share.DefaultZoneName()
 	if q.st != nil {

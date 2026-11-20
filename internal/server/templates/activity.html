@@ -1,0 +1,23 @@
+{{define "content"}}
+<h1>Activity on my data</h1>
+<section class="card">
+  <p class="muted">When an administrator, or the server's command line, opened or changed something of yours. It shows the time, what kind of thing and the names of the fields, never what they held.</p>
+  <p class="muted small">It is not a complete record. An administrator's search across everything is logged by its shape, not per person, so a search that matched your notes is not listed here (opening the result is). Changes to the server itself are not about you and are not listed.</p>
+</section>
+<div class="scroll">
+<table>
+  <thead><tr><th>Time</th><th>What happened</th><th>Fields</th></tr></thead>
+  <tbody>
+  {{range .Activity}}
+    <tr><td>{{.Time}}</td><td>{{.Text}}</td><td>{{if .Fields}}<code>{{.Fields}}</code>{{end}}</td></tr>
+  {{else}}
+    <tr><td colspan="3" class="muted">Nothing yet. No one else has opened or changed your data.</td></tr>
+  {{end}}
+  </tbody>
+</table>
+</div>
+<div class="pager">
+  {{if .Newer}}<a class="btn secondary" href="/account/activity?page={{.Newer}}">Newer</a>{{else}}<span></span>{{end}}
+  {{if .Older}}<a class="btn secondary" href="/account/activity?page={{.Older}}">Older</a>{{end}}
+</div>
+{{end}}

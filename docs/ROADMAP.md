@@ -148,7 +148,8 @@
 - [x] Admin search over everything (F17, D-46)
 - [x] A health page (D-47)
 - [x] Optional TOTP for administrators, with recovery codes, a second admin's reset and `alcove reset-2fa` (F20, D-49)
-- [ ] Optional notifications (F24); optional member activity view (F25, O-8)
+- [ ] Optional notifications (F24, deferred by the owner)
+- [x] Optional member activity view, switched on by an administrator (F25, D-51)
 - [x] Hide screen button (F22) and QR codes for the server address and the join page, drawn locally (F31, D-48)
 - **Exit:** the admin can find and fix a user's problem without a shell; every admin action is in the log.
 
