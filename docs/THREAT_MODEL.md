@@ -24,7 +24,7 @@
 | T2 | **Another LAN device** | Can reach the port and scan; no host access | High |
 | T3 | **A non-member or another space reaching in** | A valid account trying to see a space it does not belong to, or a member trying to see entries marked private or paused | High |
 | T4 | **A member who saves or leaks** what was shared | Legitimately saw it; can screenshot or forward | Accepted (R2) |
-| T5 | **Offline media** | A pulled or RMA'd disk, a copied backup of the data directory | High |
+| T5 | **Offline media** | A pulled or RMA'd disk, a copied backup of the data directory. A backup archive is ciphertext, but its file list shows opaque owner ids, file counts and sizes, so a reader of the backup share can count users, uploads and photos (audit 2026-11-21) | High |
 | T6 | **A hostile backup file** | Crafted headers, absurd KDF counts, Zip-Slip, zip bombs, truncated streams | Medium |
 | T7 | **A tamperer** with write access to the data directory | Can modify or delete files | Medium |
 | T8 | **A stolen session or password** | LAN credential theft, shoulder surfing | Medium |

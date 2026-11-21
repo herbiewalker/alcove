@@ -407,3 +407,18 @@ func TestMigratesAV2StoreToLatest(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+// A seal that dies half way leaves a plaintext snapshot in the temp directory: the next start removes it.
+func TestCrashLeftoverSnapshotIsSweptOnOpen(t *testing.T) {
+	d, k := newDirs(t), newKey(t)
+	s := open(t, d, k)
+	_ = s.Close()
+	_ = os.MkdirAll(d.tmp, 0o700)
+	stale := filepath.Join(d.tmp, "snapshot.123456.sqlite")
+	_ = os.WriteFile(stale, []byte("SQLite format 3 stale snapshot"), 0o600)
+	s2 := open(t, d, k)
+	defer s2.Close()
+	if _, err := os.Stat(stale); err == nil {
+		t.Fatal("a stale plaintext snapshot survived Open")
+	}
+}

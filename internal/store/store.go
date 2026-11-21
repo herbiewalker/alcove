@@ -145,6 +145,9 @@ func Open(cfg Config) (*Store, error) {
 		_ = os.Remove(s.dbPath + suffix)
 	}
 
+	// A crash in the middle of a seal can leave the plaintext snapshot that serialize makes.
+	sweepSnapshots(cfg.TmpDir)
+
 	man, err := s.loadOrCreateManifest()
 	if err != nil {
 		return nil, err
@@ -403,6 +406,7 @@ func (s *Store) Close() error {
 	for _, suffix := range []string{"", "-journal", "-wal", "-shm"} {
 		_ = os.Remove(s.dbPath + suffix)
 	}
+	sweepSnapshots(s.cfg.TmpDir)
 	s.wipeKey()
 	s.lock.release()
 	return err
@@ -424,4 +428,13 @@ func (s *Store) KeyForDrill() (keyfile.Key, error) {
 		return keyfile.Key{}, ErrClosed
 	}
 	return keyfile.FromBytes(s.key[:])
+}
+
+// sweepSnapshots removes any plaintext snapshot left in dir by a seal that did not finish. The
+// directory is the store's own, so every match is ours.
+func sweepSnapshots(dir string) {
+	old, _ := filepath.Glob(filepath.Join(dir, "snapshot.*.sqlite"))
+	for _, p := range old {
+		_ = os.Remove(p)
+	}
 }

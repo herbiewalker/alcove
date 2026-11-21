@@ -264,7 +264,7 @@ func (q *rq) ip() string { return q.c.IP.String() }
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	defer func() {
 		if v := recover(); v != nil {
-			s.log.Error("panic while serving", "path", r.URL.Path, "panic", fmt.Sprint(v))
+			s.log.Error("panic while serving", "path", r.URL.Path, "panic", fmt.Sprintf("%T", v)) // the type only: a panic value built from a request could carry content (constraint 8)
 			http.Error(w, "Something went wrong.", http.StatusInternalServerError)
 		}
 	}()
