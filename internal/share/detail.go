@@ -33,7 +33,8 @@ type Detail struct {
 	NoteHidden     bool // the owner keeps notes out of the space
 	Private        bool // the owner's own view: this entry is private
 	Photos         []Photo
-	PhotosHidden   int // photos the owner keeps out of this space
+	PhotosHidden   int          // photos the owner keeps out of this space
+	PartnerPics    []PartnerPic // partners' pictures, shown even where names are hidden (D-52, R35)
 }
 
 type options struct {
@@ -211,7 +212,7 @@ func build(tx *sql.Tx, owner, entryID, data string, opt options) (Detail, error)
 	}
 
 	// Partners: from the cross reference table, named only when allowed.
-	rows, err := tx.Query(`SELECT COALESCE(json_extract(p.data, '$.displayName'), ''), COALESCE(json_extract(p.data, '$.isAnonymous'), 0)
+	rows, err := tx.Query(`SELECT p.rid, COALESCE(json_extract(p.data, '$.displayName'), ''), COALESCE(json_extract(p.data, '$.isAnonymous'), 0), EXISTS (SELECT 1 FROM avatar a WHERE a.owner_id = ep.owner_id AND a.subject = 'partner:' || p.rid AND a.kind IN (1, 2))
 		FROM cache_row ep JOIN cache_row p ON p.owner_id = ep.owner_id AND p.tbl = 'partners' AND p.rid = json_extract(ep.data, '$.partnerId')
 		WHERE ep.owner_id = ? AND ep.tbl = 'encounter_partner' AND json_extract(ep.data, '$.encounterId') = ?
 		ORDER BY p.pos`, owner, entryID)
@@ -219,11 +220,22 @@ func build(tx *sql.Tx, owner, entryID, data string, opt options) (Detail, error)
 		return Detail{}, err
 	}
 	for rows.Next() {
-		var name string
-		var anon int
-		if err := rows.Scan(&name, &anon); err != nil {
+		var pid, name string
+		var anon, pic int
+		if err := rows.Scan(&pid, &name, &anon, &pic); err != nil {
 			rows.Close()
 			return Detail{}, err
+		}
+		shownName := name
+		if shownName == "" || anon == 1 {
+			shownName = "An anonymous partner"
+		}
+		if pic == 1 && opt.photos {
+			pp := PartnerPic{ID: pid}
+			if opt.partnerNames {
+				pp.Name = shownName
+			}
+			d.PartnerPics = append(d.PartnerPics, pp)
 		}
 		if !opt.partnerNames {
 			d.PartnersHidden++

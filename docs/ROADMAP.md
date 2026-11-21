@@ -6,7 +6,7 @@
 > they are met. Crypto and storage come before views; the risky writer is proven early by a spike and finished late;
 > the web UI is mobile-first from the first page.
 >
-> **Updated 2026-11-18 (v0.1.3):** M0 to M6 are done. M7 (photos) is mostly done (partner and profile pictures wait on a product decision), M8 is mostly done (log filters, admin search, health, hide screen, QR codes, optional TOTP; notifications and the member activity view remain) and M9 (the audit) is not started, and the live validation (L1) is the owner's.
+> **Updated 2026-11-18 (v0.1.3):** M0 to M6 are done. M7 (photos) is done (partner and profile pictures, D-52), M8 is mostly done (log filters, admin search, health, hide screen, QR codes, optional TOTP; notifications and the member activity view remain) and M9 (the audit) is not started, and the live validation (L1) is the owner's.
 
 
 ---
@@ -138,7 +138,7 @@
 - [x] **First piece (D-39):** photos copied out encrypted at upload, blurred until tapped, shared through the space with the entry, place off by default, metadata stripped for others, O-6 resolved (text coordinates, no map). **Gallery (D-40) done.** **Still to do:** thumbnails, partner and profile pictures
 - [x] Media store; blur until clicked; sharing; location kept and shown per photo (F19, R4); O-6 resolved (D-39)
 - [x] Thumbnails (D-44): made on demand, kept only in memory; shared photos keep their rotation
-- [ ] Partner pictures and profile pictures
+- [x] Partner pictures and profile pictures (D-52): copied out at upload, open to the space under include photos, independent of partner names (R35), seen by administrators with every look logged; consent wording v3
 - **Exit:** photos upload and view on a phone and a desktop; location is shown only when its owner allows it.
 
 ## M8 — Admin console and operations

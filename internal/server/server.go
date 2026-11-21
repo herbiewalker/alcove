@@ -511,6 +511,7 @@ type page struct {
 	SpaceID, SpaceName string
 	// profiles (D-33)
 	ProfileName   string
+	ProfilePhoto  bool
 	ProfileFields []profileField
 	Offers        []offerRow
 	Cal           *calView
@@ -751,6 +752,8 @@ func (s *Server) routes_() {
 	s.handle("GET /entries/{id}", user, s.getMyEntry)
 	s.handle("GET /photos/{id}", user, s.getMyPhoto)
 	s.handle("GET /photos/{id}/thumb", user, s.getMyThumb)
+	s.handle("GET /avatar/profile", user, s.getMyAvatar)
+	s.handle("GET /avatar/partner/{partner}", user, s.getMyAvatar)
 	s.handle("GET /gallery", user, s.getMyGallery)
 	s.handle("GET /entries/new", user, forOwn(s.getNewEntry))
 	s.handle("POST /entries/new", user, forOwn(s.postNewEntry))
@@ -772,6 +775,9 @@ func (s *Server) routes_() {
 	s.handle("GET /admin/people/{user}", admin, forPerson(s.getPerson))
 	s.handle("GET /admin/people/{user}/entries/deleted", admin, forPerson(s.getDeletedEntries))
 	s.handle("GET /admin/people/{user}/entries/{id}", admin, forPerson(s.getPersonEntry))
+	s.handle("GET /admin/people/{user}/photos/{media}", admin, forPerson(s.getPersonPhoto))
+	s.handle("GET /admin/people/{user}/avatar", admin, forPerson(s.getPersonAvatar))
+	s.handle("GET /admin/people/{user}/avatar/partner/{partner}", admin, forPerson(s.getPersonAvatar))
 	s.handle("GET /admin/people/{user}/entries/{id}/edit", admin, forPerson(s.getEditEntry))
 	s.handle("POST /admin/people/{user}/entries/{id}/edit", admin, forPerson(s.postEditEntry))
 	s.handle("GET /admin/people/{user}/entries/{id}/delete", admin, forPerson(s.getDeleteEntry))
@@ -791,6 +797,8 @@ func (s *Server) routes_() {
 	s.handle("GET /spaces/{id}/entry/{owner}/{entry}", user, s.getSpaceEntry)
 	s.handle("GET /spaces/{id}/photo/{owner}/{media}", user, s.getSpacePhoto)
 	s.handle("GET /spaces/{id}/photo/{owner}/{media}/thumb", user, s.getSpaceThumb)
+	s.handle("GET /spaces/{id}/avatar/{owner}", user, s.getSpaceProfilePhoto)
+	s.handle("GET /spaces/{id}/partner-photo/{owner}/{partner}", user, s.getSpacePartnerPhoto)
 	s.handle("GET /spaces/{id}/calendar", user, s.getSpaceCalendar)
 	s.handle("GET /spaces/{id}/compare", user, s.getSpaceCompare)
 	s.handle("POST /spaces/{id}/restore", user, s.postSpaceRestore)

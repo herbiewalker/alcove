@@ -20,7 +20,7 @@ type PhotoResult struct {
 
 // photoRef is one encounter photo found in a backup: a media row that names an encounter, whose
 // bytes are present in the container.
-type photoRef struct{ id, entry, mime string }
+type photoRef struct{ id, entry, mime, subject string } // subject is "" for an encounter photo, "profile" or "partner:<id>" for an avatar (D-52)
 
 // stored is a photo that was written, with its size and the picture format found in its bytes.
 type stored struct {
@@ -53,6 +53,13 @@ func photoRefs(bk *trystbk.Backup) (refs []photoRef, skipped int) {
 		}
 		refs = append(refs, photoRef{id: id, entry: enc, mime: mime})
 	}
+	for _, a := range avatarRefs(bk) {
+		if !present[a.id] {
+			skipped++
+			continue
+		}
+		refs = append(refs, a)
+	}
 	return refs, skipped
 }
 
@@ -68,6 +75,7 @@ func (s *Service) storePhotos(ctx context.Context, owner string, bk *trystbk.Bac
 		return res, err
 	}
 	var done []stored
+	have := map[string]stored{} // one blob per media id, even if an avatar and an entry photo name the same one
 	if len(refs) > 0 {
 		dek, err := s.St.DataKey(owner) // before any transaction: it uses the store's one connection
 		if err != nil {
@@ -84,6 +92,10 @@ func (s *Service) storePhotos(ctx context.Context, owner string, bk *trystbk.Bac
 			if ctx.Err() != nil {
 				break
 			}
+			if prev, ok := have[ref.id]; ok {
+				done = append(done, stored{ref, prev.size, prev.kind})
+				continue
+			}
 			rc, err := bk.OpenMedia(trystbk.EntryMediaPrefix + ref.id)
 			if err != nil {
 				res.Skipped++
@@ -98,14 +110,26 @@ func (s *Service) storePhotos(ctx context.Context, owner string, bk *trystbk.Bac
 				res.Skipped++
 				continue
 			}
-			done = append(done, stored{ref, n, kind})
+			st := stored{ref, n, kind}
+			have[ref.id] = st
+			done = append(done, st)
 		}
 	}
 	err := s.St.Update(ctx, true, func(tx *sql.Tx) error {
 		if _, e := tx.Exec(`DELETE FROM media_blob WHERE owner_id = ?`, owner); e != nil {
 			return e
 		}
+		if _, e := tx.Exec(`DELETE FROM avatar WHERE owner_id = ?`, owner); e != nil {
+			return e
+		}
 		for _, d := range done {
+			if d.ref.subject != "" {
+				if _, e := tx.Exec(`INSERT OR REPLACE INTO avatar(owner_id, subject, media_id, kind, size) VALUES (?,?,?,?,?)`,
+					owner, d.ref.subject, d.ref.id, int(d.kind), d.size); e != nil {
+					return e
+				}
+				continue
+			}
 			if _, e := tx.Exec(`INSERT INTO media_blob(owner_id, media_id, entry_id, mime, size, kind) VALUES (?,?,?,?,?,?)`,
 				owner, d.ref.id, d.ref.entry, cleanMIME(d.ref.mime), d.size, int(d.kind)); e != nil {
 				return e
@@ -116,7 +140,11 @@ func (s *Service) storePhotos(ctx context.Context, owner string, bk *trystbk.Bac
 	if err != nil {
 		return res, err
 	}
-	res.Stored = len(done)
+	for _, d := range done {
+		if d.ref.subject == "" {
+			res.Stored++
+		}
+	}
 	return res, nil
 }
 
@@ -127,4 +155,31 @@ func cleanMIME(m string) string {
 		return "image/unknown"
 	}
 	return m
+}
+
+// avatarRefs lists the pictures a backup names without a media row: the profile's photoMediaId and
+// each partner's (D-52). Which of them have bytes in the container is the caller's check.
+func avatarRefs(bk *trystbk.Backup) []photoRef {
+	var out []photoRef
+	if t := bk.Table("profile"); t != nil {
+		for _, r := range t.Rows {
+			if id, _ := r.String("photoMediaId"); id != "" {
+				out = append(out, photoRef{id: id, mime: "image/unknown", subject: "profile"})
+				break // there is one self profile
+			}
+		}
+	}
+	if t := bk.Table("partners"); t != nil {
+		seen := map[string]bool{}
+		for _, r := range t.Rows {
+			pid, _ := r.String("id")
+			id, _ := r.String("photoMediaId")
+			if pid == "" || id == "" || seen[pid] {
+				continue
+			}
+			seen[pid] = true
+			out = append(out, photoRef{id: id, mime: "image/unknown", subject: "partner:" + pid})
+		}
+	}
+	return out
 }

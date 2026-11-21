@@ -322,3 +322,6 @@ figure.photo figcaption { margin-top: 4px; overflow-wrap: anywhere; }
 /* Recovery codes (D-49): one per line, easy to copy by hand. */
 ol.temp { list-style: none; padding: 0; margin: 16px 0; }
 ol.temp li { margin: 8px 0; }
+/* Profile and partner pictures (D-52): small, blurred until tapped like photos. */
+figure.photo.avatar { width: 96px; margin: 6px 0; }
+.photos.avatars { grid-template-columns: repeat(auto-fill, 96px); }

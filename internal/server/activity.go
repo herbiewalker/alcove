@@ -74,13 +74,16 @@ type activityRow struct{ Time, Text, Fields string }
 // activityText is the sentence for one log line: the fixed text for its action, with what it touched
 // (an entry, a partner, a page) and the field names, never a value.
 var viewWhat = map[string]string{
-	"entries":  "An administrator opened your list of entries",
-	"entry":    "An administrator opened one of your entries",
-	"edit":     "An administrator opened the edit page of something of yours",
-	"history":  "An administrator opened the history of something of yours",
-	"delete":   "An administrator opened the delete page of one of your entries",
-	"partners": "An administrator opened your partners",
-	"deleted":  "An administrator opened your recently deleted entries",
+	"entries":       "An administrator opened your list of entries",
+	"entry":         "An administrator opened one of your entries",
+	"edit":          "An administrator opened the edit page of something of yours",
+	"history":       "An administrator opened the history of something of yours",
+	"delete":        "An administrator opened the delete page of one of your entries",
+	"partners":      "An administrator opened your partners",
+	"deleted":       "An administrator opened your recently deleted entries",
+	"photo":         "An administrator opened one of your photos",
+	"profile-photo": "An administrator opened your profile picture",
+	"partner-photo": "An administrator opened a partner's picture of yours",
 }
 
 // activityText is the sentence for one log line: fixed text for its action, with what it touched

@@ -256,6 +256,7 @@ really unusable.
 Version notes that need a step:
 
 - **0.1.2 to 0.1.3:** the database goes from schema 10 to 11 (two new tables for two-step sign-in). Nothing else to do. Two-step sign-in is off until an administrator turns it on (section 7a); photo thumbnails appear by themselves. Take the instance backup first, as always.
+- **0.1.3 to the next release (D-52):** the database goes from schema 11 to 12 (one new table for profile and partner pictures), and the join wording changes to version 3, so **every member agrees again once** (until they do, their entries are hidden from the space and they see nobody else's, as the join screen already says). Pictures appear after each person's next upload or after Rebuild.
 - **0.1.1 to 0.1.2:** the database goes from schema 9 to 10 (one new table). Nothing else to do. Editing and export work on data you
   uploaded earlier; if the Export page says your data needs a rebuild, do section 9 once.
 - **0.1.0 to 0.1.1:** after updating, press **Rebuild now** once (section 9), so photos from an upload you already have are copied out.

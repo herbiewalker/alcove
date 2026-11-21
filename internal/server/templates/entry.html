@@ -1,7 +1,7 @@
 {{define "content"}}
 {{with .Detail}}
 <h1>{{.Local.Format "Monday, Jan 2, 2006"}}</h1>
-<p class="muted">{{.Local.Format "3:04 PM"}} in {{if $.Prefix}}{{$.PersonName}}'s{{else if .Mine}}your{{else}}{{.OwnerName}}'s{{end}} time zone. {{if $.Prefix}}Their entry, opened by you as administrator (written to the admin log). Photos are not shown here.{{else if .Mine}}Your entry.{{else}}Shared by {{.OwnerName}}.{{end}}
+<p class="muted">{{.Local.Format "3:04 PM"}} in {{if $.Prefix}}{{$.PersonName}}'s{{else if .Mine}}your{{else}}{{.OwnerName}}'s{{end}} time zone. {{if $.Prefix}}Their entry, opened by you as administrator (written to the admin log).{{else if .Mine}}Your entry.{{else}}Shared by {{.OwnerName}}.{{end}}
 {{if .Private}} <b>Private:</b> nobody else can see it.{{end}}</p>
 
 <section class="card">
@@ -16,11 +16,13 @@
 </section>
 {{end}}
 
-{{if or .Partner .PartnersHidden}}
+{{if or .Partner .PartnersHidden .PartnerPics}}
 <section class="card">
   <h2>With</h2>
   {{if .Partner}}<ul class="chips">{{range .Partner}}<li>{{.}}</li>{{end}}</ul>
   {{else}}<p class="muted">{{.PartnersHidden}} {{if eq .PartnersHidden 1}}person{{else}}people{{end}}. Their names are not shared in this space.</p>{{end}}
+  {{if .PartnerPics}}<div class="photos avatars">{{range .PartnerPics}}<figure class="photo avatar blurred"><a class="photolink" href="{{if $.SpaceID}}/spaces/{{$.SpaceID}}/partner-photo/{{$.Detail.OwnerID | urlquery}}/{{.ID | urlquery}}{{else if $.Prefix}}{{$.Prefix}}/avatar/partner/{{.ID | urlquery}}{{else}}/avatar/partner/{{.ID | urlquery}}{{end}}"><img src="{{if $.SpaceID}}/spaces/{{$.SpaceID}}/partner-photo/{{$.Detail.OwnerID | urlquery}}/{{.ID | urlquery}}{{else if $.Prefix}}{{$.Prefix}}/avatar/partner/{{.ID | urlquery}}{{else}}/avatar/partner/{{.ID | urlquery}}{{end}}" alt="{{if .Name}}Picture of {{.Name}}{{else}}A partner's picture{{end}}" loading="lazy"></a></figure>{{end}}</div>
+  <p class="muted small">Pictures are blurred until you tap them.{{if and $.SpaceID (not .Partner)}} A partner's picture is shown to the space even where the name is not.{{end}}</p>{{end}}
 </section>
 {{end}}
 
@@ -31,8 +33,8 @@
   <div class="photos">
     {{range .Photos}}
     <figure class="photo{{if .Viewable}} blurred{{end}}">
-      {{if .Viewable}}<a class="photolink" href="{{if $.SpaceID}}/spaces/{{$.SpaceID}}/photo/{{$.Detail.OwnerID | urlquery}}/{{.ID | urlquery}}{{else}}/photos/{{.ID | urlquery}}{{end}}"><img src="{{if $.SpaceID}}/spaces/{{$.SpaceID}}/photo/{{$.Detail.OwnerID | urlquery}}/{{.ID | urlquery}}{{else}}/photos/{{.ID | urlquery}}{{end}}" alt="A photo from this entry" loading="lazy"></a>
-      {{else}}<p class="muted small">A photo in a format that cannot be shown here.{{if not $.SpaceID}} <a href="/photos/{{.ID | urlquery}}">Download it</a>{{end}}</p>{{end}}
+      {{if .Viewable}}<a class="photolink" href="{{if $.SpaceID}}/spaces/{{$.SpaceID}}/photo/{{$.Detail.OwnerID | urlquery}}/{{.ID | urlquery}}{{else if $.Prefix}}{{$.Prefix}}/photos/{{.ID | urlquery}}{{else}}/photos/{{.ID | urlquery}}{{end}}"><img src="{{if $.SpaceID}}/spaces/{{$.SpaceID}}/photo/{{$.Detail.OwnerID | urlquery}}/{{.ID | urlquery}}{{else if $.Prefix}}{{$.Prefix}}/photos/{{.ID | urlquery}}{{else}}/photos/{{.ID | urlquery}}{{end}}" alt="A photo from this entry" loading="lazy"></a>
+      {{else}}<p class="muted small">A photo in a format that cannot be shown here.{{if and (not $.SpaceID) (not $.Prefix)}} <a href="/photos/{{.ID | urlquery}}">Download it</a>{{end}}</p>{{end}}
       {{if or .Caption .Place}}<figcaption>{{if .Caption}}{{.Caption}}{{end}}{{if .Place}}<span class="muted small"> Taken at {{.Place}}</span>{{end}}</figcaption>{{end}}
     </figure>
     {{end}}

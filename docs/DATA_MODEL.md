@@ -129,6 +129,7 @@ than a day) and owners with no account, so a crash between the steps is finished
 ## Implemented in M7 (store schema v9)
 
 `media_blob` (owner, media id, entry id, mime label, size, kind: 0 unknown, 1 JPEG, 2 PNG): the derived list of photos copied out of the current upload into the blob store (encrypted under the owner's data key), rebuilt with the cache. `membership.show_photo_location` (default 0).
+`avatar` (owner, subject `profile` or `partner:<id>`, media id, size, kind as above; schema v12, D-52): the same for the profile picture and the partners' pictures, which have no `media` row. Derived and rebuilt with the cache; removed with the owner.
 
 ## Implemented in M4 piece D (store schema v8)
 

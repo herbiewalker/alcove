@@ -123,7 +123,7 @@ func (s *Server) getPerson(q *rq, w who) {
 	q.render(http.StatusOK, "persondata", w.pg(p))
 }
 
-// getPersonEntry opens one entry of a person for the administrator. Photos are not shown here.
+// getPersonEntry opens one entry of a person for the administrator, with its photos and its partners' pictures (D-52); each picture opened is logged by its own request.
 func (s *Server) getPersonEntry(q *rq, w who) {
 	var d share.Detail
 	err := q.st.View(q.r.Context(), func(tx *sql.Tx) (err error) {
@@ -141,7 +141,6 @@ func (s *Server) getPersonEntry(q *rq, w who) {
 	if !s.auditView(q, w, "entry", "encounters", pathID(q)) {
 		return
 	}
-	d.Photos, d.PhotosHidden = nil, 0
 	q.render(http.StatusOK, "entry", w.pg(&page{Title: "Entry", Active: "admin", Detail: &d,
 		DetailBack: w.prefix, DetailBackLabel: w.name + "'s data"}))
 }

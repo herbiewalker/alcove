@@ -2,6 +2,7 @@
 <h1>Your profile</h1>
 <p class="muted">What the members of your spaces can see about you, and only what you tick. Everything starts private. Your birth date is shown to others as an age only. This does not change anything in Tryst.</p>
 <p><a class="btn secondary" href="/profile/prefill">Fill from my latest backup</a></p>
+{{if .ProfilePhoto}}<section class="card"><h2>Your picture</h2><figure class="photo avatar blurred"><a class="photolink" href="/avatar/profile"><img src="/avatar/profile" alt="Your profile picture" loading="lazy"></a></figure><p class="muted small">From your latest backup. The members of your spaces see it on your card when you include photos in that space (blurred until they tap it). Upload a new backup to change it.</p></section>{{end}}
 <form class="card" method="post" action="/profile" autocomplete="off">
   <input type="hidden" name="csrf" value="{{.CSRF}}">
   <div class="field">

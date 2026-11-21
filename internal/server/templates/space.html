@@ -19,6 +19,7 @@
 {{range .Cards}}
 <section class="card">
   <p><b>{{.Name}}</b>{{if .Mine}} <span class="muted">(you)</span>{{end}} <span class="muted">{{.Role}}</span></p>
+  {{if .Photo}}<figure class="photo avatar blurred"><a class="photolink" href="{{if .Mine}}/avatar/profile{{else}}/spaces/{{$.Space.ID}}/avatar/{{.UserID | urlquery}}{{end}}"><img src="{{if .Mine}}/avatar/profile{{else}}/spaces/{{$.Space.ID}}/avatar/{{.UserID | urlquery}}{{end}}" alt="Profile picture of {{.Name}}" loading="lazy"></a></figure>{{end}}
   {{if .Hidden}}<p class="muted small">Nothing is shown right now.</p>
   {{else if .Fields}}<dl class="facts">{{range .Fields}}<dt>{{.Label}}</dt><dd>{{.Value}}</dd>{{end}}</dl>
   {{else}}<p class="muted small">Has not shared any details.</p>{{end}}

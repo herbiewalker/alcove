@@ -588,7 +588,7 @@ func (s *Service) ClearCache(ctx context.Context, owner string) error {
 }
 
 func clearCache(tx *sql.Tx, owner string) error {
-	for _, q := range []string{`DELETE FROM cache_row WHERE owner_id = ?`, `DELETE FROM search WHERE owner_id = ?`, `DELETE FROM cache_head WHERE owner_id = ?`, `DELETE FROM media_blob WHERE owner_id = ?`} {
+	for _, q := range []string{`DELETE FROM cache_row WHERE owner_id = ?`, `DELETE FROM search WHERE owner_id = ?`, `DELETE FROM cache_head WHERE owner_id = ?`, `DELETE FROM media_blob WHERE owner_id = ?`, `DELETE FROM avatar WHERE owner_id = ?`} {
 		if _, err := tx.Exec(q, owner); err != nil {
 			return err
 		}

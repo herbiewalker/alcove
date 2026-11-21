@@ -305,6 +305,7 @@ type Card struct {
 	Fields                       []CardField
 	Hidden                       bool // paused or on older wording: nothing but the name is shown
 	Mine                         bool
+	Photo                        bool // a profile picture can be shown on this card (D-52)
 }
 
 // CardField is a label and the text to show.
@@ -364,6 +365,7 @@ func Cards(tx *sql.Tx, spaceID, viewerID string, consent int, now time.Time) ([]
 			got[k] = v
 		}
 		pr.Close()
+		cards[i].Photo = hasProfilePhoto(tx, spaceID, cards[i].UserID, cards[i].Mine)
 		for _, f := range profile.Fields {
 			if v, ok := got[f.Key]; ok && v != "" {
 				if shown := profile.Display(f.Key, v, now); shown != "" {

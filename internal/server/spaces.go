@@ -19,8 +19,8 @@ import (
 // consentText is what the join screen says is shared (D-21). Bump spaces.ConsentVersion when it
 // changes in substance, so everyone is asked again before anything of theirs is shown.
 var consentText = []string{
-	"Everyone who is a member of this space can see your entries: dates, times, durations, ratings, moods and the other details you log, including solo entries and entries with people who are not members. Those people's names stay hidden unless you choose to show them.",
-	"Your notes and photos are included unless you turn them off for this space; where a photo was taken stays hidden unless you choose to show it. You can mark any single entry private, pause sharing, or leave at any time. Leaving removes what you contributed from the space, but anything other members have already seen cannot be unseen.",
+	"Everyone who is a member of this space can see your entries: dates, times, durations, ratings, moods and the other details you log, including solo entries and entries with people who are not members. Those people's names stay hidden unless you choose to show them, but a picture of them in your backup is shown with your photos (next point).",
+	"Your notes and photos are included unless you turn them off for this space. That includes your own profile picture and the pictures your backup holds of the people in your entries, which are shown even where their names are hidden. Photos and pictures are blurred until someone taps them; where a photo was taken stays hidden unless you choose to show it. You can mark any single entry private, pause sharing, or leave at any time. Leaving removes what you contributed from the space, but anything other members have already seen cannot be unseen.",
 	"The space owner decides who joins. The server administrator can see everything on this server, and every time they look is written to a log you can ask to see.",
 	"Each member's entries appear in the space's shared views as soon as they have uploaded a backup. If this wording ever changes, you are asked to agree again, and until you do nobody sees your entries and you see nobody else's.",
 }

@@ -33,10 +33,14 @@ func (s *Server) profileFields(q *rq, values map[string]string, shared map[strin
 func (s *Server) profilePage(q *rq) (*page, error) {
 	var stored map[string]profile.Value
 	var name, tz string
+	var pic bool
 	err := q.st.View(q.r.Context(), func(tx *sql.Tx) (err error) {
 		stored, err = profile.Get(tx, q.id.user.ID)
 		if err != nil {
 			return err
+		}
+		if a, e := share.OwnAvatar(tx, q.id.user.ID, "profile"); e == nil {
+			pic = viewableKind(a.Kind)
 		}
 		u, err := auth.ByID(tx, q.id.user.ID)
 		name, tz = u.DisplayName, share.ZoneName(tx, q.id.user.ID)
@@ -49,7 +53,7 @@ func (s *Server) profilePage(q *rq) (*page, error) {
 	for k, v := range stored {
 		values[k], shared[k] = v.Value, v.Shared
 	}
-	return &page{Title: "Your profile", Active: "account", ProfileName: name, ProfileFields: s.profileFields(q, values, shared), ProfileTZ: tz, DefaultTZ: share.DefaultZoneName()}, nil
+	return &page{Title: "Your profile", Active: "account", ProfileName: name, ProfilePhoto: pic, ProfileFields: s.profileFields(q, values, shared), ProfileTZ: tz, DefaultTZ: share.DefaultZoneName()}, nil
 }
 
 func (s *Server) getProfile(q *rq) {

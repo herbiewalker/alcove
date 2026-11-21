@@ -30,6 +30,8 @@ type Options struct {
 	Encounters int // default 12
 	Partners   int // default 2
 	Photos     int // default 0; each adds a media row, a media/<id> entry and a tiny JPEG
+	// Avatars gives the profile and every partner a picture (a media/<id> entry named only by photoMediaId, as Tryst writes them).
+	Avatars    bool
 	Password   string
 	Iterations int // PBKDF2 count; default trystbk.MinIterations to keep tests fast
 	Version    int // container version byte; default trystbk.FormatVersion2
@@ -45,6 +47,10 @@ type Result struct {
 	Password string
 	Counts   map[string]int
 	MediaIDs []string
+	// ProfileAvatar is the profile's photoMediaId, PartnerIDs and PartnerAvatars line up by index (Avatars only).
+	ProfileAvatar  string
+	PartnerIDs     []string
+	PartnerAvatars []string
 }
 
 func (o *Options) defaults() {
@@ -90,7 +96,7 @@ func Build(o Options) (*Result, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &Result{File: file, ZIP: zipBytes, DataJSON: data, Password: o.Password, Counts: g.counts, MediaIDs: g.mediaIDs}, nil
+	return &Result{File: file, ZIP: zipBytes, DataJSON: data, Password: o.Password, Counts: g.counts, MediaIDs: g.mediaIDs, ProfileAvatar: g.profileAvatar, PartnerIDs: g.partnerIDs, PartnerAvatars: g.partnerAvatars}, nil
 }
 
 // BuildZIP exposes the plaintext ZIP assembly for tests that need to craft hostile or
@@ -151,10 +157,12 @@ func buildZIP(dataJSON []byte, media []mediaBlob, settings bool) ([]byte, error)
 // --- generation ---------------------------------------------------------------------
 
 type gen struct {
-	rng      *rand.Rand
-	o        Options
-	counts   map[string]int
-	mediaIDs []string
+	rng                        *rand.Rand
+	o                          Options
+	counts                     map[string]int
+	mediaIDs                   []string
+	profileAvatar              string
+	partnerIDs, partnerAvatars []string
 }
 
 type kv struct {
@@ -192,10 +200,18 @@ func (g *gen) dataJSON() ([]byte, []mediaBlob, error) {
 	start := time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli()
 
 	// Partners.
+	var blobs []mediaBlob
 	var partnerIDs []string
 	for i := 0; i < g.o.Partners; i++ {
 		id := g.id()
 		partnerIDs = append(partnerIDs, id)
+		var photo any
+		if g.o.Avatars {
+			mid := g.id()
+			blobs = append(blobs, mediaBlob{id: mid, data: tinyJPEG(g.rng.UintN(256))})
+			g.partnerIDs, g.partnerAvatars = append(g.partnerIDs, id), append(g.partnerAvatars, mid)
+			photo = mid
+		}
 		anon := g.rng.IntN(5) == 0
 		var name any = fmt.Sprintf("Synthetic Partner %d", i+1)
 		if anon {
@@ -204,12 +220,18 @@ func (g *gen) dataJSON() ([]byte, []mediaBlob, error) {
 		tables["partners"] = append(tables["partners"], []kv{
 			{"id", id}, {"displayName", name}, {"isAnonymous", b2i(anon)}, {"color", nil}, {"note", nil},
 			{"sex", nil}, {"gender", nil}, {"relationshipType", g.pick("PARTNER", "SPOUSE", "FRIEND")},
-			{"photoMediaId", nil}, {"birthDate", nil}, {"ethnicity", nil}, {"height", nil}, {"bodyType", nil},
+			{"photoMediaId", photo}, {"birthDate", nil}, {"ethnicity", nil}, {"height", nil}, {"bodyType", nil},
 			{"location", nil}, {"orientation", nil}, {"archivedAt", nil}, {"createdAt", now}, {"updatedAt", now},
 		})
 	}
+	var selfPhoto any
+	if g.o.Avatars {
+		g.profileAvatar = g.id()
+		blobs = append(blobs, mediaBlob{id: g.profileAvatar, data: tinyJPEG(g.rng.UintN(256))})
+		selfPhoto = g.profileAvatar
+	}
 	tables["profile"] = [][]kv{{
-		{"id", "self"}, {"displayName", "Synthetic Self"}, {"photoMediaId", nil}, {"sex", nil}, {"gender", nil},
+		{"id", "self"}, {"displayName", "Synthetic Self"}, {"photoMediaId", selfPhoto}, {"sex", nil}, {"gender", nil},
 		{"birthDate", nil}, {"ethnicity", nil}, {"height", nil}, {"bodyType", nil}, {"location", nil},
 		{"orientation", nil}, {"note", nil}, {"updatedAt", now},
 	}}
@@ -285,7 +307,6 @@ func (g *gen) dataJSON() ([]byte, []mediaBlob, error) {
 	tables["encounter_tag"] = nil
 
 	// Photos.
-	var blobs []mediaBlob
 	for i := 0; i < g.o.Photos && len(encIDs) > 0; i++ {
 		mid := g.id()
 		g.mediaIDs = append(g.mediaIDs, mid)

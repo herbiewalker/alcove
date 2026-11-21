@@ -19,7 +19,8 @@ import (
 
 // ConsentVersion identifies the wording of the join screen. From M4 a member's entries are shown
 // only when they agreed to the CURRENT version, so changing what a space shares means bumping it.
-const ConsentVersion = 2
+// Version 3 (D-52) added profile and partner pictures to what is shared.
+const ConsentVersion = 3
 
 // Roles and states.
 const (
