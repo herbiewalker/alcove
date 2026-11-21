@@ -41,3 +41,7 @@ Off-lens note: `CHANGELOG.md` `[Unreleased]` does not yet mention this audit's f
 - **4 fixed:** `.env.example`, `SETUP.md` and `THREAT_MODEL.md` now say one backup is decrypted at a time.
 - **5 fixed:** `pids_limit: 256` in compose, `--pids-limit=256` in the template (also required by the guard and asserted in CI).
 - **Not verified locally:** Docker is not installed here, so `docker compose config` was not run on the new keys (`mem_limit` alongside `deploy.resources.limits.memory`, same value), and the workflow YAML was not parsed by a tool. The next CI run (image job: `docker compose config -q` and the new assertions) is the first real check. `scripts/guards.sh all` passes.
+
+## Follow-up: first CI run of the fix failed, repaired
+
+The first push (`3ca011a`) failed the image job at `docker compose config`: compose refuses a top-level `pids_limit` next to `deploy.resources.limits.pids` ("can't set distinct values"). The process limit now lives only under `deploy.resources.limits.pids: 256`, and the CI assertion looks for `pids: 256`. `mem_limit` and `memswap_limit` stay at the top level; if the next image job rejects `mem_limit` beside `deploy.resources.limits.memory`, drop `mem_limit` and keep `memswap_limit`.

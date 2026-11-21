@@ -105,7 +105,7 @@ jobs:
           echo "$cfg" | grep -q 'read_only: *true'    || { echo "::error::rootfs not read-only"; exit 1; }
           echo "$cfg" | grep -q 'memory:'             || { echo "::error::no memory limit"; exit 1; }
           echo "$cfg" | grep -q 'memswap_limit:'       || { echo "::error::no swap limit (decrypted data could reach swap)"; exit 1; }
-          echo "$cfg" | grep -q 'pids_limit:'          || { echo "::error::no process limit"; exit 1; }
+          echo "$cfg" | grep -q 'pids: 256'            || { echo "::error::no process limit"; exit 1; }
           published=$(echo "$cfg" | grep -c 'published:')
           if [ "$published" -ne 1 ]; then
             echo "::error::expected exactly 1 published port, found $published"; exit 1
