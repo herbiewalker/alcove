@@ -558,6 +558,9 @@ func (s *Server) postJoinAccept(q *rq) {
 	case errors.Is(err, spaces.ErrBadCode):
 		q.joinError(http.StatusBadRequest, badCodeMsg, "")
 		return
+	case errors.Is(err, auth.ErrBadDisplayName):
+		again(http.StatusBadRequest, "A name shown to others is 1 to 80 characters, with no control or direction-changing characters.")
+		return
 	case errors.Is(err, auth.ErrUsernameTaken):
 		again(http.StatusConflict, "That username is already taken.")
 		return

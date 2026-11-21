@@ -70,9 +70,9 @@ type Service struct {
 	sem chan struct{}
 }
 
-// New builds a service. At most two backups are decrypted at the same time.
+// New builds a service. At most one backup is decrypted at a time: each can hold up to MaxBytes in memory (audit 2026-11-21).
 func New(st *store.Store, blobs *blobstore.Store) *Service {
-	return &Service{St: st, Blobs: blobs, Now: time.Now, sem: make(chan struct{}, 2)}
+	return &Service{St: st, Blobs: blobs, Now: time.Now, sem: make(chan struct{}, 1)}
 }
 
 func (s *Service) max() int64 {

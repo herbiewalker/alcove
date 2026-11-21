@@ -138,6 +138,9 @@ func (s *Server) postSetup(q *rq) {
 		return err
 	})
 	switch {
+	case errors.Is(err, auth.ErrBadDisplayName):
+		fail(http.StatusBadRequest, "A name shown to others is 1 to 80 characters, with no control or direction-changing characters.")
+		return
 	case errors.Is(err, errAlreadySetUp):
 		q.notFound()
 		return
@@ -444,6 +447,7 @@ func (s *Server) getAdmin(q *rq) {
 const logPageSize = 50
 
 func (s *Server) logPage(q *rq, p *page, page int, action string, in logIn) bool {
+	page = min(page, maxPage)
 	if page < 1 {
 		page = 1
 	}

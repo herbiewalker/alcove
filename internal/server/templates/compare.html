@@ -10,6 +10,7 @@
 <p class="muted small">At a glance, Rhythm and Variety use the period above. Trend always shows the last twelve months and each year.</p>
 
 {{if not .Members}}<p class="muted">Nobody is showing entries in this space right now.</p>{{end}}
+{{if .Cut}}<p class="muted small">Only the newest 10,000 entries are counted for {{range $i, $n := .Cut}}{{if $i}}, {{end}}{{$n}}{{end}}.</p>{{end}}
 {{range .Sections}}
 <h2>{{.Title}}</h2>
 {{if .Skipped}}<p class="muted small">Not shown for {{range $i, $n := .Skipped}}{{if $i}}, {{end}}{{$n}}{{end}}: their backup is from a newer Tryst version than Alcove understands yet.</p>{{end}}

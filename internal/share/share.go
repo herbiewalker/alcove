@@ -54,6 +54,8 @@ var SetColumns = []string{"practicesPerformed", "practicesReceived", "positions"
 type Query struct {
 	From, To      time.Time
 	Limit, Offset int
+	// Owner narrows the result to one member (still inside the same gate); empty means every member the viewer may see.
+	Owner string
 }
 
 // Entries returns the entries the viewer may see in the space, newest first, and the total that
@@ -137,6 +139,10 @@ func scope(spaceID string, consent int, q Query) (string, []any) {
 	if !q.From.IsZero() {
 		where += ` AND json_extract(c.data, '$.startAt') >= ?`
 		args = append(args, q.From.UnixMilli())
+	}
+	if q.Owner != "" {
+		where += ` AND c.owner_id = ?`
+		args = append(args, q.Owner)
 	}
 	if !q.To.IsZero() {
 		where += ` AND json_extract(c.data, '$.startAt') < ?`

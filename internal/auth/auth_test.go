@@ -359,3 +359,19 @@ func TestDeletionFlagsAndAdminCount(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestCleanDisplayName(t *testing.T) {
+	ok := []string{"Sam", "  Sam  ", "Zoë Ünal", "日本語", "👩‍❤️‍👨", strings.Repeat("é", 80)}
+	for _, n := range ok {
+		if _, err := CleanDisplayName(n); err != nil {
+			t.Errorf("%q refused: %v", n, err)
+		}
+	}
+	bad := []string{"", "   ", "a\x00b", "line\nbreak", "tab\there", "\x7f", "\u0085", "ev‮il", "x⁦y", "x‏y",
+		strings.Repeat("é", 81), "bad\xffutf8"}
+	for _, n := range bad {
+		if _, err := CleanDisplayName(n); !errors.Is(err, ErrBadDisplayName) {
+			t.Errorf("%q accepted (%v)", n, err)
+		}
+	}
+}

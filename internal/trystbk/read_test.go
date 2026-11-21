@@ -411,3 +411,33 @@ func TestSynth_ZIPIsReadableByTrystsStreamingReader(t *testing.T) {
 		}
 	}
 }
+
+// A backup read from a file takes the pre-sized path (its size bounds the plaintext); it must give
+// the same result as one read from memory, including for a wrong password.
+func TestReadFromAFileMatchesReadFromMemory(t *testing.T) {
+	r := build(t, synth.Options{Seed: 8, Encounters: 3000, Partners: 3, Photos: 2})
+	path := t.TempDir() + "/b.tryst"
+	if err := os.WriteFile(path, r.File, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	open := func() *os.File {
+		f, err := os.Open(path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		t.Cleanup(func() { f.Close() })
+		return f
+	}
+	fromFile, err := trystbk.Read(open(), r.Password)
+	if err != nil {
+		t.Fatalf("read from a file: %v", err)
+	}
+	defer fromFile.Close()
+	fromMem := read(t, r)
+	if len(fromFile.Tables) != len(fromMem.Tables) || fromFile.SchemaVersion != fromMem.SchemaVersion {
+		t.Errorf("a file read differs: %d/%d tables", len(fromFile.Tables), len(fromMem.Tables))
+	}
+	if _, err := trystbk.Read(open(), "the wrong password"); !errors.Is(err, trystbk.ErrWrongPassword) {
+		t.Errorf("wrong password from a file: %v", err)
+	}
+}

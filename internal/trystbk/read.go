@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"os"
 	"path"
 	"strings"
 
@@ -58,8 +59,23 @@ func ReadWithHeader(r io.Reader, h Header, password string) (*Backup, error) {
 
 	var body bytes.Buffer
 	body.Grow(SegmentSize)
-	if _, err := io.Copy(&body, io.LimitReader(dec, lim.body)); err != nil {
+	// The first segment is read on its own: a wrong password or a damaged file fails here, before
+	// anything large is reserved.
+	if _, err := io.Copy(&body, io.LimitReader(dec, min(lim.body, SegmentSize))); err != nil {
 		return nil, wrapDecryptErr(err)
+	}
+	// A bytes.Buffer that grows by doubling peaks at about 2.6 times the body (measured), so when the
+	// reader is a file its size, which bounds the plaintext, is reserved once, with slack for the
+	// final read (audit 2026-11-21).
+	if f, ok := r.(interface{ Stat() (os.FileInfo, error) }); ok {
+		if fi, err := f.Stat(); err == nil && fi.Size() > 0 {
+			body.Grow(int(min(fi.Size(), lim.body)) + 2*SegmentSize)
+		}
+	}
+	if rest := lim.body - int64(body.Len()); rest > 0 {
+		if _, err := io.Copy(&body, io.LimitReader(dec, rest)); err != nil {
+			return nil, wrapDecryptErr(err)
+		}
 	}
 	// One-byte overflow probe: a legitimate backup ends exactly at EOF, one that hit the
 	// cap has more bytes waiting.

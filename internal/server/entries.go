@@ -12,6 +12,9 @@ import (
 	"github.com/herbiewalker/alcove/internal/spaces"
 )
 
+// maxPage bounds ?page= so that (page-1)*pageSize can never overflow into a negative offset.
+const maxPage = 1_000_000
+
 // entriesPerPage is how many entries a list page shows.
 const entriesPerPage = 50
 
@@ -36,7 +39,7 @@ func pageNumber(q *rq) int {
 	if n < 1 {
 		n = 1
 	}
-	return n
+	return min(n, maxPage)
 }
 
 func setPager(p *page, n, total int) {

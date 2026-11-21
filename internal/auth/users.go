@@ -9,6 +9,7 @@ import (
 	"regexp"
 	"strings"
 	"time"
+	"unicode/utf8"
 )
 
 // Roles. A member's reach beyond their own data is decided by space membership (M3, M4); the
@@ -92,12 +93,11 @@ func Create(tx *sql.Tx, now time.Time, username, display, role, pwHash string) (
 	if err != nil {
 		return User{}, err
 	}
-	display = strings.TrimSpace(display)
-	if display == "" {
+	if display = strings.TrimSpace(display); display == "" {
 		display = un
 	}
-	if len(display) > 80 {
-		return User{}, errors.New("auth: display name is too long (80 characters at most)")
+	if display, err = CleanDisplayName(display); err != nil {
+		return User{}, err
 	}
 	if role != RoleAdmin && role != RoleMember {
 		return User{}, fmt.Errorf("auth: unknown role %q", role)
@@ -223,19 +223,14 @@ func ChangePassword(tx *sql.Tx, id, pwHash string) error {
 }
 
 // ErrBadDisplayName means a display name is empty, too long or holds control characters.
-var ErrBadDisplayName = errors.New("auth: a name shown to others is 1 to 80 characters with no control characters")
+var ErrBadDisplayName = errors.New("auth: a name shown to others is 1 to 80 characters with no control or direction-changing characters")
 
 // SetDisplayName changes the name other people see for an account. A person changes only their own;
 // the caller decides who may call it.
 func SetDisplayName(tx *sql.Tx, id, name string) error {
-	name = strings.TrimSpace(name)
-	if name == "" || len(name) > 80 {
-		return ErrBadDisplayName
-	}
-	for _, r := range name {
-		if r < 0x20 || r == 0x7f {
-			return ErrBadDisplayName
-		}
+	name, err := CleanDisplayName(name)
+	if err != nil {
+		return err
 	}
 	res, err := tx.Exec(`UPDATE user SET display_name = ? WHERE id = ?`, name, id)
 	if err != nil {
@@ -245,4 +240,23 @@ func SetDisplayName(tx *sql.Tx, id, name string) error {
 		return ErrNoUser
 	}
 	return nil
+}
+
+// CleanDisplayName is the one check for a name other people see: valid UTF-8, 1 to 80 characters,
+// no control characters and none of the bidirectional-override characters that can make one name
+// read as another (audit 2026-11-21). Zero-width joiners stay, so emoji sequences work.
+func CleanDisplayName(name string) (string, error) {
+	name = strings.TrimSpace(name)
+	if name == "" || !utf8.ValidString(name) || utf8.RuneCountInString(name) > 80 {
+		return "", ErrBadDisplayName
+	}
+	for _, r := range name {
+		switch {
+		case r < 0x20 || r == 0x7f || (r >= 0x80 && r < 0xa0):
+			return "", ErrBadDisplayName
+		case r == 0x061c || r == 0x200e || r == 0x200f || (r >= 0x202a && r <= 0x202e) || (r >= 0x2066 && r <= 0x2069):
+			return "", ErrBadDisplayName
+		}
+	}
+	return name, nil
 }
