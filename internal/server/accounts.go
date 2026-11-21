@@ -381,7 +381,10 @@ func (s *Server) postAdminRestoreUpload(q *rq) {
 		return
 	}
 	rev := q.r.PostForm.Get("id")
-	out, err := s.retFor(q.st).RestoreUpload(q.r.Context(), "", rev, true)
+	out, err := s.retFor(q.st).RestoreUpload(q.r.Context(), "", rev, true, func(tx *sql.Tx) error {
+		_, e := adminlog.Append(tx, s.now(), q.id.user.ID, "upload.restore", "revision", rev, "deleted_at")
+		return e
+	})
 	switch {
 	case errors.Is(err, retention.ErrExpired):
 		q.deletedError(http.StatusBadRequest, "The recovery window for that upload has ended.")
@@ -394,10 +397,6 @@ func (s *Server) postAdminRestoreUpload(q *rq) {
 		return
 	}
 	_ = out
-	if err := q.audit("upload.restore", "revision", rev, "deleted_at", nil); err != nil {
-		q.serverError("log restore", err)
-		return
-	}
 	q.setFlash("done")
 	q.redirect("/admin/deleted")
 }
@@ -406,13 +405,14 @@ func (s *Server) postAdminPurge(q *rq) {
 	if q.needStepUp("/admin/deleted") {
 		return
 	}
-	res, err := s.retFor(q.st).Purge(q.r.Context())
-	if err != nil {
-		q.serverError("purge", err)
+	// Who asked is logged BEFORE anything is removed, so a purge can never run unlogged; the purge
+	// writes its own line with the counts, in its own final transaction.
+	if err := q.audit("retention.purge.run", "retention", "all", "manual", nil); err != nil {
+		q.serverError("log purge", err)
 		return
 	}
-	if err := q.audit("retention.purge.run", "retention", "all", res.Fields(), nil); err != nil {
-		q.serverError("log purge", err)
+	if _, err := s.retFor(q.st).Purge(q.r.Context()); err != nil {
+		q.serverError("purge", err)
 		return
 	}
 	q.setFlash("purged")

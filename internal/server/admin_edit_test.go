@@ -303,3 +303,30 @@ func TestTheAdministratorRenamesAPartnerAndItIsLogged(t *testing.T) {
 		t.Error("the partner edit was not logged")
 	}
 }
+
+// An administrator's refused edit or revert still shows the person's data back on the error page, so
+// it is a look and is logged like one (constraint 6; audit 2026-11-21 finding 1).
+func TestAdminErrorPagesThatShowDataAreLogged(t *testing.T) {
+	s := newSharing(t)
+	id, _ := samEntry(t, s)
+	base := samBase(s) + "/entries/" + url.PathEscape(id)
+	edit := base + "/edit"
+	form := s.admin.do("GET", edit, nil).Body.String()
+	if w := s.admin.post(edit, edit, url.Values{"rev": {formRev(t, form)}, "when": {extractWhen(t, form)}, "rating": {"2"}, "note": {"first"}}); w.Code != 303 {
+		t.Fatalf("setup edit: %d", w.Code)
+	}
+	hist := s.admin.do("GET", base+"/history", nil)
+	revID := between(t, hist.Body.String(), `name="revision" value="`)
+	views := func() int { return logCount(t, s, "data.view") }
+
+	before := views()
+	w := s.admin.post("/admin/users", base+"/edit", url.Values{"rev": {"stale"}, "when": {"2020-01-01T10:00"}})
+	if w.Code != 400 || views() != before+1 {
+		t.Errorf("stale edit: status %d, data.view lines %d -> %d", w.Code, before, views())
+	}
+	before = views()
+	w = s.admin.post("/admin/users", base+"/revert", url.Values{"rev": {"stale"}, "revision": {revID}})
+	if w.Code != 400 || views() != before+1 {
+		t.Errorf("stale revert: status %d, data.view lines %d -> %d", w.Code, before, views())
+	}
+}

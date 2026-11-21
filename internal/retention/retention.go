@@ -136,8 +136,10 @@ func (s *Service) refresh(ctx context.Context, owner string) (Outcome, error) {
 }
 
 // RestoreUpload brings a soft-deleted upload back. A person may restore their own within the user
-// window; the admin (byAdmin) may restore anyone's within the admin window.
-func (s *Service) RestoreUpload(ctx context.Context, owner, revisionID string, byAdmin bool) (Outcome, error) {
+// window; the admin (byAdmin) may restore anyone's within the admin window. Each inTx hook runs in
+// the same transaction as the restore, after it succeeded, and a hook error undoes the restore
+// (the admin log line is written this way, so a restore is never unlogged).
+func (s *Service) RestoreUpload(ctx context.Context, owner, revisionID string, byAdmin bool, inTx ...func(*sql.Tx) error) (Outcome, error) {
 	now, w := s.Now(), s.windows()
 	err := s.St.Update(ctx, true, func(tx *sql.Tx) error {
 		var o, kind string
@@ -163,8 +165,15 @@ func (s *Service) RestoreUpload(ctx context.Context, owner, revisionID string, b
 			return ErrExpired
 		}
 		owner = o
-		_, e := tx.Exec(`UPDATE revision SET deleted_at = NULL WHERE upload_id = (SELECT upload_id FROM revision WHERE id = ?) AND deleted_at = ?`, revisionID, del.Int64)
-		return e
+		if _, e := tx.Exec(`UPDATE revision SET deleted_at = NULL WHERE upload_id = (SELECT upload_id FROM revision WHERE id = ?) AND deleted_at = ?`, revisionID, del.Int64); e != nil {
+			return e
+		}
+		for _, h := range inTx {
+			if e := h(tx); e != nil {
+				return e
+			}
+		}
+		return nil
 	})
 	if err != nil {
 		return Outcome{}, err

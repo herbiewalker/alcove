@@ -276,6 +276,10 @@ func (s *Server) postEditEntry(q *rq, w who) {
 		return
 	}
 	if msg := formMessage(edit.Fields, err); msg != "" {
+		// The form below shows the person's current choices, so an administrator's look is logged first.
+		if !s.auditView(q, w, "edit", "encounters", id) {
+			return
+		}
 		// Show what they typed, so nothing is lost; the revision stays the one they opened on.
 		form := &editForm{ID: id, Rev: baseRev, When: f.Get("when"), Duration: f.Get("duration"), Rating: f.Get("rating"),
 			Orgasms: f.Get("orgasms"), Note: f.Get("note"), Zone: loc.String()}
@@ -404,7 +408,7 @@ func (s *Server) revertEdit(q *rq, w who, k histKind) {
 		return
 	}
 	if msg := formMessage(k.fields, err); msg != "" {
-		if p, ok := s.historyPage(q, w, k, id, msg); ok {
+		if p, ok := s.historyPage(q, w, k, id, msg); ok && s.auditView(q, w, "history", k.table, id) {
 			q.render(http.StatusBadRequest, "history", w.pg(p))
 		}
 		return

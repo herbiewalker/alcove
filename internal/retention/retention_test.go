@@ -236,6 +236,15 @@ func TestRestoreWindows(t *testing.T) {
 	if l, _ := r.svc.ListDeleted(ctx, "", true); len(l) != 0 {
 		t.Errorf("the admin's bin on day 46: %+v", l)
 	}
+	// A failing in-transaction hook (the admin log line) undoes the restore: nothing is restored unlogged.
+	r.clock = t0.Add(20 * day)
+	boom := errors.New("log write failed")
+	if _, err := r.svc.RestoreUpload(ctx, "", a.RevisionID, true, func(*sql.Tx) error { return boom }); !errors.Is(err, boom) {
+		t.Fatalf("a failing hook: %v", err)
+	}
+	if l, _ := r.svc.ListDeleted(ctx, "", true); len(l) != 1 {
+		t.Fatalf("the restore was not undone with its hook: %+v", l)
+	}
 	// Day 20: the admin can.
 	r.clock = t0.Add(20 * day)
 	if out, err := r.svc.RestoreUpload(ctx, "", a.RevisionID, true); err != nil || !out.CacheRebuilt {
