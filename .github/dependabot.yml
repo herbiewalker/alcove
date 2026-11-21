@@ -1,0 +1,8 @@
+# Keeps the commit-pinned GitHub Actions current. Each update arrives as a pull request that
+# shows the new commit, so a pin moves only when someone reads and merges it.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly

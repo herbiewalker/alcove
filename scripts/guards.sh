@@ -160,7 +160,7 @@ guard_unraid_template() {
     return
   fi
   local bad=0 want
-  for want in '--user 65532:65532' '--read-only' '--cap-drop=ALL' 'no-new-privileges:true' '--memory=' '--cpus=' 'noexec,nosuid,nodev'; do
+  for want in '--user 65532:65532' '--read-only' '--cap-drop=ALL' 'no-new-privileges:true' '--memory=' '--memory-swap=' '--pids-limit=' '--cpus=' 'noexec,nosuid,nodev'; do
     grep -q -- "<ExtraParams>.*$want" "$f" || { fail "unraid-template: ExtraParams lacks $want"; bad=1; }
   done
   [ "$(grep -c 'Type="Port"' "$f")" = "1" ] || { fail "unraid-template: expected exactly one published port"; bad=1; }

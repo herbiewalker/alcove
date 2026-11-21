@@ -83,6 +83,13 @@ services:
           memory: ${ALCOVE_MEM_LIMIT:-2G}
           cpus: "${ALCOVE_CPU_LIMIT:-2.0}"
 
+    # Swap is capped at the memory limit, which turns it off for this container: decrypted data and the
+    # master key live in RAM and tmpfs and must not be paged to a disk (hard constraint 4). The process
+    # limit is defence in depth; one process serves everything.
+    mem_limit: ${ALCOVE_MEM_LIMIT:-2G}
+    memswap_limit: ${ALCOVE_MEM_LIMIT:-2G}
+    pids_limit: 256
+
     # distroless has no shell or curl, so the healthcheck uses the binary's own mode.
     healthcheck:
       test: ["CMD", "/usr/local/bin/alcove", "-healthcheck"]

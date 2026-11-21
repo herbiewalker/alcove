@@ -19,11 +19,11 @@ jobs:
     name: build · test · guards
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           fetch-depth: 0 # the secret scan below reads the whole history
 
-      - uses: actions/setup-go@v7
+      - uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5 # v7
         with:
           go-version-file: go.mod
           cache: true
@@ -62,7 +62,7 @@ jobs:
       # Static analysis of the module graph for reachable known vulnerabilities.
       - name: govulncheck
         run: |
-          go install golang.org/x/vuln/cmd/govulncheck@latest
+          go install golang.org/x/vuln/cmd/govulncheck@v1.10.0
           govulncheck ./...
 
       # Dependency and licence gate (checklist 00, ADR D-2). Also part of `guards.sh all`;
@@ -75,7 +75,7 @@ jobs:
     name: image · least-privilege · scan
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       - name: Build image
         run: docker build -t alcove:ci .
@@ -104,6 +104,8 @@ jobs:
           echo "$cfg" | grep -q 'network_mode: *host' && { echo "::error::host network"; exit 1; }
           echo "$cfg" | grep -q 'read_only: *true'    || { echo "::error::rootfs not read-only"; exit 1; }
           echo "$cfg" | grep -q 'memory:'             || { echo "::error::no memory limit"; exit 1; }
+          echo "$cfg" | grep -q 'memswap_limit:'       || { echo "::error::no swap limit (decrypted data could reach swap)"; exit 1; }
+          echo "$cfg" | grep -q 'pids_limit:'          || { echo "::error::no process limit"; exit 1; }
           published=$(echo "$cfg" | grep -c 'published:')
           if [ "$published" -ne 1 ]; then
             echo "::error::expected exactly 1 published port, found $published"; exit 1
