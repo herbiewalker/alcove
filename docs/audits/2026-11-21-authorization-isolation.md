@@ -89,3 +89,9 @@ New findings: none that need action. Two nits, both accepted behaviour:
 - A refused admin edit now logs `data.view` with field `edit`, so the person's activity page says "opened the edit page"; accurate, since the page did show their data.
 
 Verdict: findings 1 and 2 are resolved; no blockers from this lens. Findings 3 and 4 remain open for the owner.
+
+## Findings 3 and 4 resolved (owner's decision, same day)
+
+- **3 fixed:** a member on older wording now gets only the agree screen and their own settings; the member list and (for an owner)
+  join requests are hidden until they agree (`spaces.go` `spacePage`, `templates/space.html`). Test added to the consent test in `entries_test.go`.
+- **4 kept as designed and documented:** a paused member still sees everyone else; pausing withholds only their own entries (D-32 point 4a).

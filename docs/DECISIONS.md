@@ -597,6 +597,8 @@ is a recurring check, not a one-off.
   4. **Consent versions are enforced.** A member who agreed to an older wording is treated like a paused member until they
      agree again on a re-agree screen. The wording changes now (the old text said nothing is shared yet), so `ConsentVersion`
      becomes 2.
+  4a. **A member who has not agreed also sees no member list or join requests** (audit 2026-11-21) until they agree. A **paused** member
+     still sees everyone else: pausing withholds only their own entries (confirmed as intended in the same audit).
   5. **Leaving, removal, disabling, deleting and pausing take effect on the next request**, because the gate reads the live
      membership every time. Nothing is copied into a space.
   6. **The data comes from the owner's head revision cache** (`cache_row`), so an owner who deletes their latest upload also

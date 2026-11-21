@@ -176,7 +176,11 @@ func (s *Server) spacePage(q *rq, sp spaces.Space, role string) (*page, error) {
 				}
 			}
 		}
-		if !v.NeedAgree {
+		if v.NeedAgree {
+			// Until they agree to the current wording they see nobody else (D-32, audit 2026-11-21 finding 3):
+			// no member list and no join requests either, only the agree screen and their own settings.
+			v.Members, v.Requests = nil, nil
+		} else {
 			cs, err := share.Cards(tx, sp.ID, q.id.user.ID, spaces.ConsentVersion, s.now())
 			if err != nil {
 				return err

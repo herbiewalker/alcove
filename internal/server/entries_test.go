@@ -199,6 +199,9 @@ func TestOlderWordingHidesBothWaysUntilAgreed(t *testing.T) {
 	if !strings.Contains(page, "Please read this again") || strings.Contains(page, ">Calendar</a>") {
 		t.Error("the space page should ask to agree and not offer the entries")
 	}
+	if strings.Contains(page, "<h2>Members</h2>") || strings.Contains(page, "@sam") {
+		t.Error("a member on the old wording must not see the member list")
+	}
 	// Agreeing needs the tick.
 	if w := s.kim.post("/spaces/"+s.space, "/spaces/"+s.space+"/agree", url.Values{}); w.Code != 400 {
 		t.Errorf("agree without the tick: %d", w.Code)
