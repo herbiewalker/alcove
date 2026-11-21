@@ -1,0 +1,13 @@
+# gitleaks config for the CI secret scan (constraint 10). Default rules stay on; the only
+# exception is the public RFC 6238 test secret in one test, matched by both path and value so
+# nothing else in that file, or anywhere else, is excused.
+title = "alcove"
+
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "RFC 6238 appendix B test secret '12345678901234567890' (base32 below), used by the TOTP link test"
+condition = "AND"
+paths = ['''internal/totp/totp_test\.go$''']
+regexes = ['''GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ''']
