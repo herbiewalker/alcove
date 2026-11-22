@@ -29,15 +29,15 @@
 <p class="muted small"><a href="/profile">Edit what you share about yourself</a></p>
 
 <h2>Members</h2>
-<div class="scroll">
-<table>
+<div class="scroll" role="region" tabindex="0" aria-label="Members">
+<table><caption class="sr">Members</caption>
   <thead><tr><th>Person</th><th>Role</th><th>Since (UTC)</th></tr></thead>
   <tbody>
   {{range .Members}}
     <tr>
       <td><b>{{.Name}}</b><br><span class="muted">@{{.Username}}</span>
-        {{if .CanHandOver}}<form method="post" action="/spaces/{{$.Space.ID}}/transfer"><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="user" value="{{.UserID}}"><button class="btn secondary" type="submit">Make owner</button></form>{{end}}
-        {{if .CanRemove}}<form method="post" action="/spaces/{{$.Space.ID}}/remove"><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="user" value="{{.UserID}}"><button class="btn secondary" type="submit">Remove</button></form>{{end}}
+        {{if .CanHandOver}}<form method="post" action="/spaces/{{$.Space.ID}}/transfer"><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="user" value="{{.UserID}}"><button class="btn secondary" type="submit" aria-label="Make {{.Name}} owner">Make owner</button></form>{{end}}
+        {{if .CanRemove}}<form method="post" action="/spaces/{{$.Space.ID}}/remove"><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="user" value="{{.UserID}}"><button class="btn secondary" type="submit" aria-label="Remove {{.Name}} from the space">Remove</button></form>{{end}}
       </td><td>{{.Role}}</td><td>{{.Since}}</td>
     </tr>
   {{end}}
@@ -49,8 +49,8 @@
 {{if .IsOwner}}
 {{if .Requests}}
 <h2>Asking to join</h2>
-<div class="scroll">
-<table>
+<div class="scroll" role="region" tabindex="0" aria-label="Requests to join">
+<table><caption class="sr">Requests to join</caption>
   <tbody>
   {{range .Requests}}
     <tr>
@@ -80,13 +80,13 @@
   <div class="actions"><button class="btn" type="submit">Make an invite</button></div>
 </form>
 {{if .Invites}}
-<div class="scroll">
-<table>
-  <thead><tr><th>Invite</th><th>Until (UTC)</th><th>State</th><th></th></tr></thead>
+<div class="scroll" role="region" tabindex="0" aria-label="Invites">
+<table><caption class="sr">Invites</caption>
+  <thead><tr><th>Invite</th><th>Until (UTC)</th><th>State</th><th><span class="sr">Actions</span></th></tr></thead>
   <tbody>
   {{range .Invites}}
     <tr><td>{{if .Label}}{{.Label}}{{else}}<span class="muted">no note</span>{{end}}</td><td>{{.Expires}}</td><td>{{.State}}</td>
-    <td>{{if .Live}}<form method="post" action="/spaces/{{$.Space.ID}}/revoke"><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="invite" value="{{.ID}}"><button class="btn secondary" type="submit">Cancel</button></form>{{end}}</td></tr>
+    <td>{{if .Live}}<form method="post" action="/spaces/{{$.Space.ID}}/revoke"><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="invite" value="{{.ID}}"><button class="btn secondary" type="submit" aria-label="Cancel invite{{if .Label}} {{.Label}}{{end}}">Cancel</button></form>{{end}}</td></tr>
   {{end}}
   </tbody>
 </table>

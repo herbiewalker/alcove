@@ -7,6 +7,7 @@
   --text: #2a1d33;
   --muted: #6b5a76;
   --line: #e4dbe9;
+  --field-line: #8a7a96;
   --accent: #9a3b5a;
   --accent-text: #ffffff;
   --focus: #1b64d6;
@@ -26,6 +27,7 @@
     --text: #f1e8f5;
     --muted: #b9a8c4;
     --line: #3a2650;
+    --field-line: #8f7aa6;
     --accent: #e6a09a;
     --accent-text: #2a1020;
     --focus: #8ab4ff;
@@ -44,6 +46,7 @@
   --text: #f1e8f5;
   --muted: #b9a8c4;
   --line: #3a2650;
+  --field-line: #8f7aa6;
   --accent: #e6a09a;
   --accent-text: #2a1020;
   --focus: #8ab4ff;
@@ -145,7 +148,7 @@ input[type="text"], input[type="password"], input[type="search"], textarea {
   font: inherit;
   color: var(--text);
   background: var(--bg);
-  border: 1px solid var(--line);
+  border: 1px solid var(--field-line);
   border-radius: 10px;
 }
 textarea { min-height: 6rem; resize: vertical; }
@@ -228,7 +231,7 @@ select {
   font: inherit;
   color: var(--text);
   background: var(--bg);
-  border: 1px solid var(--line);
+  border: 1px solid var(--field-line);
   border-radius: 10px;
 }
 td form { margin: 4px 0; }
@@ -247,15 +250,15 @@ td form { margin: 4px 0; }
 .cal { width: 100%; border-collapse: separate; border-spacing: 3px; table-layout: fixed; }
 .cal th { font-weight: 600; font-size: .75rem; color: var(--muted); padding: 2px 0; }
 .cal td { padding: 0; }
-.cal a.day { display: flex; flex-direction: column; min-height: 54px; padding: 3px 2px; border: 1px solid var(--border, rgba(128,128,128,.35)); border-radius: 6px; text-decoration: none; color: inherit; overflow: hidden; }
+.cal a.day { display: flex; flex-direction: column; min-height: 60px; padding: 3px 2px; border: 1px solid var(--border, rgba(128,128,128,.35)); border-radius: 6px; text-decoration: none; color: inherit; overflow: hidden; }
 .cal a.day .num { font-size: .8rem; }
-.cal td.out a.day { opacity: .45; }
+.cal td.out a.day { color: var(--muted); }
 .cal td.today a.day .num { font-weight: 700; text-decoration: underline; }
 .cal td.both a.day { background: rgba(214, 140, 160, .22); border-color: rgba(214, 140, 160, .9); }
 .cal td.sel a.day { outline: 2px solid currentColor; outline-offset: 1px; }
 .cal a.day:focus-visible { outline: 2px solid currentColor; outline-offset: 1px; }
 .marks { display: flex; flex-wrap: wrap; gap: 2px; margin-top: auto; }
-.mk { background: #ddd; display: inline-flex; align-items: center; justify-content: center; min-width: 16px; height: 16px; padding: 0 2px; border-radius: 8px; font-size: .65rem; font-weight: 700; color: #1b1220; }
+.mk { background: #ddd; display: inline-flex; align-items: center; justify-content: center; min-width: 18px; height: 18px; padding: 0 3px; border-radius: 9px; font-size: .75rem; font-weight: 700; color: #1b1220; }
 .m0 { background: #f0a8bd; } .m1 { background: #9ec9f0; } .m2 { background: #a8e0b0; }
 .m3 { background: #f0d08a; } .m4 { background: #c9b0f0; } .m5 { background: #f0b090; }
 .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
@@ -282,7 +285,7 @@ button:disabled, .btn[disabled] { opacity: .6; cursor: progress; }
 .chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 0; padding: 0; list-style: none; }
 .chips li { padding: 3px 10px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface); }
 .note { white-space: pre-wrap; overflow-wrap: anywhere; margin: 0; }
-td a { color: inherit; font-weight: 600; }
+td a { color: inherit; font-weight: 600; text-decoration: underline; text-underline-offset: 2px; }
 
 /* Search (D-38) */
 .hits { list-style: none; margin: 0; padding: 0; }
@@ -325,3 +328,11 @@ ol.temp li { margin: 8px 0; }
 /* Profile and partner pictures (D-52): small, blurred until tapped like photos. */
 figure.photo.avatar { width: 96px; margin: 6px 0; }
 .photos.avatars { grid-template-columns: repeat(auto-fill, 96px); }
+
+/* Skip link and the scroll boxes (UI audit 2026-11-22): the link shows only when it has focus, and a
+   scrolling table box can take focus so the keyboard can move it sideways. */
+.skip { position: absolute; left: 8px; top: -100px; z-index: 200; padding: 10px 16px; border-radius: 10px;
+  background: var(--accent); color: var(--accent-text); font-weight: 650; text-decoration: none; }
+.skip:focus { top: 8px; }
+main:focus { outline: none; }
+.scroll:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }

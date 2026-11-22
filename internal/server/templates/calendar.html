@@ -37,8 +37,8 @@
 {{if .Day}}
 <h2>{{.Day}}</h2>
 {{if .DayRows}}
-<div class="scroll">
-<table>
+<div class="scroll" role="region" tabindex="0" aria-label="Entries on this day">
+<table><caption class="sr">Entries on this day</caption>
   <thead><tr><th>Time</th><th>Who</th><th>Length</th><th>Rating</th><th>Note</th></tr></thead>
   <tbody>
   {{range .DayRows}}

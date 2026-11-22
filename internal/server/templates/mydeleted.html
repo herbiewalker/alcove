@@ -2,14 +2,14 @@
 <h1>Recently deleted</h1>
 <p class="muted">You can restore an upload yourself for {{.UserDays}} days after deleting it. After that only the administrator can, until {{.AdminDays}} days have passed, and then it is removed for good.</p>
 {{if .MyDeleted}}
-<div class="scroll">
-<table>
-  <thead><tr><th>Deleted (UTC)</th><th>File</th><th>Entries</th><th>Size</th><th>Yours to restore until (UTC)</th><th></th></tr></thead>
+<div class="scroll" role="region" tabindex="0" aria-label="Recently deleted uploads">
+<table><caption class="sr">Recently deleted uploads</caption>
+  <thead><tr><th>Deleted (UTC)</th><th>File</th><th>Entries</th><th>Size</th><th>Yours to restore until (UTC)</th><th><span class="sr">Actions</span></th></tr></thead>
   <tbody>
   {{range .MyDeleted}}
     <tr>
       <td>{{.DeletedAt}}</td><td>{{.Filename}}</td><td>{{.Entries}}</td><td>{{.Size}}</td><td>{{.Until}}</td>
-      <td><form method="post" action="/uploads/restore" data-busy="Restoring and rebuilding your data. This can take a few seconds..."><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="id" value="{{.ID}}"><button class="btn secondary" type="submit">Restore</button></form></td>
+      <td><form method="post" action="/uploads/restore" data-busy="Restoring and rebuilding your data. This can take a few seconds..."><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="id" value="{{.ID}}"><button class="btn secondary" type="submit" aria-label="Restore upload {{.Filename}}">Restore</button></form></td>
     </tr>
   {{end}}
   </tbody>

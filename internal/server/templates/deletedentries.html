@@ -3,10 +3,10 @@
 <p class="muted">{{if .Prefix}}Entries deleted from {{.PersonName}}'s data. As administrator you can restore one for {{.UserDays}} days after it was deleted; a restore is written to the admin log.{{else}}Entries you deleted. You can restore one for {{.UserDays}} days after you deleted it.{{end}} Restoring brings back the entry with its partner links and photo rows.</p>
 <p><a class="btn secondary" href="{{if .Prefix}}{{.Prefix}}{{else}}/entries{{end}}">{{if .Prefix}}{{.PersonName}}'s data{{else}}My entries{{end}}</a></p>
 {{if .DeletedRows}}
-<div class="scroll"><table>
-  <thead><tr><th>Entry</th><th>Deleted</th><th></th></tr></thead>
+<div class="scroll" role="region" tabindex="0" aria-label="Recently deleted entries"><table><caption class="sr">Recently deleted entries</caption>
+  <thead><tr><th>Entry</th><th>Deleted</th><th><span class="sr">Actions</span></th></tr></thead>
   <tbody>{{range .DeletedRows}}<tr><td>{{if .Started}}{{.Started}}{{else}}An entry{{end}}</td><td>{{.Deleted}}</td><td>
-    {{if .Restorable}}<form method="post" action="{{$.Prefix}}/entries/{{.ID | urlquery}}/restore"><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="rev" value="{{$.HistRev}}"><button class="btn secondary" type="submit" data-busy="Restoring...">Restore</button></form>
+    {{if .Restorable}}<form method="post" action="{{$.Prefix}}/entries/{{.ID | urlquery}}/restore"><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="rev" value="{{$.HistRev}}"><button class="btn secondary" type="submit" data-busy="Restoring..." aria-label="Restore {{if .Started}}entry from {{.Started}}{{else}}entry{{end}}">Restore</button></form>
     {{else}}<span class="muted small">{{if $.Prefix}}Past the {{$.UserDays}} days. Its content is wiped by the next purge.{{else}}Past your {{$.UserDays}} days. Ask the administrator.{{end}}</span>{{end}}</td></tr>{{end}}</tbody>
 </table></div>
 {{else}}

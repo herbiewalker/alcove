@@ -30,9 +30,9 @@
 
 <h2>Existing backups</h2>
 {{if .Backups}}
-<div class="scroll">
-<table>
-  <thead><tr><th>Made (UTC)</th><th>Size</th><th>Checksum file</th><th></th></tr></thead>
+<div class="scroll" role="region" tabindex="0" aria-label="Backups">
+<table><caption class="sr">Backups</caption>
+  <thead><tr><th>Made (UTC)</th><th>Size</th><th>Checksum file</th><th><span class="sr">Actions</span></th></tr></thead>
   <tbody>
   {{range .Backups}}
     <tr>

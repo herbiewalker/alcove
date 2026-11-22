@@ -3,9 +3,9 @@
 <p class="muted">A space is a private place shared by the people you choose, such as you and your partner. Nobody outside it can see it, or even tell that it exists.</p>
 
 {{if .Spaces}}
-<div class="scroll">
-<table>
-  <thead><tr><th>Space</th><th>Your part</th><th>Members</th><th></th></tr></thead>
+<div class="scroll" role="region" tabindex="0" aria-label="Your spaces">
+<table><caption class="sr">Your spaces</caption>
+  <thead><tr><th>Space</th><th>Your part</th><th>Members</th><th><span class="sr">Actions</span></th></tr></thead>
   <tbody>
   {{range .Spaces}}
     <tr>
@@ -41,13 +41,13 @@
 
 {{if .DeletedSpaces}}
 <h2>Recently deleted spaces</h2>
-<div class="scroll">
-<table>
-  <thead><tr><th>Space</th><th>You can restore it until (UTC)</th><th></th></tr></thead>
+<div class="scroll" role="region" tabindex="0" aria-label="Deleted spaces">
+<table><caption class="sr">Deleted spaces</caption>
+  <thead><tr><th>Space</th><th>You can restore it until (UTC)</th><th><span class="sr">Actions</span></th></tr></thead>
   <tbody>
   {{range .DeletedSpaces}}
     <tr><td>{{.Name}}</td><td>{{.Until}}</td>
-    <td><form method="post" action="/spaces/{{.ID}}/restore"><input type="hidden" name="csrf" value="{{$.CSRF}}"><button class="btn secondary" type="submit">Restore</button></form></td></tr>
+    <td><form method="post" action="/spaces/{{.ID}}/restore"><input type="hidden" name="csrf" value="{{$.CSRF}}"><button class="btn secondary" type="submit" aria-label="Restore space {{.Name}}">Restore</button></form></td></tr>
   {{end}}
   </tbody>
 </table>

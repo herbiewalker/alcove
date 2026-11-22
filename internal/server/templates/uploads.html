@@ -17,21 +17,22 @@
     <p class="hint">Up to {{.MaxMB}} MiB. A file you already uploaded is refused, and a wrong password saves nothing.</p>
   </div>
   <progress id="bar" max="100" value="0" hidden>0%</progress>
-  <p id="status" class="muted" role="status" aria-live="polite"></p>
+  <p id="status" class="muted"></p>
+  <p id="announce" class="sr" role="status" aria-live="polite"></p>
   <div class="actions"><button id="go" class="btn" type="submit">Upload</button></div>
 </form>
 
 <h2>Uploaded backups</h2>
 {{if .Uploads}}
-<div class="scroll">
-<table>
-  <thead><tr><th>Uploaded (UTC)</th><th>File</th><th>Entries</th><th>Photos</th><th>Size</th><th></th><th></th></tr></thead>
+<div class="scroll" role="region" tabindex="0" aria-label="Uploaded backups">
+<table><caption class="sr">Uploaded backups</caption>
+  <thead><tr><th>Uploaded (UTC)</th><th>File</th><th>Entries</th><th>Photos</th><th>Size</th><th><span class="sr">Actions</span></th><th><span class="sr">Actions</span></th></tr></thead>
   <tbody>
   {{range .Uploads}}
     <tr>
       <td>{{.When}}</td><td>{{.Filename}}</td><td>{{.Entries}}</td><td>{{.Media}}</td><td>{{.Size}}</td>
       <td>{{if .Current}}<b>current</b>{{end}}{{if .ReadOnly}} <span class="muted">read-only ({{.Schema}} is newer than this server knows)</span>{{end}}</td>
-      <td><form method="post" action="/uploads/delete" data-busy="Moving it to Recently deleted and rebuilding your data. This can take a few seconds..."><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="id" value="{{.ID}}"><button class="btn secondary" type="submit">Delete</button></form></td>
+      <td><form method="post" action="/uploads/delete" data-busy="Moving it to Recently deleted and rebuilding your data. This can take a few seconds..."><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="id" value="{{.ID}}"><button class="btn secondary" type="submit" aria-label="Delete upload {{.Filename}}">Delete</button></form></td>
     </tr>
   {{end}}
   </tbody>

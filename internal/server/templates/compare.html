@@ -15,8 +15,8 @@
 <h2>{{.Title}}</h2>
 {{if .Skipped}}<p class="muted small">Not shown for {{range $i, $n := .Skipped}}{{if $i}}, {{end}}{{$n}}{{end}}: their backup is from a newer Tryst version than Alcove understands yet.</p>{{end}}
 {{if .Head}}
-<div class="scroll">
-<table class="cmp">
+<div class="scroll" role="region" tabindex="0" aria-label="Comparison">
+<table class="cmp"><caption class="sr">Comparison</caption>
   <thead><tr><th scope="col"><span class="sr">What</span></th>{{range .Head}}<th scope="col">{{.}}</th>{{end}}</tr></thead>
   <tbody>
   {{$bars := .Bars}}

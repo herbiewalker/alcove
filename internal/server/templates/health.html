@@ -5,7 +5,7 @@
 {{range .Health}}
 <section class="card">
   <h2>{{.Title}}</h2>
-  <table>
+  <table><caption class="sr">Server health</caption>
     <tbody>
     {{range .Rows}}
       <tr><th scope="row">{{.Label}}</th>

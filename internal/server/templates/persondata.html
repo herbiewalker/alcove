@@ -3,8 +3,8 @@
 <p class="muted">{{.EntryTotal}} entries from their current upload, newest first. As administrator you can edit, delete and restore their entries and partners. Opening anything here is written to the admin log, and so is every change: which entry and which fields, never the content. They can see your changes in their history and undo them. Changes ask for your password again.{{if not .SteppedUp}} <a href="/stepup?next=/admin/users">Confirm it is you</a>.{{end}}</p>
 <p><a class="btn secondary" href="{{.Prefix}}/partners">Partners</a> <a class="btn secondary" href="{{.Prefix}}/entries/deleted">Recently deleted entries</a> <a class="btn secondary" href="/admin/users">People</a></p>
 {{if .Shared}}
-<div class="scroll">
-<table>
+<div class="scroll" role="region" tabindex="0" aria-label="Entries">
+<table><caption class="sr">Entries</caption>
   <thead><tr><th>When</th><th>Length</th><th>Rating</th><th>In spaces</th></tr></thead>
   <tbody>
   {{range .Shared}}

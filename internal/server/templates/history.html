@@ -6,7 +6,7 @@
 {{range .History}}
 <section class="card">
   <h2>{{.When}} <span class="muted small">{{.By}}</span></h2>
-  <div class="scroll"><table>
+  <div class="scroll" role="region" tabindex="0" aria-label="Changes in this revision"><table><caption class="sr">Changes in this revision</caption>
     <thead><tr><th>Field</th><th>Was</th><th>Now</th></tr></thead>
     <tbody>{{range .Changes}}<tr><td>{{.Label}}</td><td>{{if .Old}}{{.Old}}{{else}}<span class="muted">(empty)</span>{{end}}</td><td>{{if .New}}{{.New}}{{else}}<span class="muted">(empty)</span>{{end}}</td></tr>{{end}}</tbody>
   </table></div>

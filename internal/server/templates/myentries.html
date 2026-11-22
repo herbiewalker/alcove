@@ -3,14 +3,14 @@
 <p class="muted">{{.EntryTotal}} from your latest upload, newest first. Every entry is shown in your spaces unless you make it private here. A private entry stays on this server for you but is never shown to anyone in a space. Times are in your time zone (set on your profile).</p>
 <p><a class="btn" href="/entries/new">Add an entry</a> <a class="btn secondary" href="/entries/deleted">Recently deleted</a> <a class="btn secondary" href="/partners">My partners</a></p>
 {{if .Shared}}
-<div class="scroll">
-<table>
+<div class="scroll" role="region" tabindex="0" aria-label="My entries">
+<table><caption class="sr">My entries</caption>
   <thead><tr><th>When</th><th>Length</th><th>Rating</th><th>In spaces</th></tr></thead>
   <tbody>
   {{range .Shared}}
     <tr><td><a href="/entries/{{.ID | urlquery}}">{{.When}}</a></td><td>{{.Duration}}</td><td>{{.Rating}}</td>
     <td><form method="post" action="/entries/private"><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="id" value="{{.ID}}"><input type="hidden" name="page" value="{{$.PageNo}}">
-      {{if .Private}}<input type="hidden" name="private" value="0"><button class="btn secondary" type="submit">Private: share it</button>{{else}}<input type="hidden" name="private" value="1"><button class="btn secondary" type="submit">Shared: make private</button>{{end}}</form></td></tr>
+      {{if .Private}}<input type="hidden" name="private" value="0"><button class="btn secondary" type="submit" aria-label="Entry {{.When}} is private: share it">Private: share it</button>{{else}}<input type="hidden" name="private" value="1"><button class="btn secondary" type="submit" aria-label="Entry {{.When}} is shared: make private">Shared: make private</button>{{end}}</form></td></tr>
   {{end}}
   </tbody>
 </table>

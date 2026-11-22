@@ -11,7 +11,7 @@
 (function () {
   "use strict";
 
-  var timer = null, started = 0, baseText = "", banner = null, bannerText = null, locked = [];
+  var timer = null, started = 0, baseText = "", banner = null, bannerText = null, bannerSay = null, locked = [];
 
   function el(tag, cls) {
     var e = document.createElement(tag);
@@ -28,8 +28,13 @@
     var bar = el("progress");
     bar.setAttribute("aria-label", "Working");
     bannerText = el("span");
+    // The clock ticks every second, so it is not read out; a screen reader hears the message once,
+    // from this hidden twin (UI audit 2026-11-22).
+    bannerText.setAttribute("aria-hidden", "true");
+    bannerSay = el("span", "sr");
     banner.appendChild(bar);
     banner.appendChild(bannerText);
+    banner.appendChild(bannerSay);
     document.body.appendChild(banner);
   }
 
@@ -43,6 +48,7 @@
     baseText = msg || "Working...";
     started = Date.now();
     banner.hidden = false;
+    bannerSay.textContent = baseText;
     clock();
     if (timer) { clearInterval(timer); }
     timer = setInterval(clock, 1000);
@@ -50,7 +56,7 @@
 
   function hideBusy() {
     if (timer) { clearInterval(timer); timer = null; }
-    if (banner) { banner.hidden = true; }
+    if (banner) { banner.hidden = true; bannerSay.textContent = ""; }
     locked.forEach(function (b) { b.disabled = false; });
     locked = [];
   }
@@ -69,9 +75,13 @@
     var status = document.getElementById("status");
     var go = document.getElementById("go");
     var upStart = 0, upTimer = null;
-    var show = function (msg, bad) {
+    var say = document.getElementById("announce");
+    // say is true only when the message changes kind (starting, checking, failed), so a screen reader
+    // is not told the percentage or the clock every second.
+    var show = function (msg, bad, announce) {
       status.textContent = msg;
       status.className = bad ? "notice bad" : "muted";
+      if (announce && say) { say.textContent = msg; }
     };
     var stopUp = function () {
       if (upTimer) { clearInterval(upTimer); upTimer = null; }
@@ -85,13 +95,14 @@
       var x = new XMLHttpRequest();
       x.open("POST", upform.getAttribute("action"));
       x.setRequestHeader("X-Requested-With", "alcove");
-      var checking = false;
+      var checking = false, uploading = false;
       x.upload.onprogress = function (ev) {
         if (!ev.lengthComputable) { return; }
         var pct = Math.round((ev.loaded / ev.total) * 100);
         if (pct < 100) {
           bar.value = pct;
-          show("Uploading " + pct + "%");
+          show("Uploading " + pct + "%", false, !uploading);
+          uploading = true;
         } else if (!checking) {
           checking = true;
           bar.removeAttribute("value"); // from here on the length is unknown: an animated bar
@@ -99,7 +110,7 @@
           upTimer = setInterval(function () {
             show("Checking the backup. This can take a minute (" + Math.round((Date.now() - t0) / 1000) + " s).");
           }, 1000);
-          show("Checking the backup. This can take a minute.");
+          show("Checking the backup. This can take a minute.", false, true);
         }
       };
       x.onload = function () {
@@ -107,17 +118,17 @@
         try { r = JSON.parse(x.responseText); } catch (err) { r = null; }
         if (r && r.ok) { window.location.href = r.redirect || "/uploads"; return; }
         stopUp();
-        show((r && r.message) || "The upload failed (status " + x.status + ").", true);
+        show((r && r.message) || "The upload failed (status " + x.status + ").", true, true);
       };
       x.onerror = function () {
         stopUp();
-        show("The connection was lost before the upload finished. Nothing was saved. Try again.", true);
+        show("The connection was lost before the upload finished. Nothing was saved. Try again.", true, true);
       };
       go.disabled = true;
       bar.hidden = false;
       bar.value = 0;
       upStart = Date.now();
-      show("Starting the upload");
+      show("Starting the upload", false, true);
       x.send(new FormData(upform));
     });
   }
@@ -185,6 +196,26 @@
     }
   }
 
+  // The Backups page reloads itself while a job runs. With the script on, the person can pause that
+  // (WCAG 2.2.1): the meta refresh is swapped for a timer and a button that stops it.
+  var metaRefresh = document.querySelector('meta[http-equiv="refresh"]');
+  var mainBox = document.getElementById("main");
+  if (metaRefresh && mainBox) {
+    var every = parseInt(metaRefresh.getAttribute("content"), 10) || 10, paused = false;
+    metaRefresh.parentNode.removeChild(metaRefresh);
+    var pauseBtn = el("button", "btn secondary");
+    pauseBtn.type = "button";
+    pauseBtn.textContent = "Pause automatic refresh";
+    pauseBtn.setAttribute("aria-pressed", "false");
+    pauseBtn.addEventListener("click", function () {
+      paused = !paused;
+      pauseBtn.setAttribute("aria-pressed", paused ? "true" : "false");
+      pauseBtn.textContent = paused ? "Resume automatic refresh" : "Pause automatic refresh";
+    });
+    mainBox.insertBefore(pauseBtn, mainBox.firstChild);
+    setInterval(function () { if (!paused && !document.hidden) { window.location.reload(); } }, every * 1000);
+  }
+
   // A page restored from the back/forward cache must not still say "Working...".
   window.addEventListener("pageshow", function (ev) { if (ev.persisted) { hideBusy(); } });
 
@@ -206,11 +237,19 @@
   var hideBtn = document.getElementById("hide-screen");
   if (hideBtn) {
     var cover = null, realTitle = "";
+    // While the cover is up, the page behind it is inert: Tab stays on the cover and a screen reader
+    // does not read the hidden content out (UI audit 2026-11-22).
+    var setInert = function (on) {
+      var parts = document.querySelectorAll("body > header, body > main, body > footer, body > .banner");
+      for (var i = 0; i < parts.length; i++) {
+        if (on) { parts[i].setAttribute("inert", ""); } else { parts[i].removeAttribute("inert"); }
+      }
+    };
     var uncover = function () {
       if (!cover) { return; }
       cover.hidden = true;
       document.title = realTitle;
-      document.body.removeAttribute("aria-hidden");
+      setInert(false);
       hideBtn.focus();
     };
     var hideNow = function () {
@@ -223,6 +262,7 @@
       }
       realTitle = document.title;
       document.title = "New tab";
+      setInert(true);
       cover.hidden = false;
       cover.focus();
     };

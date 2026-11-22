@@ -4,14 +4,14 @@
 
 <h2>Uploads</h2>
 {{if .DeletedUploads}}
-<div class="scroll">
-<table>
-  <thead><tr><th>Person</th><th>File</th><th>Entries</th><th>Size</th><th>Deleted (UTC)</th><th>Removed after (UTC)</th><th></th></tr></thead>
+<div class="scroll" role="region" tabindex="0" aria-label="Deleted uploads">
+<table><caption class="sr">Deleted uploads</caption>
+  <thead><tr><th>Person</th><th>File</th><th>Entries</th><th>Size</th><th>Deleted (UTC)</th><th>Removed after (UTC)</th><th><span class="sr">Actions</span></th></tr></thead>
   <tbody>
   {{range .DeletedUploads}}
     <tr>
       <td>@{{.OwnerName}}</td><td>{{.Filename}}</td><td>{{.Entries}}</td><td>{{.Size}}</td><td>{{.DeletedAt}}</td><td>{{.Until}}</td>
-      <td><form method="post" action="/admin/deleted/restore" data-busy="Restoring..."><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="id" value="{{.RevisionID}}"><button class="btn secondary" type="submit">Restore</button></form></td>
+      <td><form method="post" action="/admin/deleted/restore" data-busy="Restoring..."><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="id" value="{{.RevisionID}}"><button class="btn secondary" type="submit" aria-label="Restore upload {{.Filename}} of {{.OwnerName}}">Restore</button></form></td>
     </tr>
   {{end}}
   </tbody>
@@ -23,13 +23,13 @@
 
 <h2>Accounts</h2>
 {{if .DeletedUsers}}
-<div class="scroll">
-<table>
-  <thead><tr><th>Person</th><th>Removed for good after (UTC)</th><th></th></tr></thead>
+<div class="scroll" role="region" tabindex="0" aria-label="Deleted accounts">
+<table><caption class="sr">Deleted accounts</caption>
+  <thead><tr><th>Person</th><th>Removed for good after (UTC)</th><th><span class="sr">Actions</span></th></tr></thead>
   <tbody>
   {{range .DeletedUsers}}
     <tr><td>@{{.Username}}</td><td>{{.Until}}</td>
-    <td><form method="post" action="/admin/users/restore"><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="id" value="{{.ID}}"><button class="btn secondary" type="submit">Restore</button></form></td></tr>
+    <td><form method="post" action="/admin/users/restore"><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="id" value="{{.ID}}"><button class="btn secondary" type="submit" aria-label="Restore {{.Username}}">Restore</button></form></td></tr>
   {{end}}
   </tbody>
 </table>

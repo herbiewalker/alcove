@@ -34,34 +34,34 @@
   <div class="actions"><button class="btn secondary" type="submit">Make an invite</button></div>
 </form>
 {{if .ServerInvites}}
-<div class="scroll">
-<table>
-  <thead><tr><th>Invite</th><th>Until (UTC)</th><th>State</th><th></th></tr></thead>
+<div class="scroll" role="region" tabindex="0" aria-label="Invites">
+<table><caption class="sr">Invites</caption>
+  <thead><tr><th>Invite</th><th>Until (UTC)</th><th>State</th><th><span class="sr">Actions</span></th></tr></thead>
   <tbody>
   {{range .ServerInvites}}
     <tr><td>{{if .Label}}{{.Label}}{{else}}<span class="muted">no note</span>{{end}}</td><td>{{.Expires}}</td><td>{{.State}}</td>
-    <td>{{if .Live}}<form method="post" action="/admin/invites/revoke"><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="id" value="{{.ID}}"><button class="btn secondary" type="submit">Cancel</button></form>{{end}}</td></tr>
+    <td>{{if .Live}}<form method="post" action="/admin/invites/revoke"><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="id" value="{{.ID}}"><button class="btn secondary" type="submit" aria-label="Cancel invite{{if .Label}} {{.Label}}{{end}}">Cancel</button></form>{{end}}</td></tr>
   {{end}}
   </tbody>
 </table>
 </div>
 {{end}}
 
-<div class="scroll">
-<table>
-  <thead><tr><th>Person</th><th>Role</th><th>State</th><th>Uploads</th><th>Last sign-in (UTC)</th><th></th></tr></thead>
+<div class="scroll" role="region" tabindex="0" aria-label="People">
+<table><caption class="sr">People</caption>
+  <thead><tr><th>Person</th><th>Role</th><th>State</th><th>Uploads</th><th>Last sign-in (UTC)</th><th><span class="sr">Actions</span></th></tr></thead>
   <tbody>
   {{range .Users}}
     <tr>
       <td><b>{{.Name}}</b><br><span class="muted">@{{.Username}}{{if .Self}} (you){{end}}</span></td>
       <td>{{.Role}}{{if .TwoOn}}<br><span class="muted small">two-step on</span>{{end}}</td><td>{{.State}}</td><td>{{.Uploads}}</td><td>{{.LastLogin}}</td>
       <td>
-        <a class="btn secondary" href="/admin/people/{{.ID}}">Data</a>
-        {{if .CanDisable}}<form method="post" action="/admin/users/disable"><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="id" value="{{.ID}}"><button class="btn secondary" type="submit">Disable</button></form>{{end}}
-        {{if .CanEnable}}<form method="post" action="/admin/users/enable"><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="id" value="{{.ID}}"><button class="btn secondary" type="submit">Enable</button></form>{{end}}
-        {{if .CanReset2FA}}<form method="post" action="/admin/users/reset2fa" data-busy="Turning off two-step sign-in..."><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="id" value="{{.ID}}"><button class="btn secondary" type="submit">Reset two-step</button></form>{{end}}
-        {{if .CanReset}}<form method="post" action="/admin/users/reset" data-busy="Making a temporary password..."><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="id" value="{{.ID}}"><button class="btn secondary" type="submit">Reset password</button></form>{{end}}
-        {{if .CanDelete}}<form method="post" action="/admin/users/delete" data-busy="Deleting the account..."><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="id" value="{{.ID}}"><button class="btn secondary" type="submit">Delete</button></form>{{end}}
+        <a class="btn secondary" href="/admin/people/{{.ID}}" aria-label="Data of {{.Name}}">Data</a>
+        {{if .CanDisable}}<form method="post" action="/admin/users/disable"><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="id" value="{{.ID}}"><button class="btn secondary" type="submit" aria-label="Disable {{.Name}}">Disable</button></form>{{end}}
+        {{if .CanEnable}}<form method="post" action="/admin/users/enable"><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="id" value="{{.ID}}"><button class="btn secondary" type="submit" aria-label="Enable {{.Name}}">Enable</button></form>{{end}}
+        {{if .CanReset2FA}}<form method="post" action="/admin/users/reset2fa" data-busy="Turning off two-step sign-in..."><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="id" value="{{.ID}}"><button class="btn secondary" type="submit" aria-label="Reset two-step {{.Name}}">Reset two-step</button></form>{{end}}
+        {{if .CanReset}}<form method="post" action="/admin/users/reset" data-busy="Making a temporary password..."><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="id" value="{{.ID}}"><button class="btn secondary" type="submit" aria-label="Reset password {{.Name}}">Reset password</button></form>{{end}}
+        {{if .CanDelete}}<form method="post" action="/admin/users/delete" data-busy="Deleting the account..."><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="id" value="{{.ID}}"><button class="btn secondary" type="submit" aria-label="Delete {{.Name}}">Delete</button></form>{{end}}
       </td>
     </tr>
   {{end}}
@@ -71,14 +71,14 @@
 
 {{if .DeletedUsers}}
 <h2>Deleted, waiting for removal</h2>
-<div class="scroll">
-<table>
-  <thead><tr><th>Person</th><th>Removed for good after (UTC)</th><th></th></tr></thead>
+<div class="scroll" role="region" tabindex="0" aria-label="Deleted accounts">
+<table><caption class="sr">Deleted accounts</caption>
+  <thead><tr><th>Person</th><th>Removed for good after (UTC)</th><th><span class="sr">Actions</span></th></tr></thead>
   <tbody>
   {{range .DeletedUsers}}
     <tr>
       <td><b>{{.Name}}</b><br><span class="muted">@{{.Username}}</span></td><td>{{.Until}}</td>
-      <td><form method="post" action="/admin/users/restore"><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="id" value="{{.ID}}"><button class="btn secondary" type="submit">Restore</button></form></td>
+      <td><form method="post" action="/admin/users/restore"><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="id" value="{{.ID}}"><button class="btn secondary" type="submit" aria-label="Restore {{.Name}}">Restore</button></form></td>
     </tr>
   {{end}}
   </tbody>

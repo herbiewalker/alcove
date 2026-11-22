@@ -3,8 +3,8 @@
 <p class="muted">What the members of this space show each other, newest first. {{.EntryTotal}} in all. Each time is in its owner's own time zone. Entries that are private, paused or from someone who has not agreed to the current wording are not here.</p>
 <p><a class="btn secondary" href="/spaces/{{.SpaceID}}">Back to the space</a> <a class="btn secondary" href="/entries">My entries</a></p>
 {{if .Shared}}
-<div class="scroll">
-<table>
+<div class="scroll" role="region" tabindex="0" aria-label="Shared entries">
+<table><caption class="sr">Shared entries</caption>
   <thead><tr><th>When</th><th>Who</th><th>Length</th><th>Rating</th><th>Note</th></tr></thead>
   <tbody>
   {{range .Shared}}

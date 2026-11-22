@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="color-scheme" content="light dark">
 <meta name="robots" content="noindex, nofollow">
-{{if .Refresh}}<meta http-equiv="refresh" content="4">{{end}}
+{{if .Refresh}}<meta http-equiv="refresh" content="10">{{end}}
 <title>{{.Title}} · Alcove</title>
 <link rel="icon" type="image/png" sizes="32x32" href="/static/mark-32.png">
 <link rel="apple-touch-icon" href="/static/mark-192.png">
@@ -13,6 +13,7 @@
 <script src="/static/ui.js" defer></script>
 </head>
 <body>
+<a class="skip" href="#main">Skip to content</a>
 <header class="top">
   <a class="brand" href="/"><img src="/static/mark-96.png" width="40" height="40" alt=""><span>Alcove</span></a>
   {{if .User}}
@@ -29,7 +30,7 @@
   {{end}}
 </header>
 {{if .Insecure}}<div class="banner warn" role="status">This connection is not encrypted. Anyone on this network could read what you send. Use it only on a wifi you trust, or put Alcove behind HTTPS (see the runbook).</div>{{end}}
-<main>
+<main id="main" tabindex="-1">
 {{if .Flash}}<p class="notice ok" role="status">{{.Flash}}</p>{{end}}
 {{if .Error}}<p class="notice bad" role="alert">{{.Error}}</p>{{end}}
 {{template "content" .}}

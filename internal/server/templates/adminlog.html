@@ -23,8 +23,8 @@
   {{if not .SteppedUp}}<p class="notice warn">Exporting asks for your password again. <a href="/stepup?next=/admin/log">Confirm it is you</a>.</p>{{end}}
   <div class="actions"><button class="btn secondary" type="submit">Download CSV</button></div>
 </form>
-<div class="scroll">
-<table>
+<div class="scroll" role="region" tabindex="0" aria-label="Admin log">
+<table><caption class="sr">Admin log</caption>
   <thead><tr><th>#</th><th>Time (UTC)</th><th>Who</th><th>Action</th><th>Target</th><th>Fields</th></tr></thead>
   <tbody>
   {{range .Entries}}
