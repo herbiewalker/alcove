@@ -76,10 +76,11 @@ func (s *Service) Export(ctx context.Context, owner, uploadPassword, password st
 			return export.Result{}, err
 		}
 	}
-	bk, err := s.read(ctx, owner, uploadID, sum, uploadPassword)
+	bk, release, err := s.read(ctx, owner, uploadID, sum, uploadPassword)
 	if err != nil {
 		return export.Result{}, err
 	}
+	defer release()
 	defer bk.Close()
 	return export.Build(export.Plan{Base: bk, Tables: tables, Password: password})
 }

@@ -1,5 +1,7 @@
 # Keeps the commit-pinned GitHub Actions current. Each update arrives as a pull request that
-# shows the new commit, so a pin moves only when someone reads and merges it.
+# shows the new commit, so a pin moves only when someone reads and merges it. CI does not run the release
+# job (it runs only on a tag), so for a bump to an action that release.yml uses, read that action's release
+# notes before merging and watch the next release run closely (docs/RELEASE_CHECKS.md).
 version: 2
 updates:
   - package-ecosystem: github-actions

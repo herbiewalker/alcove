@@ -123,6 +123,8 @@ jobs:
           subject-name: ${{ env.IMAGE }}
           subject-digest: ${{ steps.push.outputs.digest }}
           push-to-registry: true
+          # A storage record needs an organization-owned repository and an extra permission; this one is not.
+          create-storage-record: false
 
       - name: GitHub release
         env:

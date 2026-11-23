@@ -26,6 +26,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 	"unicode"
 
@@ -70,7 +71,7 @@ type Service struct {
 	sem chan struct{}
 }
 
-// New builds a service. At most one backup is decrypted at a time: each can hold up to MaxBytes in memory (audit 2026-11-21).
+// New builds a service. At most one backup is held in memory at a time, from decrypt to Close: each can hold up to MaxBytes (audit 2026-11-21, 2026-11-23).
 func New(st *store.Store, blobs *blobstore.Store) *Service {
 	return &Service{St: st, Blobs: blobs, Now: time.Now, sem: make(chan struct{}, 1)}
 }
@@ -187,10 +188,11 @@ func (s *Service) Upload(ctx context.Context, p Params, body io.Reader) (UploadI
 	}
 
 	// Trial decrypt and read every table with the bounded reader.
-	bk, err := s.read(ctx, p.Owner, id, sum, p.Password)
+	bk, release, err := s.read(ctx, p.Owner, id, sum, p.Password)
 	if err != nil {
 		return UploadInfo{}, err
 	}
+	defer release() // after bk.Close below: defers run last-in first-out
 	defer bk.Close()
 	status := bk.SchemaStatus()
 	if status == trystbk.SchemaInvalid {
@@ -263,30 +265,39 @@ func (s *Service) Upload(ctx context.Context, p Params, body io.Reader) (UploadI
 }
 
 // read opens the stored upload and decrypts it, mapping the reader's errors to refusals.
-func (s *Service) read(ctx context.Context, owner, id, sum, password string) (*trystbk.Backup, error) {
+//
+// The caller must call the returned release when it has finished with the backup, after bk.Close:
+// the slot is held for as long as the decrypted body is in memory, so at most one backup is ever
+// held at a time (audit 2026-11-23). On an error the slot is already released and release is a no-op.
+func (s *Service) read(ctx context.Context, owner, id, sum, password string) (bk *trystbk.Backup, release func(), err error) {
 	select {
 	case s.sem <- struct{}{}:
-		defer func() { <-s.sem }()
+		var once sync.Once
+		release = func() { once.Do(func() { <-s.sem }) }
 	case <-ctx.Done():
-		return nil, ctx.Err()
+		return nil, func() {}, ctx.Err()
+	}
+	fail := func(e error) (*trystbk.Backup, func(), error) {
+		release()
+		return nil, func() {}, e
 	}
 	f, err := s.Blobs.OpenUpload(owner, id, sum)
 	if err != nil {
-		return nil, err
+		return fail(err)
 	}
 	defer f.Close()
-	bk, err := trystbk.Read(f, password)
+	bk, err = trystbk.Read(f, password)
 	if err != nil {
 		switch {
 		case errors.Is(err, trystbk.ErrWrongPassword):
-			return nil, ErrWrongPassword
+			return fail(ErrWrongPassword)
 		case errors.Is(err, trystbk.ErrBadMagic), errors.Is(err, trystbk.ErrHeaderTruncated):
-			return nil, ErrNotBackup
+			return fail(ErrNotBackup)
 		default:
-			return nil, fmt.Errorf("%w (%s)", ErrDamaged, reason(err))
+			return fail(fmt.Errorf("%w (%s)", ErrDamaged, reason(err)))
 		}
 	}
-	return bk, nil
+	return bk, release, nil
 }
 
 // reason is a short, content-free label for a reader error.
@@ -477,10 +488,11 @@ func (s *Service) Rebuild(ctx context.Context, owner string) error {
 	if err != nil {
 		return err
 	}
-	bk, err := s.read(ctx, owner, uploadID, sum, pw)
+	bk, release, err := s.read(ctx, owner, uploadID, sum, pw)
 	if err != nil {
 		return err
 	}
+	defer release()
 	defer bk.Close()
 	now := s.Now()
 	if err := s.St.Update(ctx, true, func(tx *sql.Tx) error {

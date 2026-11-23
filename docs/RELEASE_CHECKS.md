@@ -25,3 +25,7 @@ Known: the x86_64 16K emulator image sometimes crashes Tryst in code unrelated t
 ### Merge mode (not part of the script)
 
 Checked by hand once, on Tryst 0.6.5 (D-43 addendum): restoring an export with the toggle **off** keeps entries that were deleted here, keeps their photos, and drops the partner links the file does not carry. That is why the export page tells people never to switch it off.
+
+## After a bump to an action that `release.yml` uses
+
+CI never runs the release job (it runs only on a tag), so a green pull request does not prove the bump works there. Before the next tag: read the release notes of every action that moved since the last release (`docker/setup-buildx-action`, `docker/login-action`, `docker/build-push-action`, `actions/attest-build-provenance`, Trivy), and compare the inputs and permissions each one needs with what `release.yml` gives it. Then watch that release run to the end; the attestation step comes after the tags are applied, so a failure there leaves a tagged image behind a red run.
