@@ -7,6 +7,10 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) · Versioning: 
 
 ## [Unreleased]
 
+## [0.1.4] - 2026-11-23
+
+Upgrading from 0.1.3: take an instance backup first. The update restarts the container and migrates the database (schema 11 to 12) by itself, and an older build refuses the migrated database, so going back means restoring that backup (RUNBOOK section 13). The join wording is now version 3, so each member agrees once more. The activity page is off until an administrator turns it on. Not yet tried by hand: the picture features on real phone backups.
+
 ### Added
 - Profile pictures and partner pictures (D-52). A member's own profile picture shows on their card in the space, and a partner's picture shows with the entry that partner is in; both come from the person's Tryst backup (profile and partner avatars) and appear after their next upload or a Rebuild. They follow the member's "include photos" choice and the pause, are blurred until tapped, have their metadata removed, and are shown to the space even where a partner's name is hidden (R35). Outside the space only the owner and administrators can see them. Administrators can now see all photos and pictures through the person pages; each look is in the admin log and on the member's activity page. **Upgrade:** schema 11 to 12 migrates by itself, and the join wording is now version 3, so each member agrees again once (RUNBOOK section 13).
 - Optional "Activity on my data" page for members (D-51, F25). Off until an administrator turns it on in Network and security, then every member gets a page under Account listing when an administrator (or the server's command line) opened or changed their data: time, kind and field names, no content and no administrator name. It is a read of the existing admin log, so there is no schema change. The page says what it cannot show (an administrator's search is logged by shape, not per person).
