@@ -17,7 +17,7 @@ stays small and never shows data) and a companion to **[Tryst](https://github.co
 [`tryst/docs/EXPORT_FORMAT.md`](../tryst/docs/EXPORT_FORMAT.md) before touching any crypto or any
 backup reading or writing here.
 
-**Status: built through M6 and released as v0.1.x.** The server, storage, accounts, uploads, backups, retention, spaces, shared entries, calendar and compare, photos, editing (including by the administrator) and export to Tryst all exist; the export round trip is proven on a Tryst emulator, not yet on a real phone. The
+**Status: built through M6 and released as v0.1.x.** An in-house audit round (six lenses and a delta-audit, 2026-11-21 to 2026-11-23) is done and fixed; see `docs/audits/2026-11-23-audit-summary.md`. The server, storage, accounts, uploads, backups, retention, spaces, shared entries, calendar and compare, photos, editing (including by the administrator) and export to Tryst all exist; the export round trip is proven on a Tryst emulator, not yet on a real phone. The
 next step is whatever `docs/ROADMAP.md` lists first. A change of design needs an ADR in
 `docs/DECISIONS.md` before the code.
 

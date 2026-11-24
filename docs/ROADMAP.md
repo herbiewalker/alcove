@@ -6,7 +6,7 @@
 > they are met. Crypto and storage come before views; the risky writer is proven early by a spike and finished late;
 > the web UI is mobile-first from the first page.
 >
-> **Updated 2026-11-18 (v0.1.3):** M0 to M6 are done. M7 (photos) is done (partner and profile pictures, D-52), M8 is mostly done (log filters, admin search, health, hide screen, QR codes, optional TOTP; notifications and the member activity view remain) and M9 (the audit) is not started, and the live validation (L1) is the owner's.
+> **Updated 2026-11-18 (v0.1.3):** M0 to M6 are done. M7 (photos) is done (partner and profile pictures, D-52), M8 is mostly done (log filters, admin search, health, hide screen, QR codes, optional TOTP; notifications and the member activity view remain) and M9 is partly done: the six single-lens audit passes and a delta-audit ran 2026-11-21 to 2026-11-23 and every finding was fixed (summary in `docs/audits/2026-11-23-audit-summary.md`). The manual accessibility pass, the first release run with the new action versions and the live validation (L1) are the owner's.
 
 
 ---
@@ -155,8 +155,9 @@
 
 ## M9 — Harden and release
 
-- [ ] Phase 3 audit passes, one lens per fresh session: **authorization and isolation (who can see what)**, crypto and
-      storage, secrets and logging, input and injection, build hardening, accessibility and mobile
+- [x] Phase 3 audit passes, one lens per fresh session: authorization and isolation, secrets, storage and logging, input and injection, build hardening, accessibility and mobile, then a delta-audit (2026-11-21 to 2026-11-23, all findings fixed; `docs/audits/2026-11-23-audit-summary.md`)
+- [ ] Manual accessibility pass on a real phone and with a screen reader
+- [ ] First release run with the new pinned actions (watch the attest step; see `docs/RELEASE_CHECKS.md`)
 - [ ] Final live validation on the real host and a real phone, then a release that says the audit passed (0.1.0 to 0.1.2 shipped earlier, before it)
 - **Exit:** the README says the audit has passed, and not before.
 

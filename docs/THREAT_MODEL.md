@@ -120,7 +120,7 @@ from the admin, D-3 must be revisited (per-owner keys, browser-side decryption),
 - **R20 — Backup passwords are stored, and a hostile upload is read in memory (D-29).** A remembered Tryst backup password is sealed under
   the owner's data key, which the master key unwraps, so the host operator and the admin can open it, as they can open everything else
   (R1). A member who wants less can untick "remember": rebuild, edit and export then ask again. A hostile upload is bounded by the reader
-  (header iteration cap, ZIP and size limits, 512 MiB), only one is decrypted at a time, and a refused one is deleted and recorded
+  (header iteration cap, ZIP and size limits, 512 MiB), only one is held in memory at a time (from decrypt until it is closed), and a refused one is deleted and recorded
   nowhere, so the cost of a bad upload is time and a few hundred MiB of memory for a moment, not stored data.
 - **R21 — The break-glass reset and a shared data folder (D-30).** `alcove reset-password` needs the data folder and the key file, so
   anyone who has those could already read everything (R1); it adds no new reader. It is recorded in the admin log by the system, forces

@@ -11,7 +11,7 @@
 ![LAN only](https://img.shields.io/badge/network-LAN_only-2ea44f)
 ![Nothing leaks outside a space](https://img.shields.io/badge/spaces-isolated-2ea44f)
 
-**Status: v0.1.3, built through the editing and export milestones plus most of the admin console (search, log filters, health, optional two-step sign-in), not yet independently audited.** The server runs, starts unattended with its key kept apart from the data, and has accounts, an admin console with a tamper-evident log, uploads of Tryst backups kept as revisions, encrypted instance backups with a tested restore, soft delete with a real purge, and private spaces joined by invite. Members see each other's entries (with private entries and pause honoured), profile cards, a shared calendar and compare views, and photos. You can **edit your entries on a computer** (and the administrator can edit anyone's, always logged) and **export a fresh `.tryst` to restore on your phone**. The export round trip is proven on a Tryst 0.6.5 **emulator** with synthetic data, **not yet on a real phone**. See [what is and is not proven](#what-is-and-is-not-proven).
+**Status: v0.1.3, built through the editing and export milestones plus most of the admin console (search, log filters, health, optional two-step sign-in), audited in-house (six lenses plus a delta-audit, all findings fixed), not yet independently audited.** The server runs, starts unattended with its key kept apart from the data, and has accounts, an admin console with a tamper-evident log, uploads of Tryst backups kept as revisions, encrypted instance backups with a tested restore, soft delete with a real purge, and private spaces joined by invite. Members see each other's entries (with private entries and pause honoured), profile cards, a shared calendar and compare views, and photos. You can **edit your entries on a computer** (and the administrator can edit anyone's, always logged) and **export a fresh `.tryst` to restore on your phone**. The export round trip is proven on a Tryst 0.6.5 **emulator** with synthetic data, **not yet on a real phone**. See [what is and is not proven](#what-is-and-is-not-proven).
 
 </div>
 
@@ -97,11 +97,12 @@ The round trip must be repeated for every Tryst release ([docs/RELEASE_CHECKS.md
 | [docs/ROADMAP.md](docs/ROADMAP.md) | milestones and their exit criteria |
 | [docs/DECISIONS.md](docs/DECISIONS.md) | the ADR log and open questions |
 | [docs/RELEASE_CHECKS.md](docs/RELEASE_CHECKS.md) | the checks that need an emulator or a phone, run before releases |
+| [docs/audits/](docs/audits/) | the audit round: one log per lens, a delta-audit and a summary |
 | [CRITICAL_ASSETS.md](CRITICAL_ASSETS.md) | what git deliberately does not hold |
 
 ## Known limitations
 
-- **No independent audit yet.** The constraints are enforced by tests and CI checks, but nobody outside the project has reviewed them (roadmap M9).
+- **No independent audit yet.** The constraints are enforced by tests and CI checks, and the project ran its own audit round in November 2026 (six single-lens passes and a delta-audit, logs and a summary in [`docs/audits/`](docs/audits/)). Nobody outside the project has reviewed it, and the accessibility work has not yet been tried with a real screen reader.
 - **Server-side trust.** The host operator can read the data; there are no per-user keys that hide it from the admin.
 - **Plain HTTP on the LAN.** Content crosses your home network unencrypted by default (a secured wifi is assumed). HTTPS is available through a reverse proxy or Tailscale, enabled by the admin (R14, D-23).
 - **Manual phone round trip.** Edits reach the phone by exporting a backup and restoring it with "Replace my current data" on, not by sync. Anything added on the phone since the last upload is lost by that restore unless you export a fresh backup from the phone first (the page makes you confirm).
