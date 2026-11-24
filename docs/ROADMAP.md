@@ -6,7 +6,7 @@
 > they are met. Crypto and storage come before views; the risky writer is proven early by a spike and finished late;
 > the web UI is mobile-first from the first page.
 >
-> **Updated 2026-11-18 (v0.1.3):** M0 to M6 are done. M7 (photos) is done (partner and profile pictures, D-52), M8 is mostly done (log filters, admin search, health, hide screen, QR codes, optional TOTP; notifications and the member activity view remain) and M9 is partly done: the six single-lens audit passes and a delta-audit ran 2026-11-21 to 2026-11-23 and every finding was fixed (summary in `docs/audits/2026-11-23-audit-summary.md`). The manual accessibility pass, the first release run with the new action versions and the live validation (L1) are the owner's.
+> **Updated 2026-11-24 (v0.1.4):** M0 to M6 are done. M7 (photos) is done (partner and profile pictures, D-52), M8 is mostly done (log filters, admin search, health, hide screen, QR codes, optional TOTP, the member activity view; only notifications remain) and M9 is partly done: the six single-lens audit passes and a delta-audit ran 2026-11-21 to 2026-11-23 and every finding was fixed (summary in `docs/audits/2026-11-23-audit-summary.md`). The first release run with the new action versions went green with v0.1.4 (2026-11-23). The manual accessibility pass and the live validation (L1) are the owner's.
 
 
 ---
