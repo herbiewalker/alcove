@@ -157,7 +157,7 @@
 
 - [x] Phase 3 audit passes, one lens per fresh session: authorization and isolation, secrets, storage and logging, input and injection, build hardening, accessibility and mobile, then a delta-audit (2026-11-21 to 2026-11-23, all findings fixed; `docs/audits/2026-11-23-audit-summary.md`)
 - [ ] Manual accessibility pass on a real phone and with a screen reader
-- [ ] First release run with the new pinned actions (watch the attest step; see `docs/RELEASE_CHECKS.md`)
+- [x] First release run with the new pinned actions (v0.1.4, 2026-11-23: release workflow green, GHCR public)
 - [ ] Final live validation on the real host and a real phone, then a release that says the audit passed (0.1.0 to 0.1.2 shipped earlier, before it)
 - **Exit:** the README says the audit has passed, and not before.
 
